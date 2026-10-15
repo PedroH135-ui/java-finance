@@ -1,5 +1,15 @@
 # Validação da fundação
 
+## Leitura automática — 14/10/2026
+
+- 44 testes backend aprovados: 6 unitários e 38 integrações. Nove cenários novos cobrem autenticação de máquina,
+  deduplicação, falha/retentativa, gerações concorrentes, lease ativo/expirado, recuperação diária, datas futuras,
+  conta desativada, itens não permitidos, limite do corpo, preservação do CSRF e janelas históricas com sobreposição.
+- Lint/build e 2 testes unitários frontend aprovados; 8 cenários Playwright aprovados, com capturas de 390/1440 px
+  para o status automático, início futuro e falha. Nenhuma escrita financeira é feita pela automação.
+- A migração V7 foi validada em PostgreSQL descartável. Os testes automatizados não usam os segredos reais nem o Neon.
+- A homologação da primeira atualização real depende do próximo ciclo da Pluggy e da data inicial do vínculo.
+
 ## Conexões bancárias pessoais — 14/10/2026
 
 - 6 testes unitários backend e 29 integrações PostgreSQL passaram (35 no total). Incluem 4 testes de protocolo HTTP com respostas simuladas e 10 integrações do módulo bancário.

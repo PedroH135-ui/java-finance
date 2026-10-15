@@ -57,7 +57,7 @@ Não executar `docker compose config`/`vercel env pull` publicando a saída com 
 8. Ignorar não cria nem cancela lançamentos. Cancelar um lançamento financeiro existente continua sendo uma ação explícita em Movimentações.
 
 Identificação é por vínculo e ID externo, não apenas descrição. IDs alterados pelo provedor dependem de revisão de correspondências.
-Não há sincronização automática por cron/webhook nesta etapa, reconciliação automática de saldos nem importação de cartões/faturas.
+Há leitura automática por webhook/cron, mas não reconciliação automática de saldos nem importação de cartões/faturas.
 O frontend não soma dinheiro com Number; cálculos monetários permanecem em BigDecimal/NUMERIC e decimais textuais.
 
 ## Desativar e privacidade
@@ -67,6 +67,38 @@ revogar também no Meu Pluggy/banco quando desejado. Reativação exige que a co
 Não persistimos senhas bancárias, chaves de API, números completos de conta, CPF, resposta bruta ou dados de identidade nas tabelas deste módulo.
 Persistimos identificadores, descrições, valores, datas, vínculo e auditoria necessários à revisão financeira. São dados privados do proprietário.
 As respostas autenticadas não são armazenadas pelo service worker; o cache offline continua restrito a arquivos públicos.
+
+## Atualização automática — 14/10/2026
+
+- Evento `item/updated` do MeuPluggy aciona `POST /api/banking/hooks/pluggy`. O provedor envia um segredo independente no
+  cabeçalho `X-JavaFinance-Webhook`. O endpoint não aceita a sessão do navegador como autorização, não segue URLs do payload,
+  ignora `clientUserId`, aceita só itens explicitamente configurados e limita o corpo a 8 KiB. Outros eventos são ignorados.
+- Configurar `PLUGGY_WEBHOOK_SECRET` e `CRON_SECRET` independentes, aleatórios, com pelo menos 32 caracteres, somente no backend.
+  Sem ambos, a automação fica desativada. As rotas normais continuam exigindo sessão e CSRF.
+- O cron da Vercel chama `GET /api/banking/jobs/daily` com `Authorization: Bearer <CRON_SECRET>` uma vez por dia, às 09:00 UTC
+  (06:00 de São Paulo, sujeito à janela de execução do plano). Recupera avisos perdidos e tarefas pendentes mesmo sem o site aberto.
+- Migração aditiva V7: caixa de entrada de eventos deduplicados, tarefas persistidas por proprietário/item, gerações e lease de 10 minutos.
+  A notificação é persistida antes da consulta. Retentativas não duplicam eventos, lançamentos ou processamento simultâneo.
+  Se o processo for interrompido, a tarefa volta a poder ser executada após expirar o lease.
+- O handler tenta concluir a leitura na própria requisição. Se demorar mais de 10 segundos, o provedor pode considerar falha e
+  reenviar (até três tentativas segundo a documentação). A fila e o cron mantêm a recuperação independente dessas retentativas.
+  Não há promessa de tempo real, execução exatamente uma vez ou entrega infalível do webhook.
+- A primeira consulta respeita `importFrom`. Históricos grandes avançam em janelas de até 93 dias, com sobreposição de 7 dias;
+  depois de em dia, são reconferidos os últimos 93 dias. O cursor só avança após sucesso. Limite de 2.000 registros por janela:
+  se ultrapassado, a tentativa fica pendente e exige consulta manual em período menor; não avança silenciosamente.
+- Contas desativadas e datas futuras não são consultadas. “Desativar leitura aqui” interrompe também a automação.
+- Os dados novos entram somente em revisão. A automação não chama importação, categorização paga, pagamento ou atualização forçada do banco.
+  Exclusões no provedor não cancelam automaticamente registros já persistidos; alterações além da janela exigem revisão histórica manual.
+- A página bancária recarrega os registros locais a cada 30 segundos enquanto visível, sem consultar a Pluggy pelo navegador.
+  Mostra cobertura da última leitura automática, data inicial futura e aviso de falha. O saldo do sistema continua baseado no ledger.
+
+Registrar apenas um webhook `item/updated` para a URL HTTPS de produção; antes de criar, listar assinaturas e reaproveitar a
+assinatura deste endpoint se existir. Não usar `all`, não remover assinaturas de outros sistemas e nunca inserir segredo na URL.
+É necessário registrar o webhook além de configurar as variáveis; a presença das variáveis não prova que a assinatura existe.
+
+Referências: [MeuPluggy e webhooks](https://docs.pluggy.ai/en/docs/guides/meu-pluggy-personal-use),
+[eventos e retentativas](https://v2.docs.pluggy.ai/en/reference/webhooks),
+[cron e proteção na Vercel](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 
 ## Implementação e testes
 

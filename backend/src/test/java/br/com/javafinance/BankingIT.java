@@ -29,6 +29,7 @@ class BankingIT {
     @Autowired BankService bank; @Autowired BankProperties config; @Autowired UserService users;
     @Autowired AccountService accounts; @Autowired CategoryService categories; @Autowired MovementService movements;
     @Autowired JdbcTemplate jdbc; @Autowired Clock clock; @Autowired MockMvc mvc;
+    @Autowired BankAutoSync automatic;
     @MockitoBean BankProvider provider;
     UUID owner,item,external; UserPrincipal principal; AccountService.View account;
     LocalDate today,date; BankProvider.Snapshot snapshot;
@@ -36,6 +37,8 @@ class BankingIT {
         owner=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Banco fictício","UmaSenhaSegura123!")).id();
         principal=new UserPrincipal(owner,"",0); item=UUID.randomUUID(); external=UUID.randomUUID(); today=LocalDate.now(clock); date=today.minusDays(2);
         config.setOwnerId(owner); config.setClientId("synthetic-client"); config.setClientSecret("synthetic-secret"); config.setItemIds(Set.of(item));
+        config.setWebhookSecret("synthetic-webhook-secret-at-least-32-characters");
+        config.setCronSecret("synthetic-cron-secret-at-least-32-characters");
         account=accounts.create(owner,new AccountService.Create("Nubank fictício","",Account.Kind.CHECKING,"1000",today.minusDays(10)));
         snapshot=new BankProvider.Snapshot(clock.instant(),List.of(new BankProvider.RemoteAccount(external,"Conta Nubank fictícia","BANK","BRL",new BigDecimal("950.00"))));
         when(provider.accounts(item)).thenReturn(snapshot);
@@ -172,5 +175,109 @@ class BankingIT {
         } finally { pool.shutdownNow(); }
         assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("949.75");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND source='MEU_PLUGGY'",Long.class,owner)).isEqualTo(1);
+    }
+    String event(UUID eventId, UUID itemId) {
+        return "{\"event\":\"item/updated\",\"eventId\":\""+eventId+"\",\"itemId\":\""+itemId+"\",\"clientUserId\":\"untrusted-ignored\"}";
+    }
+    @Test void webhookAuthenticatesWithoutSessionAndDuplicateDeliveryNeverPostsLedger() throws Exception {
+        var link=bind(); UUID eventId=UUID.randomUUID();
+        when(provider.transactions(external,link.importFrom(),today)).thenReturn(List.of(remote("automatic-1","25","POSTED")));
+        for(int i=0;i<2;i++) mvc.perform(post("/api/banking/hooks/pluggy").header("X-JavaFinance-Webhook",config.getWebhookSecret())
+            .contentType("application/json").content(event(eventId,item))).andExpect(status().isNoContent());
+        assertThat(bank.entries(owner,link.id(),0)).hasSize(1).allMatch(e->e.state().equals("REVIEW"));
+        assertThat(bank.links(owner).getFirst().autoCheckedThrough()).isEqualTo(today);
+        verify(provider,times(1)).transactions(external,link.importFrom(),today);
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND kind!='OPENING'",Long.class,owner)).isZero();
+    }
+    @Test void failedWebhookIsDurableAndSameDeliveryRetriesSuccessfully() throws Exception {
+        var link=bind(); UUID eventId=UUID.randomUUID();
+        when(provider.transactions(external,link.importFrom(),today)).thenThrow(ApiException.bad("Provider failed"));
+        mvc.perform(post("/api/banking/hooks/pluggy").header("X-JavaFinance-Webhook",config.getWebhookSecret()).content(event(eventId,item))).andExpect(status().isServiceUnavailable());
+        assertThat(bank.links(owner).getFirst().autoErrorAt()).isNotNull();
+        assertThat(bank.links(owner).getFirst().autoCheckedThrough()).isNull();
+        allowSync(link.id());
+        doReturn(List.of(remote("retry-1","25","POSTED"))).when(provider).transactions(external,link.importFrom(),today);
+        mvc.perform(post("/api/banking/hooks/pluggy").header("X-JavaFinance-Webhook",config.getWebhookSecret()).content(event(eventId,item))).andExpect(status().isNoContent());
+        assertThat(bank.links(owner).getFirst().autoErrorAt()).isNull();
+        assertThat(bank.entries(owner,link.id(),0)).hasSize(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM bank_sync_event WHERE owner_id=?",Long.class,owner)).isEqualTo(1);
+    }
+    @Test void anEventDuringProcessingRemainsPendingAndDailyPollingRecoversWithoutWebhook() {
+        var link=bind(); automatic.enqueue(item,"first");
+        when(provider.transactions(external,link.importFrom(),today)).thenAnswer(invocation->{
+            automatic.enqueue(item,"arrived-during-processing"); return List.of();
+        });
+        assertThat(automatic.process(item)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT requested_version-completed_version FROM bank_sync_job WHERE owner_id=? AND item_id=?",Long.class,owner,item)).isEqualTo(1);
+        allowSync(link.id());
+        when(provider.transactions(external,link.importFrom(),today)).thenReturn(List.of());
+        assertThat(automatic.daily()).isTrue();
+        assertThat(automatic.daily()).isTrue(); // Same-day cron retry does not create another job/read.
+        assertThat(jdbc.queryForObject("SELECT requested_version-completed_version FROM bank_sync_job WHERE owner_id=? AND item_id=?",Long.class,owner,item)).isZero();
+        verify(provider,times(2)).transactions(external,link.importFrom(),today);
+    }
+    @Test void activeLeasePreventsConcurrentProcessingAndExpiredLeaseCanRecover() {
+        var link=bind(); automatic.enqueue(item,"lease-test");
+        jdbc.update("UPDATE bank_sync_job SET lease_token=?,lease_until=? WHERE owner_id=? AND item_id=?",UUID.randomUUID(),java.sql.Timestamp.from(clock.instant().plusSeconds(600)),owner,item);
+        clearInvocations(provider);
+        assertThat(automatic.process(item)).isFalse(); verifyNoInteractions(provider);
+        jdbc.update("UPDATE bank_sync_job SET lease_until=? WHERE owner_id=? AND item_id=?",java.sql.Timestamp.from(clock.instant().minusSeconds(1)),owner,item);
+        when(provider.transactions(external,link.importFrom(),today)).thenReturn(List.of());
+        assertThat(automatic.process(item)).isTrue();
+        assertThat(bank.links(owner).getFirst().autoCheckedThrough()).isEqualTo(today);
+    }
+    @Test void automationSkipsFutureStartAndDisconnectedLinksAndCannotReadForeignItems() {
+        bank.bind(owner,new BankService.Bind(item,external,account.id(),today.plusDays(1),true));
+        var link=bank.links(owner).getFirst(); clearInvocations(provider);
+        assertThat(automatic.daily()).isTrue(); verifyNoInteractions(provider);
+        assertThat(automatic.enqueue(UUID.randomUUID(),"foreign-item")).isFalse();
+        bank.disconnect(owner,link.id());
+        automatic.enqueue(item,"disabled-link");
+        assertThat(automatic.process(item)).isTrue(); verifyNoInteractions(provider);
+        assertThat(bank.links(owner).getFirst().autoCheckedThrough()).isNull();
+    }
+    @Test void longHistoryUsesBoundedResumableWindowsAndKeepsOpeningBoundary() {
+        var historical=accounts.create(owner,new AccountService.Create("Historical","",Account.Kind.CHECKING,"1000",today.minusDays(181)));
+        bank.bind(owner,new BankService.Bind(item,external,historical.id(),today.minusDays(180),true));
+        var link=bank.links(owner).getFirst();
+        when(provider.transactions(eq(external),any(LocalDate.class),any(LocalDate.class))).thenReturn(List.of());
+        automatic.enqueue(item,"history"); assertThat(automatic.process(item)).isFalse();
+        LocalDate firstTo=link.importFrom().plusDays(92);
+        assertThat(bank.links(owner).getFirst().autoCheckedThrough()).isEqualTo(firstTo);
+        verify(provider).transactions(external,link.importFrom(),firstTo);
+        allowSync(link.id()); assertThat(automatic.process(item)).isFalse();
+        LocalDate secondTo=firstTo.minusDays(6).plusDays(92);
+        verify(provider).transactions(external,firstTo.minusDays(6),secondTo);
+        allowSync(link.id()); assertThat(automatic.process(item)).isTrue();
+        assertThat(bank.links(owner).getFirst().autoCheckedThrough()).isEqualTo(today);
+    }
+    @Test void machineEndpointsRejectSessionOnlyInvalidSecretsMalformedAndOversizedPayloads() throws Exception {
+        mvc.perform(post("/api/banking/hooks/pluggy").with(user(principal)).with(csrf()).content(event(UUID.randomUUID(),item))).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/banking/jobs/daily").with(user(principal))).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/banking/jobs/daily").header("Authorization","Bearer wrong")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/banking/hooks/pluggy").header("X-JavaFinance-Webhook",config.getWebhookSecret()).content("{")).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/banking/hooks/pluggy").header("X-JavaFinance-Webhook",config.getWebhookSecret()).content("x".repeat(8193))).andExpect(status().isPayloadTooLarge());
+        mvc.perform(post("/api/banking/hooks/pluggy").header("X-JavaFinance-Webhook",config.getWebhookSecret()).content(event(UUID.randomUUID(),UUID.randomUUID()))).andExpect(status().isNoContent());
+        mvc.perform(post("/api/banking/links").with(user(principal)).contentType("application/json").content("{}")).andExpect(status().isForbidden());
+        verifyNoInteractions(provider);
+    }
+    @Test void dailyEndpointUsesSeparateSecretAndMissingConfigurationFailsClosed() throws Exception {
+        bind(); when(provider.transactions(eq(external),any(LocalDate.class),any(LocalDate.class))).thenReturn(List.of());
+        mvc.perform(get("/api/banking/jobs/daily").header("Authorization","Bearer "+config.getCronSecret())).andExpect(status().isNoContent());
+        clearInvocations(provider); config.setWebhookSecret("");
+        mvc.perform(get("/api/banking/jobs/daily").header("Authorization","Bearer "+config.getCronSecret())).andExpect(status().isUnauthorized());
+        assertThat(automatic.daily()).isFalse(); verifyNoInteractions(provider);
+        assertThat(bank.config(owner).automaticRead()).isFalse();
+    }
+    @Test void dailyRolloverRechecksNinetyThreeDaysRatherThanOnlyNewDay() {
+        var historical=accounts.create(owner,new AccountService.Create("Historical","",Account.Kind.CHECKING,"1000",today.minusDays(181)));
+        bank.bind(owner,new BankService.Bind(item,external,historical.id(),today.minusDays(180),true));
+        var link=bank.links(owner).getFirst();
+        jdbc.update("UPDATE bank_link SET auto_checked_through=? WHERE id=?",today.minusDays(1),link.id());
+        when(provider.transactions(external,today.minusDays(92),today)).thenReturn(List.of());
+        automatic.enqueue(item,"new-day"); assertThat(automatic.process(item)).isTrue();
+        verify(provider).transactions(external,today.minusDays(92),today);
+        assertThat(bank.links(owner).getFirst().autoCheckedThrough()).isEqualTo(today);
     }
 }

@@ -41,6 +41,8 @@ app:
     client-secret: ${PLUGGY_CLIENT_SECRET:}
     owner-id: ${PLUGGY_OWNER_ID:}
     item-ids: ${PLUGGY_ITEM_IDS:}
+    webhook-secret: ${PLUGGY_WEBHOOK_SECRET:}
+    cron-secret: ${CRON_SECRET:}
   hosting: ${APP_HOSTING:local}
   registration-enabled: ${REGISTRATION_ENABLED:false}
   allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}

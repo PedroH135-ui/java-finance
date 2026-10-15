@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { today } from '../src/lib/format';
 
 // Isolated UI test: no production session, provider calls or financial writes.
 for (const ready of [true, false]) {
@@ -45,3 +46,34 @@ for (const ready of [true, false]) {
     expect(requests.every(r => r.startsWith('GET '))).toBe(true);
   });
 }
+
+test('atualização automática: status, data inicial e falha sem importação automática', async ({ page }, info) => {
+  const date = today(), tomorrow = new Date(date + 'T12:00:00Z'); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  let failed = false;
+  const requests: string[] = [];
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    requests.push(route.request().method() + ' ' + path);
+    let body: unknown;
+    if (path === '/api/auth/me') body = { id: 'profile-test', name: 'Perfil de teste', email: 'test@example.test' };
+    else if (path === '/api/banking/config') body = { ready: true, automaticRead: true, userId: 'profile-test', items: ['item-test'], provider: 'Meu Pluggy' };
+    else if (path === '/api/banking/links') body = [{ id: 'link-test', name: 'Nubank de teste', accountId: 'account-test', active: true,
+      importFrom: tomorrow.toISOString().slice(0, 10), lastCheckedAt: null, providerUpdatedAt: null, reportedBalance: null,
+      autoCheckedThrough: null, autoErrorAt: failed ? date + 'T12:00:00Z' : null }];
+    else if (path === '/api/banking/links/link-test/entries') body = [];
+    else throw new Error('Unexpected request: ' + path);
+    await route.fulfill({ json: body });
+  });
+  await page.goto('/#/banking');
+  await expect(page.getByText(/Atualização automática ativa:/)).toBeVisible();
+  await expect(page.getByText(/A leitura começa em/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Consultar dados', exact: true })).toBeDisabled();
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`banking-automatic-${width}.png`), fullPage: true });
+  }
+  failed = true; await page.reload();
+  await expect(page.getByText(/A última tentativa automática não foi concluída/)).toBeVisible();
+  expect(requests.every(r => r.startsWith('GET '))).toBe(true);
+});

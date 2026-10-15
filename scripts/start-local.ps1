@@ -5,7 +5,7 @@ Push-Location $taskRoot
 try {
     if (!(Test-Path -LiteralPath '.env')) { throw 'Crie .env a partir de .env.example e defina uma senha local para o banco.' }
     @('.env', '.env.banking.local') | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-Content -LiteralPath $_ } | ForEach-Object {
-        if ($_ -match '^(DB_NAME|DB_USER|DB_PASSWORD|APP_PORT|REGISTRATION_ENABLED|COOKIE_SECURE|PLUGGY_CLIENT_ID|PLUGGY_CLIENT_SECRET|PLUGGY_OWNER_ID|PLUGGY_ITEM_IDS)=(.*)$') {
+        if ($_ -match '^(DB_NAME|DB_USER|DB_PASSWORD|APP_PORT|REGISTRATION_ENABLED|COOKIE_SECURE|PLUGGY_CLIENT_ID|PLUGGY_CLIENT_SECRET|PLUGGY_OWNER_ID|PLUGGY_ITEM_IDS|PLUGGY_WEBHOOK_SECRET|CRON_SECRET)=(.*)$') {
             [Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process')
         }
     }
