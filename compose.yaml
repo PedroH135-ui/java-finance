@@ -1,0 +1,38 @@
+name: java-finance
+services:
+  db:
+    image: postgres:16.10-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-java_finance}
+      POSTGRES_USER: ${DB_USER:-java_finance}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no arquivo .env}
+    volumes:
+      - finance-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  app:
+    build: .
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-java_finance}
+      SERVER_ADDRESS: 0.0.0.0
+      DB_USER: ${DB_USER:-java_finance}
+      DB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no arquivo .env}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      PLUGGY_CLIENT_ID: ${PLUGGY_CLIENT_ID:-}
+      PLUGGY_CLIENT_SECRET: ${PLUGGY_CLIENT_SECRET:-}
+      PLUGGY_OWNER_ID: ${PLUGGY_OWNER_ID:-}
+      PLUGGY_ITEM_IDS: ${PLUGGY_ITEM_IDS:-}
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  finance-data:
+
