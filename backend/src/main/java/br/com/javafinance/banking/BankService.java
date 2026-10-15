@@ -15,12 +15,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 @Service
 public class BankService {
-    public record Config(boolean ready, UUID userId, List<UUID> items, String provider) {}
+    public record Config(boolean ready, UUID userId, List<UUID> items, String provider, boolean automaticRead) {}
     public record Bind(@NotNull UUID itemId, @NotNull UUID externalAccountId, @NotNull UUID accountId, @NotNull LocalDate importFrom, boolean confirmedBaseline) {}
     public record Sync(@NotNull LocalDate from, @NotNull LocalDate to) {}
     public record Review(long version, UUID categoryId, UUID movementId, boolean confirmedNature, boolean reviewedDuplicates) {}
     public record Link(UUID id, UUID itemId, UUID externalAccountId, UUID accountId, String name, LocalDate importFrom,
-                       boolean active, Instant lastCheckedAt, Instant providerUpdatedAt, BigDecimal reportedBalance) {}
+                       boolean active, Instant lastCheckedAt, Instant providerUpdatedAt, BigDecimal reportedBalance,
+                       LocalDate autoCheckedThrough, Instant autoErrorAt) {}
     public record Candidate(UUID id, String description, BigDecimal amount, LocalDate date, String kind) {}
     public record Entry(UUID id, UUID linkId, String accountName, String description, BigDecimal amount, LocalDate date,
                         String direction, String providerStatus, String state, UUID movementId, long version, List<Candidate> candidates) {}
@@ -31,7 +32,7 @@ public class BankService {
     }
     public Config config(UUID owner) {
         boolean allowed=owner.equals(config.getOwnerId());
-        return new Config(allowed && config.ready(),owner,allowed ? config.getItemIds().stream().sorted().toList() : List.of(),"Meu Pluggy · uso pessoal · somente leitura");
+        return new Config(allowed && config.ready(),owner,allowed ? config.getItemIds().stream().sorted().toList() : List.of(),"Meu Pluggy · uso pessoal · somente leitura",allowed && config.automationReady());
     }
     private void owner(UUID owner) {
         if (!owner.equals(config.getOwnerId())) throw new ApiException(org.springframework.http.HttpStatus.FORBIDDEN,"Conexão pessoal não habilitada para este perfil.");
@@ -46,7 +47,8 @@ public class BankService {
         owner(owner);
         return jdbc.query("SELECT * FROM bank_link WHERE owner_id=? ORDER BY name,id",(rs,n)->new Link(rs.getObject("id",UUID.class),rs.getObject("item_id",UUID.class),
             rs.getObject("external_account_id",UUID.class),rs.getObject("account_id",UUID.class),rs.getString("name"),rs.getObject("import_from",LocalDate.class),rs.getBoolean("active"),
-            instant(rs.getTimestamp("last_checked_at")),instant(rs.getTimestamp("provider_updated_at")),rs.getBigDecimal("reported_balance")),owner);
+            instant(rs.getTimestamp("last_checked_at")),instant(rs.getTimestamp("provider_updated_at")),rs.getBigDecimal("reported_balance"),
+            rs.getObject("auto_checked_through",LocalDate.class),instant(rs.getTimestamp("auto_error_at"))),owner);
     }
     public void bind(UUID owner, Bind input) {
         if(!input.confirmedBaseline()) throw ApiException.bad("Confirme a data e o saldo de abertura antes de vincular a conta.");

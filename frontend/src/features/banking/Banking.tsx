@@ -9,8 +9,8 @@ import type { Account, Category } from '../../lib/types';
 import { civilDate, money, today } from '../../lib/format';
 import { Empty, Failure, FormDialog, Loading, PageHeader, Panel } from '../../components/Shared';
 
-interface Config { ready: boolean; userId: string; items: string[]; provider: string }
-interface BankLink { id: string; name: string; accountId: string; importFrom: string; active: boolean; lastCheckedAt: string | null; providerUpdatedAt: string | null; reportedBalance: string | null }
+interface Config { ready: boolean; userId: string; items: string[]; provider: string; automaticRead?: boolean }
+interface BankLink { id: string; name: string; accountId: string; importFrom: string; active: boolean; lastCheckedAt: string | null; providerUpdatedAt: string | null; reportedBalance: string | null; autoCheckedThrough?: string | null; autoErrorAt?: string | null }
 interface Candidate { id: string; description: string; amount: string; date: string; kind: string }
 interface Entry { id: string; linkId: string; accountName: string; description: string; amount: string; date: string; direction: string; providerStatus: string; state: string; movementId: string | null; version: number; candidates: Candidate[] }
 const states: Record<string, string> = { REVIEW: 'Revisar', IMPORTED: 'Importado', MATCHED: 'Vinculado', IGNORED: 'Ignorado', CHANGED: 'Alterado no banco' };
@@ -22,7 +22,7 @@ export function Banking() {
   const client = useQueryClient();
   const config = useQuery({ queryKey: ['bankConfig'], queryFn: () => api<Config>('/banking/config') });
   const ready = config.data?.ready ?? false;
-  const links = useQuery({ queryKey: ['bankLinks'], queryFn: () => api<BankLink[]>('/banking/links'), enabled: ready });
+  const links = useQuery({ queryKey: ['bankLinks'], queryFn: () => api<BankLink[]>('/banking/links'), enabled: ready, refetchInterval: ready ? 30000 : false });
   const [selected, setSelected] = useState(''), [page, setPage] = useState(0), [binding, setBinding] = useState(false);
   const bindingRequested = binding || params.get('new') === '1';
   function closeBinding() {
@@ -34,7 +34,7 @@ export function Banking() {
   const [review, setReview] = useState<{ entry: Entry; action: string } | null>(null);
   const selectedId = links.data?.some(l => l.id === selected) ? selected : links.data?.[0]?.id ?? '';
   const selectedLink = links.data?.find(l => l.id === selectedId);
-  const entries = useQuery({ queryKey: ['bankEntries', selectedId, page], queryFn: () => api<Entry[]>(`/banking/links/${selectedId}/entries?page=${page}`), enabled: ready && !!selectedId });
+  const entries = useQuery({ queryKey: ['bankEntries', selectedId, page], queryFn: () => api<Entry[]>(`/banking/links/${selectedId}/entries?page=${page}`), enabled: ready && !!selectedId, refetchInterval: ready && !!selectedId ? 30000 : false });
   async function refresh() {
     await Promise.all(['bankLinks', 'bankEntries', 'accounts', 'movements', 'summary', 'budgets'].map(key => client.invalidateQueries({ queryKey: [key] })));
   }
@@ -52,10 +52,11 @@ export function Banking() {
           <Button startIcon={<Refresh/>} onClick={() => void config.refetch()}>Verificar configuração</Button></Stack>
       </Stack>
     </Panel> : <>
-      <Typography color="text.secondary" mb={2}>O Meu Pluggy atualiza as conexões diariamente. “Consultar dados” lê a cópia disponível; não força uma atualização do banco.</Typography>
+      {config.data?.automaticRead && <Alert severity="success" sx={{ mb: 2 }}>Atualização automática ativa: recebemos os avisos do Meu Pluggy e fazemos uma verificação diária de segurança, mesmo com o site fechado. Os lançamentos ficam para sua revisão; nenhum saldo é alterado automaticamente.</Alert>}
+      <Typography color="text.secondary" mb={2}>O Meu Pluggy atualiza as conexões diariamente, não em tempo real. “Consultar dados” continua disponível como opção manual e não força atualização no banco.</Typography>
       {links.isPending ? <Loading/> : links.error ? <Failure error={links.error} retry={() => void links.refetch()}/> : links.data && <>
         {links.data.length === 0 ? <Paper variant="outlined"><Empty title="Vincule a conta já autorizada" action={<Button onClick={() => setBinding(true)}>Escolher conta</Button>}>Reaproveite uma conta do sistema e confirme a data inicial para não duplicar o saldo de abertura.</Empty></Paper> : <Stack spacing={2}>
-          {links.data.map(link => <LinkCard key={link.id} link={link} onUpdated={refresh}/>)}
+          {links.data.map(link => <LinkCard key={link.id} link={link} automaticRead={!!config.data?.automaticRead} onUpdated={refresh}/>)}
         </Stack>}
         {selectedId && <Box mt={3}>
           <TextField select label="Conta para revisão" value={selectedId} onChange={event => { setSelected(event.target.value); setPage(0); }} fullWidth sx={{ mb: 2 }}>
@@ -87,7 +88,7 @@ export function Banking() {
   </>;
 }
 
-function LinkCard({ link, onUpdated }: { link: BankLink; onUpdated: () => Promise<void> }) {
+function LinkCard({ link, automaticRead, onUpdated }: { link: BankLink; automaticRead: boolean; onUpdated: () => Promise<void> }) {
   const [from, setFrom] = useState(link.importFrom > shift(today(), -30) ? link.importFrom : shift(today(), -30));
   const [to, setTo] = useState(today()), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   async function action(name: string) {
@@ -102,6 +103,9 @@ function LinkCard({ link, onUpdated }: { link: BankLink; onUpdated: () => Promis
   return <Panel title={link.name} subtitle={`Importação a partir de ${civilDate(link.importFrom)} · ${link.active ? 'Leitura ativa' : 'Leitura desativada'}`}>
     <Stack spacing={2}>
       {error && <Alert severity="error">{error}</Alert>}{notice && <Alert severity="info">{notice}</Alert>}
+      {link.active && link.importFrom > today() && <Alert severity="info">A leitura começa em {civilDate(link.importFrom)}, respeitando o saldo de abertura. Não há período disponível para consulta antes dessa data.</Alert>}
+      {automaticRead && link.active && <Typography variant="body2">Última leitura automática: {link.autoCheckedThrough ? `dados conferidos até ${civilDate(link.autoCheckedThrough)}` : 'Aguardando primeira atualização após a data inicial.'} A lista desta tela é atualizada a cada 30 segundos enquanto estiver aberta.</Typography>}
+      {link.autoErrorAt && link.active && <Alert severity="warning">A última tentativa automática não foi concluída ({dateTime(link.autoErrorAt)}). O trabalho foi preservado para nova tentativa. Você também pode consultar manualmente; se o problema persistir, confira a autorização no Meu Pluggy.</Alert>}
       <Typography variant="body2">Última consulta: {dateTime(link.lastCheckedAt)}<br/>Atualização no provedor: {dateTime(link.providerUpdatedAt)}</Typography>
       <Typography variant="body2">Saldo informado pelo provedor: {link.reportedBalance === null ? 'Não disponível' : money(link.reportedBalance)}. Apenas informativo; pode diferir do saldo registrado aqui.</Typography>
       <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}><TextField type="date" label="Consultar desde" value={from} onChange={event => setFrom(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: link.importFrom, max: today() } }}/>

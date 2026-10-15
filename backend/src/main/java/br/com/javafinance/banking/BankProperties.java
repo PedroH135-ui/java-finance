@@ -8,12 +8,18 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix="app.banking")
 public class BankProperties {
     private String clientId = "", clientSecret = "";
+    private String webhookSecret = "", cronSecret = "";
     private UUID ownerId;
     private Set<UUID> itemIds = new HashSet<>();
     public String getClientId() { return clientId; }
     public void setClientId(String value) { clientId = value; }
     public String getClientSecret() { return clientSecret; }
     public void setClientSecret(String value) { clientSecret = value; }
+    public String getWebhookSecret() { return webhookSecret; }
+    public void setWebhookSecret(String value) { webhookSecret = value; }
+    public String getCronSecret() { return cronSecret; }
+    public void setCronSecret(String value) { cronSecret = value; }
+    public boolean automationReady() { return ready() && webhookSecret.length() >= 32 && cronSecret.length() >= 32; }
     public UUID getOwnerId() { return ownerId; }
     public void setOwnerId(UUID value) { ownerId = value; }
     public Set<UUID> getItemIds() { return itemIds; }

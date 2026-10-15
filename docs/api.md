@@ -82,6 +82,18 @@ GET /reports/summary?month=AAAA-MM.
 Saldo atual, competência, fluxo de caixa, taxa de economia, categorias, seis meses e próximas previsões.
 Sempre restrito ao proprietário autenticado. Ver regras financeiras para critérios.
 
+## Automação bancária
+
+- `GET /banking/config` inclui `automaticRead` (somente true para proprietário configurado e segredos de automação presentes).
+- `GET /banking/links` inclui `autoCheckedThrough` e `autoErrorAt`; não inclui chaves de API.
+- `POST /banking/hooks/pluggy`: endpoint de máquina com cabeçalho `X-JavaFinance-Webhook`, sem sessão/CSRF.
+  Corpo até 8 KiB: `{ "event": "item/updated", "eventId": "UUID", "itemId": "UUID" }`.
+  Campos de identidade e URLs adicionais não são utilizados. Evento duplicado reaproveita a tarefa existente.
+- `GET /banking/jobs/daily`: endpoint de máquina com `Authorization: Bearer <CRON_SECRET>`, recuperação diária.
+- Automação: 204 concluído/ignorado, 401 não autorizado/configuração ausente, 400 corpo inválido, 413 corpo grande,
+  503 trabalho pendente (preservado para nova tentativa, `Retry-After: 300`). Nenhuma resposta contém dados financeiros.
+- Apenas estas duas rotas de máquina dispensam CSRF; as demais escritas bancárias continuam exigindo sessão e token CSRF.
+
 ## Orçamentos
 
 - `GET /budgets?month=AAAA-MM`: categorias de despesa, limites, efetivados, previstos, restante, percentual e totais.

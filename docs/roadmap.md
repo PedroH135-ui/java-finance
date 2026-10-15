@@ -26,6 +26,8 @@ Testes de fundação, documentação e restore em banco descartável validados. 
 ## Próxima tarefa
 Conexões bancárias pessoais implementadas em 14/10/2026, com leitura e importação após revisão. Testes automatizados usam simulações.
 Configuração privada concluída; autenticação e descoberta de uma conta real MeuPluggy validadas sem consultar lançamentos.
+Leitura automática acrescentada: avisos `item/updated`, recuperação diária, caixa de entrada persistida, retentativas,
+cursor histórico e status na interface. Importação continua manual e revisada; não altera automaticamente o ledger.
 Homologar o vínculo e a revisão de lançamentos com o usuário após a publicação. Ver `conexoes-bancarias.md`.
 Orçamentos validados para esta publicação. Em seguida implementar importação CSV por lote em módulo próprio,
 com prévia, revisão de duplicidades e confirmação; acrescentar OFX após validar um parser compatível.

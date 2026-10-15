@@ -33,6 +33,11 @@ Em Configurações há **Instalar aplicativo** e instruções. É um PWA, sem AP
 
 Conexões bancárias: consultar `conexoes-bancarias.md`. O novo módulo depende das quatro variáveis PLUGGY_* apenas no backend.
 `.env.banking.local` é privado e não é enviado no build; configurar as variáveis de produção explicitamente, sem imprimir segredos.
+Para leitura automática, configurar também `PLUGGY_WEBHOOK_SECRET` e `CRON_SECRET`, independentes, e registrar o webhook
+`item/updated` para `/api/banking/hooks/pluggy`, com o primeiro segredo no cabeçalho `X-JavaFinance-Webhook`.
+`vercel.json` configura a recuperação diária às 09:00 UTC; a Vercel envia o segundo segredo como Bearer.
+Não expor estes segredos no frontend, em URLs, no Git ou em logs. Verificar rejeição de chamadas sem autenticação,
+existência da assinatura no provedor e migração V7 antes de considerar a atualização automática ativada.
 Antes de ativar, validar o proprietário pessoal e o conector MeuPluggy correto. Não usar trial comercial como garantia de gratuidade.
 
 Na pasta ativa, com Vercel CLI atual e autenticação válida:
