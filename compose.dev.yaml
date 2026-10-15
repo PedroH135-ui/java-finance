@@ -1,0 +1,6 @@
+# Apenas desenvolvimento: banco acessível exclusivamente no loopback.
+services:
+  db:
+    ports:
+      - "127.0.0.1:55432:5432"
+

@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+!.env.example
+.cloud
+.test-db
+.vercel
+**/node_modules
+**/target
+**/target-cloud
+frontend/dist
+frontend/test-results
+frontend/playwright-report
+artifacts
+*.dump
+*.log

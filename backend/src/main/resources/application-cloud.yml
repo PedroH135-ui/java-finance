@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 4
+      minimum-idle: 0
+      connection-timeout: 30000
+      idle-timeout: 60000
+      max-lifetime: 240000
+server:
+  forward-headers-strategy: native
+  shutdown: graceful
+  servlet:
+    session:
+      cookie:
+        secure: ${COOKIE_SECURE:true}
+app:
+  hosting: cloud
