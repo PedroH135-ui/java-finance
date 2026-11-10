@@ -6,9 +6,11 @@ import { resolve } from 'node:path';
 const [neonCli, vercelCli] = process.argv.slice(2);
 if (!neonCli || !vercelCli) throw new Error('Provide paths to neonctl and Vercel CLI JavaScript entrypoints.');
 const root = resolve(import.meta.dirname, '..');
-const project = process.env.NEON_PROJECT_ID;
-const scope = process.env.VERCEL_SCOPE;
-if (!project || !scope) throw new Error('Configure NEON_PROJECT_ID and VERCEL_SCOPE privately.');
+const project = process.env.NEON_PROJECT_ID?.trim();
+const scope = process.env.VERCEL_SCOPE?.trim();
+if (!project || !scope || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(project) || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(scope)) {
+  throw new Error('Set NEON_PROJECT_ID and VERCEL_SCOPE privately before provisioning.');
+}
 const container = 'java-finance-db-1';
 let password = '';
 function run(command, args, options = {}) {

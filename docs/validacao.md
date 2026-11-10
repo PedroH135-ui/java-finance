@@ -1,5 +1,14 @@
 # Validação da fundação
 
+## Segurança e privacidade — 10/11/2026
+
+- Documentação pública sem relatos de vínculos bancários, caminhos pessoais ou identificadores administrativos de instâncias.
+- Provisionamento exige `NEON_PROJECT_ID` e `VERCEL_SCOPE` privados antes de chamar as CLIs; três testes verificam a recusa de configuração ausente ou inválida.
+- Frontend: lint, dois testes unitários e build aprovados após atualizar Vitest e a dependência transitiva do linter. Auditoria npm completa sem alertas.
+- Verificação de arquivos privados validada com seis cenários de exemplos permitidos e dados privados bloqueados. CI passa a verificar arquivos, segredos e dependências; Dependabot também cobre Maven e imagens Docker.
+- Secret scanning, proteção no push, alertas/correções de dependências e relatos privados de vulnerabilidades ativados no GitHub. Commits novos usam noreply.
+- Esta alteração não modifica o backend Java e não reexecutou sua suíte de integração. A publicação nas branches principais e a limpeza do histórico antigo dependem de autorização específica.
+
 ## Leitura automática — 14/10/2026
 
 - 44 testes backend aprovados: 6 unitários e 38 integrações. Nove cenários novos cobrem autenticação de máquina,
@@ -20,7 +29,7 @@
 - 5 cenários Playwright passaram: configuração ausente, fluxo bancário com rotas do provedor simuladas,
   orçamentos, fundação e PWA/offline. Capturas mobile/desktop revisadas. A tela bancária não solicita senha ou chave.
 - Banco de testes: PostgreSQL 16.14 dedicado em 127.0.0.1:55433; nenhuma consulta ao banco pessoal, Neon ou instituição bancária.
-- Os testes automatizados usam dados fictícios. Registros de instâncias permanecem privados.
+- Os testes automatizados não equivalem à homologação de uma conexão bancária real. A configuração e as evidências de instâncias ficam em registros privados.
 
 ## Módulo Orçamentos — 13/10/2026
 
@@ -72,9 +81,9 @@ Atualização cloud/PWA em 07/10/2026: 2 testes unitários e 12 integrações ba
 incluindo persistência de sessão JDBC entre repositórios e logout. Lint, 2 testes unitários frontend,
 build e os 2 cenários Playwright (financeiro/responsivo e PWA/offline/cache) passaram.
 A imagem completa foi compilada remotamente pela Vercel e publicada com runtime em `gru1`.
-A migração cloud exige backup e verificação de integridade em ambiente privado.
+A migração cloud exige comparação de integridade e backup privado. Contagens e dados de instâncias não são publicados neste documento.
 Produção: health 200, perfil sem login 401, login inválido 401, cadastro público 403,
-sessão HTTPS Secure/HttpOnly/SameSite=Strict. Não foi feito login usando a senha pessoal do usuário.
+sessão HTTPS Secure/HttpOnly/SameSite=Strict. A validação utiliza credenciais exclusivas de teste.
 O cenário Playwright de PWA também passou no endereço público HTTPS (`java-finance.vercel.app`),
 incluindo service worker, dimensões dos ícones, modo sem conexão e ausência de APIs no cache.
 
@@ -89,7 +98,7 @@ incluindo service worker, dimensões dos ícones, modo sem conexão e ausência 
 - Backend: 35 testes aprovados (6 unitários e 29 de integração), usando PostgreSQL descartável na porta 55433.
 - Frontend: lint, build, 2 testes unitários e 7 testes de navegador aprovados.
 - Banco de produção: backup privado gerado antes da aplicação das migrações aditivas V5/V6.
-- Homologações de instâncias são registradas em ambiente privado.
+- Conexão bancária: registrar a homologação e suas evidências somente no ambiente privado de administração.
 - Chaves, banco descartável, backups, traces e artefatos gerados excluídos do Git e do envio à Vercel.
 
 ## Teste de navegador

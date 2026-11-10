@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "personal-email"
+description = "Endereço pessoal em arquivo público; use domínio fictício nos exemplos."
+regex = '''(?i)[a-z0-9._%+-]+@(?:gmail\.com|hotmail\.com|outlook\.com|yahoo\.com(?:\.br)?)'''
+keywords = ["gmail.com", "hotmail.com", "outlook.com", "yahoo.com"]
+

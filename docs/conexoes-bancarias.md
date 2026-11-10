@@ -2,7 +2,7 @@
 
 ## Estado desta entrega
 
-Módulo implementado e validado com dados simulados. Registros de instâncias e homologação permanecem privados.
+Módulo implementado no código e validado com dados simulados. A configuração, os vínculos e as evidências de homologação de cada instalação permanecem privados. Nenhuma credencial ou dado bancário real é usado nos testes automatizados.
 
 A visão geral oferece o atalho **Vincular meu banco**, que abre diretamente o formulário em `/#/banking?new=1`.
 Se a configuração do servidor estiver pendente, mostra as orientações sem abrir o formulário nem consultar contas do provedor.
@@ -13,7 +13,7 @@ incluindo o fechamento do formulário e o layout de 390 px, sem acessar o banco 
 
 Conforme documentação consultada em 14/10/2026, o caminho pessoal permite até 5 conexões, sem uso comercial, com dados reais
 e sem expirar junto ao trial comercial. Os bancos são autorizados primeiro no Meu Pluggy; no Dashboard escolhe-se **MeuPluggy**
-para acessar essas conexões. Não selecionar diretamente instituição bancária nem contratar plano de produção comercial.
+para acessar essas conexões. Não selecionar diretamente uma instituição bancária nem contratar plano de produção comercial.
 As condições podem mudar. A gratuidade não se estende automaticamente a oferecer integrações para clientes de um produto.
 
 O provedor atualiza as conexões diariamente. Nosso botão consulta a cópia já disponível, não dispara atualização no banco.
@@ -29,7 +29,7 @@ Referências oficiais:
 
 1. Entrar no [Dashboard](https://dashboard.pluggy.ai) com a conta do Meu Pluggy.
 2. Em Applications → aplicação pessoal → Demo → Connect Account, escolher **MeuPluggy** e conectar o portal pessoal.
-3. Em Connected Items, copiar o itemId correspondente à conta do instituição bancária. A listagem GET /v2/items não é usada/não está disponível neste caminho pessoal.
+3. Em Connected Items, copiar o itemId correspondente à conta autorizada. A listagem GET /v2/items não é usada/não está disponível neste caminho pessoal.
 4. Obter Client ID e Client Secret da aplicação. Nunca compartilhar esses valores no chat, prints, traces ou arquivos públicos.
 5. Preencher as três variáveis correspondentes em `.env.banking.local`, que é ignorado pelo Git, Docker e Vercel.
 6. Conferir o `PLUGGY_OWNER_ID` do perfil correto do Java Finance antes de ativar. Não confundir com itemId nem com ID de conta bancária.
@@ -109,4 +109,4 @@ Referências: [MeuPluggy e webhooks](https://docs.pluggy.ai/en/docs/guides/meu-p
 - Testes de tela usam simulações apenas nas rotas bancárias; cadastro/login/contas/categorias usam o backend descartável real.
 - Não executar cenários de cadastro/escrita no domínio de produção. Não publicar traces de dados reais ou segredos.
 
-Limitação: o comportamento real do instituição bancária/Meu Pluggy ainda precisa ser validado após configurar as credenciais pessoais.
+Limitação: o comportamento de uma conexão real via Meu Pluggy ainda precisa ser validado após configurar as credenciais pessoais.

@@ -3,15 +3,15 @@ Aplicação de finanças pessoais, com execução local e publicação web/PWA. 
 
 **Entrega incremental:** fundação da V1. Não é a V1 inteira. Consulte [roadmap](docs/roadmap.md).
 
-## Iniciar neste computador
+## Iniciar no Windows
 
-Com Docker Desktop aberto, execute na pasta ativa:
+Clone o repositório em uma pasta local. Com Docker Desktop aberto e o build preparado, execute na raiz do projeto:
 
 ```powershell
 .\scripts\start-local.ps1 -EnableRegistration -SkipBuild
 ```
 
-Abra http://127.0.0.1:8080 e crie sua própria conta. Não há senha padrão nem dados fictícios no banco pessoal.
+Abra http://127.0.0.1:8080 e crie sua própria conta. A instalação não cria usuários nem senhas padrão.
 Depois do cadastro, encerre com Ctrl+C e execute `./scripts/start-local.ps1 -SkipBuild` para desabilitar novos cadastros
 (mantenha `REGISTRATION_ENABLED=false` no .env). O parâmetro `-SkipBuild` usa o JAR já compilado;
 omita-o depois de alterar código. Esse modo executa PostgreSQL no Docker e o Java com React integrado no Windows.
@@ -100,7 +100,7 @@ Nunca usa o banco financeiro local para esses testes.
 Teste de navegador: [roteiro e instruções](docs/validacao.md).
 
 ## Documentação
-- [Conexão pessoal com instituição bancária/Meu Pluggy](docs/conexoes-bancarias.md)
+- [Conexões bancárias via Meu Pluggy](docs/conexoes-bancarias.md)
 - [Publicação e aplicativo mobile](docs/publicacao.md)
 - [Arquitetura](docs/arquitetura.md)
 - [Regras financeiras](docs/regras-financeiras.md)

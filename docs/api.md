@@ -17,7 +17,7 @@ Base `/api/banking`. Sessão e CSRF nas escritas. Configuração ausente não at
 
 PENDING não é importado/vinculado. Alterações no provedor geram CHANGED; nunca reescrevem automaticamente lançamentos já confirmados.
 Outros perfis recebem 403, itens não permitidos recebem 404. Falhas do provedor são sanitizadas (502), sem respostas brutas ou chaves.
-Detalhes de segurança, configuração e limites em `conexoes-bancarias.md`. Validação real instituição bancária ainda pendente.
+Detalhes de segurança, configuração e limites em `conexoes-bancarias.md`. Homologação de conexões reais deve ser registrada em ambiente privado.
 Base /api. JSON UTF-8. Datas civis AAAA-MM-DD; competência AAAA-MM-01; valores monetários como strings, ex. "125.50".
 Autenticação por cookie de sessão. Antes de POST/PATCH/PUT obtenha GET /auth/csrf e envie token no headerName retornado.
 Erros de validação: {message, fields}. 401: sessão ausente; 403: CSRF/permissão; 404: registro não acessível; 409: concorrência/unicidade; 429: tentativas.
