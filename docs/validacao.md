@@ -7,7 +7,7 @@
 - Frontend: lint, dois testes unitários e build aprovados após atualizar Vitest e a dependência transitiva do linter. Auditoria npm completa sem alertas.
 - Verificação de arquivos privados validada com seis cenários de exemplos permitidos e dados privados bloqueados. CI passa a verificar arquivos, segredos e dependências; Dependabot também cobre Maven e imagens Docker.
 - Secret scanning, proteção no push, alertas/correções de dependências e relatos privados de vulnerabilidades ativados no GitHub. Commits novos usam noreply.
-- Esta alteração não modifica o backend Java e não reexecutou sua suíte de integração. A publicação nas branches principais e a limpeza do histórico antigo dependem de autorização específica.
+- Esta alteração não modifica o backend Java e não reexecutou sua suíte de integração. O responsável autorizou em 10/11/2026 a publicação nas branches principais e a limpeza do histórico antigo, com backups privados preservados.
 
 ## Leitura automática — 14/10/2026
 
