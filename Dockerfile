@@ -13,7 +13,7 @@ COPY backend/ .
 COPY --from=web /web/dist /build/frontend/dist
 RUN mvn -B -ntp -Pintegrated -DskipTests package
 
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:25-jre-jammy
 WORKDIR /app
 RUN groupadd --system finance && useradd --system --gid finance finance
 COPY --from=backend /build/backend/target/java-finance-0.1.0.jar app.jar
