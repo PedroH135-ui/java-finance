@@ -1,21 +1,33 @@
+# Propostas gerais de versão ficam sob revisão manual.
+# O limite zero não desativa PRs de segurança, que possuem limite próprio no GitHub.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
+    groups:
+      frontend-security:
+        applies-to: security-updates
+        patterns: ['*']
   - package-ecosystem: maven
     directory: /backend
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
+    groups:
+      backend-security:
+        applies-to: security-updates
+        patterns: ['*']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
 

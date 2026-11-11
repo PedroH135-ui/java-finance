@@ -28,3 +28,15 @@ Revisão de 10/11/2026: Vitest atualizado para 4.1.12. O uso transitivo de `mini
 O override fica restrito ao linter; reavaliá-lo quando typescript-eslint adotar uma versão corrigida.
 Lint, testes e build devem ser executados ao atualizar esse override. O CI audita também as ferramentas de desenvolvimento.
 
+## Revisão dos PRs de manutenção — 11/11/2026
+
+Os PRs #4, #6 e #13 foram incorporados: ações checkout/setup-node fixadas por SHA e react-number-format 5.4.5.
+A combinação passou em lint, dois testes unitários, build e auditoria npm completa. Nove cenários do componente monetário
+foram verificados no Chrome com dados fictícios, incluindo remoção do sinal negativo com prefixo, casas decimais e limpeza.
+Os workflows dos três PRs também foram reexecutados e aprovados antes do merge.
+
+As propostas automáticas gerais de versão ficam pausadas por `open-pull-requests-limit: 0`.
+Alertas e PRs corretivos de segurança continuam ativos, com agrupamento por frontend/backend. Migrações de Java, Node,
+Spring Boot, Material UI e demais versões principais exigem planejamento e testes próprios. Não há merge automático.
+O CI atual valida o frontend e a verificação de segredos; mudanças de backend ou imagens exigem também testes Java e Docker.
+
