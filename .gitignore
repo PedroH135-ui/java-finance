@@ -24,3 +24,4 @@ artifacts/
 .vercel/
 .cloud/
 .test-db/
+.tools/
