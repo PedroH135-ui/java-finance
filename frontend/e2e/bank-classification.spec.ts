@@ -30,7 +30,7 @@ test('classificação exige revisão e categoria, sem requisição para alterar 
   expect(writes).toHaveLength(0);
   await page.getByRole('button', { name: 'Revisar classificação', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Revisar classificação', exact: true });
-  await expect(dialog.getByText(/sem descontar o valor novamente/)).toBeVisible();
+  await expect(dialog.getByText(/descontar o valor novamente/)).toBeVisible();
   await dialog.getByRole('button', { name: 'Confirmar classificação', exact: true }).click();
   expect(writes).toHaveLength(0);
   await dialog.getByRole('combobox', { name: 'Categoria', exact: true }).click();

@@ -31,7 +31,7 @@ class BankingIT {
     @Autowired BankService bank; @Autowired BankProperties config; @Autowired UserService users;
     @Autowired AccountService accounts; @Autowired CategoryService categories; @Autowired MovementService movements;
     @Autowired JdbcTemplate jdbc; @Autowired Clock clock; @Autowired MockMvc mvc;
-    @Autowired BankAutoSync automatic; @Autowired ReportService reports; @Autowired BudgetService budgets; @Autowired LedgerService ledger;
+    @Autowired BankAutoSync automatic; @Autowired ReportService reports; @Autowired BudgetService budgets; @Autowired LedgerService ledger; @Autowired FinancialRecordService feed;
     @MockitoBean BankProvider provider;
     UUID owner,item,external; UserPrincipal principal; AccountService.View account;
     LocalDate today,date; BankProvider.Snapshot snapshot;
@@ -208,6 +208,9 @@ class BankingIT {
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND kind IN ('INCOME','EXPENSE')",Long.class,owner)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE owner_id=? AND state='MATCHED'",Long.class,owner)).isEqualTo(2);
+        assertThat(reports.summary(owner,YearMonth.from(date)).records()).isZero();
+        assertThat(reports.summary(owner,YearMonth.from(date)).cashFlow()).isZero();
+        assertThat(feed.list(owner,account.openingDate(),today,destination.id(),null,Movement.Kind.TRANSFER,null,"",0,20,"operationDate","desc","operationDate",false).total()).isEqualTo(1);
     }
     @Test void simultaneousConfirmationsCannotCreateTwoMovements() throws Exception {
         var link=bind(); var entry=sync(link,List.of(remote("concurrent","50.25","POSTED"))); UUID category=category();
@@ -272,12 +275,85 @@ class BankingIT {
             new BankProvider.RemoteAccount(external,"Nubank fictício","BANK","BRL",new BigDecimal("900")))));
         sync(link,List.of(remote("new-pending","50","POSTED")));
         assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("900");
-        assertThat(reports.summary(owner,YearMonth.from(date)).cashFlow()).isEqualByComparingTo("-50");
+        assertThat(reports.summary(owner,YearMonth.from(date)).cashFlow()).isEqualByComparingTo("-100");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM posting WHERE movement_id=?",Long.class,manual.id())).isEqualTo(1);
         UUID other=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Outro","UmaSenhaSegura123!")).id();
         accounts.create(other,new AccountService.Create("Manual","",Account.Kind.WALLET,"17",today.minusDays(1)));
         assertThat(accounts.list(other)).hasSize(1);
         assertThat(reports.summary(other,YearMonth.from(today)).balance()).isEqualByComparingTo("17");
+    }
+    FinancialRecordService.Page feed(boolean hidden,int page,int size) {
+        return feed.list(owner,account.openingDate(),today,null,null,null,null,"",page,size,"operationDate","desc","operationDate",hidden);
+    }
+    @Test void bankRecordsAppearAndFeedReportsAutomaticallyWithoutCreatingMovementsOrPostings() {
+        var link=bind();
+        sync(link,List.of(remote("expense","50","POSTED"),remote("pending","900","PENDING"),
+            new BankProvider.RemoteEntry("income","Entrada fictícia",new BigDecimal("100"),date,"CREDIT","POSTED")));
+        clearInvocations(provider);
+        assertThat(feed(false,0,20).items()).hasSize(4); // Opening + three bank records, including pending.
+        var summary=reports.summary(owner,YearMonth.from(date));
+        assertThat(summary.competence().income()).isEqualByComparingTo("100");
+        assertThat(summary.competence().expenses()).isEqualByComparingTo("50");
+        assertThat(summary.cashFlow()).isEqualByComparingTo("50");
+        assertThat(summary.records()).isEqualTo(2);
+        assertThat(summary.unclassifiedBankRecords()).isEqualTo(2);
+        assertThat(summary.categories()).singleElement().satisfies(c->{assertThat(c.id()).isNull();assertThat(c.name()).isEqualTo("Sem categoria");assertThat(c.total()).isEqualByComparingTo("50");});
+        assertThat(budgets.month(owner,YearMonth.from(date)).totals().unbudgetedSpent()).isEqualByComparingTo("50");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND kind!='OPENING'",Long.class,owner)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM posting WHERE owner_id=?",Long.class,owner)).isEqualTo(1);
+        assertThat(bank.entries(owner,link.id(),0)).allSatisfy(e->assertThat(e.state()).isEqualTo("REVIEW"));
+        verifyNoInteractions(provider);
+    }
+    @Test void hidingIsReversibleAuditedAndSurvivesSyncWhileBalancesStayUnchanged() {
+        var link=bind(); var entry=sync(link,List.of(remote("hidden","50","POSTED")));
+        bank.visibility(owner,entry.id(),new BankService.Visibility(entry.version(),true,"Não representa gasto"));
+        assertThat(feed(true,0,20).items()).singleElement().satisfies(e->assertThat(e.bankEntryId()).isEqualTo(entry.id()));
+        assertThat(reports.summary(owner,YearMonth.from(date)).competence().expenses()).isZero();
+        assertThat(budgets.month(owner,YearMonth.from(date)).totals().unbudgetedSpent()).isZero();
+        assertThatThrownBy(()->bank.visibility(owner,entry.id(),new BankService.Visibility(entry.version(),false,""))).isInstanceOf(ApiException.class);
+        allowSync(link.id()); var updated=sync(link,List.of(remote("hidden","60","POSTED")));
+        assertThat(feed(true,0,20).items()).singleElement().satisfies(e->assertThat(e.amount()).isEqualByComparingTo("60"));
+        bank.disconnect(owner,link.id()); // Visibility edits still work with bank reads paused.
+        bank.visibility(owner,entry.id(),new BankService.Visibility(updated.version(),false,"Registro corrigido"));
+        assertThat(feed(true,0,20).items()).isEmpty();
+        assertThat(reports.summary(owner,YearMonth.from(date)).competence().expenses()).isEqualByComparingTo("60");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_event WHERE owner_id=? AND resource_id=? AND action IN ('BANK_HIDDEN','BANK_RESTORED')",Long.class,owner,entry.id())).isEqualTo(2);
+    }
+    @Test void classifyingMovesUncategorizedValueIntoCategoryWithoutDuplicatingReportsAndCanBeHidden() {
+        var link=bind(); var entry=sync(link,List.of(remote("categorize","50","POSTED"))); UUID category=category();
+        bank.review(owner,entry.id(),"import",new BankService.Review(entry.version(),category,null,true,false));
+        var summary=reports.summary(owner,YearMonth.from(date));
+        assertThat(summary.records()).isEqualTo(1); assertThat(summary.unclassifiedBankRecords()).isZero();
+        assertThat(summary.competence().expenses()).isEqualByComparingTo("50");
+        assertThat(summary.categories()).singleElement().satisfies(c->assertThat(c.id()).isEqualTo(category));
+        assertThat(feed(false,0,20).items()).hasSize(2);
+        var classified=bank.entries(owner,link.id(),0).getFirst();
+        bank.visibility(owner,entry.id(),new BankService.Visibility(classified.version(),true,"Duplicado"));
+        assertThat(reports.summary(owner,YearMonth.from(date)).records()).isZero();
+        assertThat(budgets.month(owner,YearMonth.from(date)).categories()).anySatisfy(c->{assertThat(c.categoryId()).isEqualTo(category);assertThat(c.spent()).isZero();});
+        bank.visibility(owner,entry.id(),new BankService.Visibility(classified.version()+1,false,"Restaurado"));
+        assertThat(reports.summary(owner,YearMonth.from(date)).records()).isEqualTo(1);
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
+    }
+    @Test void feedAndVisibilityEnforceOwnerCsrfVersionsFiltersAndPagination() throws Exception {
+        var link=bind(); var entry=sync(link,List.of(remote("secure","50","POSTED")));
+        assertThat(feed(false,0,1).total()).isEqualTo(2);
+        assertThat(feed(false,0,1).items()).hasSize(1);
+        assertThat(feed(false,1,1).items()).hasSize(1);
+        assertThat(feed.list(owner,date,date,null,"uncategorized",Movement.Kind.EXPENSE,Movement.Status.CONFIRMED,"Compra",0,20,"amount","asc","operationDate",false).total()).isEqualTo(1);
+        assertThatThrownBy(()->feed.list(owner,date,date,null,null,null,null,"",0,20,"amount;delete","asc","operationDate",false)).isInstanceOf(ApiException.class);
+        UUID stranger=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Outro","UmaSenhaSegura123!")).id();
+        assertThat(feed.list(stranger,date,date,null,null,null,null,"",0,20,"amount","asc","operationDate",false).total()).isZero();
+        mvc.perform(get("/api/movements/feed").param("from",date.toString()).param("to",date.toString())).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/banking/entries/"+entry.id()+"/visibility").with(user(principal)).contentType("application/json").content("{\"version\":0,\"hidden\":true}")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/banking/entries/"+entry.id()+"/visibility").with(user(new UserPrincipal(stranger,"",0))).with(csrf()).contentType("application/json").content("{\"version\":0,\"hidden\":true}")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/banking/entries/"+UUID.randomUUID()+"/visibility").with(user(principal)).with(csrf()).contentType("application/json").content("{\"version\":0,\"hidden\":true}")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/banking/entries/"+entry.id()+"/visibility").with(user(principal)).with(csrf()).contentType("application/json").content("{\"version\":0}")).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/banking/entries/"+entry.id()+"/visibility").with(user(principal)).with(csrf()).contentType("application/json").content("{\"version\":0,\"hidden\":true}")).andExpect(status().isNoContent());
+        mvc.perform(get("/api/movements/feed").with(user(principal)).param("from",date.toString()).param("to",date.toString()).param("hidden","true"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1)).andExpect(jsonPath("$.items[0].bankEntryVersion").value(1));
     }
     String event(UUID eventId, UUID itemId) {
         return "{\"event\":\"item/updated\",\"eventId\":\""+eventId+"\",\"itemId\":\""+itemId+"\",\"clientUserId\":\"untrusted-ignored\"}";

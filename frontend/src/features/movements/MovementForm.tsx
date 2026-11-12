@@ -37,7 +37,7 @@ export function MovementForm({onClose,onSuccess}:{onClose:()=>void;onSuccess:()=
       <form id="movement-form" onSubmit={submit}><Stack spacing={2.5} pt={1}>
         {error&&<Alert severity="error">{error}</Alert>}
         {!accounts.data?.some(a=>!a.archived)&&<Alert severity="info">Cadastre uma conta ativa em <Link to="/accounts">Contas</Link> antes de registrar movimentações.</Alert>}
-        <Typography variant="body2" color="text.secondary">Campos com * são obrigatórios. Valores confirmados alteram o saldo; previsões não.</Typography>
+        <Typography variant="body2" color="text.secondary">Campos com * são obrigatórios. Nas contas manuais, valores efetivados alteram o saldo calculado. Nas vinculadas, o saldo vem do banco. Evite cadastrar novamente uma operação já recebida do banco.</Typography>
         {select('kind','Natureza',[{id:'EXPENSE',name:'Despesa'},{id:'INCOME',name:'Receita'},{id:'TRANSFER',name:'Transferência entre minhas contas'},{id:'ADJUSTMENT',name:'Ajuste de saldo'}])}
         {kind==='TRANSFER'&&<Alert severity="info">As duas contas serão movimentadas juntas. Transferências não entram como receita ou despesa.</Alert>}
         {kind==='ADJUSTMENT'&&<Alert severity="warning">Informe a diferença a adicionar ou retirar e explique o motivo na descrição.</Alert>}

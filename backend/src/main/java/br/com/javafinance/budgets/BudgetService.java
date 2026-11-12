@@ -39,7 +39,7 @@ public class BudgetService {
             LEFT JOIN (
               SELECT category_id,SUM(amount) FILTER (WHERE status='CONFIRMED') spent,
                 SUM(amount) FILTER (WHERE status='PLANNED') planned
-              FROM movement WHERE owner_id=? AND competence=? AND kind='EXPENSE' AND status!='CANCELLED'
+              FROM financial_record WHERE owner_id=? AND NOT hidden AND competence=? AND kind='EXPENSE' AND status!='CANCELLED'
               GROUP BY category_id
             ) m ON m.category_id=c.id
             WHERE c.owner_id=? AND c.kind='EXPENSE' AND (NOT c.archived OR b.id IS NOT NULL OR m.category_id IS NOT NULL)
@@ -57,6 +57,9 @@ public class BudgetService {
             if (row.limit() == null) { unspent = unspent.add(row.spent()); unplanned = unplanned.add(row.planned()); }
             else { configured++; limit = limit.add(row.limit()); spent = spent.add(row.spent()); planned = planned.add(row.planned()); }
         }
+        // Raw bank expenses are visible immediately, without inventing a category or assigning a budget.
+        BigDecimal uncategorized=jdbc.queryForObject("SELECT COALESCE(SUM(amount),0)::numeric(19,2) FROM financial_record WHERE owner_id=? AND NOT hidden AND category_id IS NULL AND kind='EXPENSE' AND status='CONFIRMED' AND competence=?",BigDecimal.class,owner,month.atDay(1));
+        unspent=unspent.add(uncategorized);
         return new Month(month.toString(), rows, new Totals(limit, spent, planned, limit.subtract(spent), unspent, unplanned, configured));
     }
 

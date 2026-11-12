@@ -34,12 +34,12 @@ export function Banking() {
   const selectedLink = links.data?.find(l => l.id === selectedId);
   const entries = useQuery({ queryKey: ['bankEntries', selectedId, page], queryFn: () => api<Entry[]>(`/banking/links/${selectedId}/entries?page=${page}`), enabled: ready && !!selectedId, refetchInterval: ready && !!selectedId ? 30000 : false });
   async function refresh() {
-    await Promise.all(['bankLinks', 'bankEntries', 'accounts', 'movements', 'summary', 'budgets'].map(key => client.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(['bankLinks', 'bankEntries', 'accounts', 'movements', 'movementFeed', 'summary', 'budgets'].map(key => client.invalidateQueries({ queryKey: [key] })));
   }
   return <>
     <PageHeader title="Conexões bancárias" subtitle="Meu Pluggy pessoal · somente leitura · começando pela conta Nubank."
       action={<Button variant="contained" startIcon={<AddLink/>} disabled={!ready} onClick={() => setBinding(true)}>Vincular conta</Button>}/>
-    <Alert severity="info" sx={{ mb: 3 }}>Não fazemos pagamentos nem transferências bancárias. O saldo exibido vem do banco; categorias e relatórios dependem da sua revisão, sem novos descontos. Cartões e faturas não estão incluídos nesta etapa.</Alert>
+    <Alert severity="info" sx={{ mb: 3 }}>Não fazemos pagamentos nem transferências bancárias. O saldo exibido vem do banco; registros efetivados entram nos relatórios automaticamente, sem novos descontos. Categorizar é opcional. Cartões e faturas não estão incluídos nesta etapa.</Alert>
     {config.isPending ? <Loading/> : config.error ? <Failure error={config.error} retry={() => void config.refetch()}/> : config.data && !ready ? <Panel title="Configuração inicial pendente" subtitle="Nenhuma conexão real foi ativada.">
       <Stack spacing={2}>
         <Typography>1. Crie sua conta no Meu Pluggy e autorize a conta do Nubank por lá. Não informe sua senha bancária neste sistema ou no chat.</Typography>
@@ -50,7 +50,7 @@ export function Banking() {
           <Button startIcon={<Refresh/>} onClick={() => void config.refetch()}>Verificar configuração</Button></Stack>
       </Stack>
     </Panel> : <>
-      {config.data?.automaticRead && <Alert severity="success" sx={{ mb: 2 }}>Atualização automática ativa: recebemos os avisos do Meu Pluggy e fazemos uma verificação diária de segurança, mesmo com o site fechado. O saldo exibido acompanha o banco. Os registros ficam para sua revisão e não são classificados automaticamente.</Alert>}
+      {config.data?.automaticRead && <Alert severity="success" sx={{ mb: 2 }}>Atualização automática ativa: recebemos os avisos do Meu Pluggy e fazemos uma verificação diária de segurança, mesmo com o site fechado. O saldo exibido acompanha o banco. Registros efetivados aparecem nas movimentações e relatórios; as categorias podem ser organizadas depois.</Alert>}
       <Typography color="text.secondary" mb={2}>O Meu Pluggy atualiza as conexões diariamente, não em tempo real. “Consultar dados” continua disponível como opção manual e não força atualização no banco.</Typography>
       {links.isPending ? <Loading/> : links.error ? <Failure error={links.error} retry={() => void links.refetch()}/> : links.data && <>
         {links.data.length === 0 ? <Paper variant="outlined"><Empty title="Vincule a conta já autorizada" action={<Button onClick={() => setBinding(true)}>Escolher conta</Button>}>Reaproveite uma conta do sistema e confirme a data inicial para evitar duplicidade nos relatórios.</Empty></Paper> : <Stack spacing={2}>
@@ -161,7 +161,7 @@ function ReviewForm({ entry, action, onClose, onUpdated }: { entry: Entry; actio
         <Typography>O vínculo não altera o saldo nem duplica a movimentação existente. Confira os detalhes antes de confirmar.</Typography>
         <Controller name="movementId" control={form.control} rules={{ required: true }} render={({ field }) => <TextField select required label="Lançamento existente" {...field}>{entry.candidates.map(candidate => <MenuItem key={candidate.id} value={candidate.id}>{civilDate(candidate.date)} · {candidate.description} · {money(candidate.amount)}</MenuItem>)}</TextField>}/>
       </> : <>
-        <Alert severity="warning">Será registrada uma {income ? 'receita' : 'despesa'} efetivada, por competência de {entry.date.slice(0, 7)}. Isso alimenta categorias e relatórios sem descontar o valor novamente do saldo bancário. Transferências próprias, empréstimos, investimentos e pagamentos de fatura não devem ser classificados assim.</Alert>
+        <Alert severity="warning">Será registrada uma {income ? 'receita' : 'despesa'} efetivada, por competência de {entry.date.slice(0, 7)}. O registro já faz parte dos relatórios. Esta ação define a categoria, sem duplicar o registro nem descontar o valor novamente do saldo bancário. Transferências próprias, empréstimos, investimentos e pagamentos de fatura não devem ser classificados assim.</Alert>
         {categories.isPending ? <Loading/> : categories.error ? <Failure error={categories.error}/> : <Controller name="categoryId" control={form.control} rules={{ required: true }} render={({ field }) => <TextField select required label="Categoria" {...field}>{categories.data?.filter(c => !c.archived && c.kind === (income ? 'INCOME' : 'EXPENSE')).map(category => <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>)}</TextField>}/>}
         <Controller name="confirmedNature" control={form.control} rules={{ validate: value => value || 'Confirme a natureza da operação.' }} render={({ field, fieldState }) => <Box><FormControlLabel control={<Checkbox checked={field.value} onChange={event => field.onChange(event.target.checked)}/>} label="Confirmei que esta operação é uma receita/despesa real."/>{fieldState.error && <Typography color="error">{fieldState.error.message}</Typography>}</Box>}/>
         {entry.candidates.length > 0 && <>

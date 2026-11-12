@@ -20,6 +20,8 @@ public class BankController {
         @RequestParam(defaultValue="false") boolean pending) { return service.entries(p.id(),id,page,pending); }
     @PostMapping("/entries/{id}/{action}") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     void review(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id,@PathVariable String action,@Valid @RequestBody BankService.Review input) { service.review(p.id(),id,action,input); }
+    @PostMapping("/entries/{id}/visibility") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    void visibility(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id,@Valid @RequestBody BankService.Visibility input) { service.visibility(p.id(),id,input); }
     @PostMapping("/links/{id}/disconnect") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     void disconnect(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id) { service.disconnect(p.id(),id); }
     @PostMapping("/links/{id}/reconnect") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)

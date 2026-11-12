@@ -13,7 +13,7 @@ for (const state of ['linked', 'zero', 'missing', 'manual'] as const) {
         month: '2026-11', today: '2026-11-12', balance: state === 'missing' ? null : state === 'zero' ? '0.00' : state === 'manual' ? '1000.00' : '1030.25',
         balanceComplete: state !== 'missing', accountCount: 2, records: 0,
         competence: { income: '0', expenses: '0', result: '0', savingsRate: null },
-        cashFlow: '0', categories: [], evolution: [], upcoming: [],
+        unclassifiedBankRecords: state === 'linked' ? 2 : 0, cashFlow: '0', categories: state === 'linked' ? [{ id: null, name: 'Sem categoria', total: '50.25' }] : [], evolution: [], upcoming: [],
       };
       else { await route.abort(); return; }
       await route.fulfill({ json: body });
@@ -24,6 +24,10 @@ for (const state of ['linked', 'zero', 'missing', 'manual'] as const) {
     await expect(balance).toBeVisible();
     await expect(page.getByText('Saldo interno', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Saldo informado pelo banco', exact: true })).toHaveCount(0);
+    if (state === 'linked') {
+      await expect(page.getByText(/Os totais incluem 2 registro/)).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Sem categoria', exact: true })).toHaveAttribute('href', /category=uncategorized/);
+    }
     if (state === 'missing') await expect(page.getByText(/Há uma conta vinculada sem saldo bancário disponível/)).toBeVisible();
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 1000 });

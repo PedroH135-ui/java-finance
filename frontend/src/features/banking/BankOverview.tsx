@@ -24,7 +24,7 @@ export function BankOverview() {
         {!link.active && <Typography variant="body2" color="text.secondary" mt={1}>Leitura desativada. Exibindo o último saldo armazenado.</Typography>}
       </Box>)}</Stack>
       : <Typography color="text.secondary">Vincule sua conta Nubank autorizada no Meu Pluggy para acompanhar o saldo informado pelo banco.</Typography>}
-    <Typography variant="caption" color="text.secondary" display="block" mt={2}>Não é saldo em tempo real. Os registros aguardam sua revisão para categorias e relatórios, sem descontar os valores novamente.</Typography>
+    <Typography variant="caption" color="text.secondary" display="block" mt={2}>Não é saldo em tempo real. Registros efetivados entram automaticamente nos relatórios, sem novos descontos. Você pode categorizar ou ocultar o que estiver incorreto.</Typography>
     <Button component={Link} to={linked || loading || error ? '/banking' : '/banking?new=1'} variant="outlined" sx={{ mt: 2 }}>
       {linked ? 'Ver conexão e revisar lançamentos' : loading || error ? 'Ver conexão bancária' : 'Vincular meu banco'}
     </Button>

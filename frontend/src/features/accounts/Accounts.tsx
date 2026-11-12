@@ -16,7 +16,7 @@ export function Accounts() {
   return <>
     <PageHeader title="Contas" subtitle="O dinheiro que você tem, organizado por conta." action={<Button variant="contained" startIcon={<Add/>} onClick={()=>setEditing(null)}>Nova conta</Button>}/>
     {notice&&<Alert severity="success" onClose={()=>setNotice('')} sx={{mb:2}}>{notice}</Alert>}
-    <Alert severity="info" sx={{mb:3}}>Contas vinculadas usam o último saldo informado pelo banco. Contas manuais usam o saldo inicial e os lançamentos efetivados. Revisar registros bancários organiza categorias e relatórios, sem descontar os valores novamente.</Alert>
+    <Alert severity="info" sx={{mb:3}}>Contas vinculadas usam o último saldo informado pelo banco. Contas manuais usam o saldo inicial e os lançamentos efetivados. Registros bancários alimentam os relatórios automaticamente, sem descontar os valores novamente.</Alert>
     {query.isPending?<Loading/>:query.error?<Failure error={query.error} retry={()=>void query.refetch()}/>:query.data.length===0?
       <Paper variant="outlined"><Empty title="Comece pela sua primeira conta" action={<Button variant="outlined" onClick={()=>setEditing(null)}>Cadastrar conta</Button>}>Pode ser sua conta corrente, carteira ou dinheiro em espécie.</Empty></Paper>:
       <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'repeat(2,minmax(0,1fr))',xl:'repeat(3,minmax(0,1fr))'},gap:2}}>
@@ -31,7 +31,7 @@ export function Accounts() {
             <Typography variant="caption" display="block">Última consulta no sistema: {bankDateTime(a.bankCheckedAt??null)}</Typography>
             {!a.bankReadActive&&<Typography variant="caption" display="block">Leitura desativada · último saldo armazenado.</Typography>}
             <Typography variant="caption" color="text.secondary" display="block" mt={1}>Saldo principal recebido do banco; não é informação em tempo real. A classificação dos registros não altera este saldo.</Typography>
-            <Button component={Link} to={a.bankLinkId?'/movements?tab=review&link='+encodeURIComponent(a.bankLinkId):'/banking'} size="small" sx={{mt:1}}>Ver registros para revisão</Button>
+            <Button component={Link} to={a.bankLinkId?'/movements?account='+encodeURIComponent(a.id):'/banking'} size="small" sx={{mt:1}}>Ver movimentações</Button>
           </Box>:<Typography variant="caption" color="text.secondary">Conta manual · saldo inicial e lançamentos efetivados desde {civilDate(a.openingDate)}</Typography>}
           <Box mt={2}><Button startIcon={<EditOutlined/>} onClick={()=>setEditing(a)}>Editar conta</Button></Box>
         </Paper>)}

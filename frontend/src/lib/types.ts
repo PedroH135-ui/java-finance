@@ -14,12 +14,18 @@ export interface Movement {
   notes: string; source: string; externalReference: string | null; batchId: string | null; createdAt: string; version: number;
 }
 export interface Summary {
-  month: string; today: string; balance: string | null; balanceComplete?: boolean;
+  month: string; today: string; balance: string | null; balanceComplete?: boolean; unclassifiedBankRecords?: number;
   competence: { income: string; expenses: string; result: string; savingsRate: string | null };
-  cashFlow: string; categories: { id: string; name: string; total: string }[];
+  cashFlow: string; categories: { id: string | null; name: string; total: string }[];
   evolution: { month: string; income: string; expenses: string; records: number }[];
   upcoming: { id: string; description: string; dueDate: string; amount: string; kind: string }[];
   accountCount: number; records: number;
 }
 export interface MovementPage { items: Movement[]; total: number; page: number; size: number; pages: number }
 
+
+export interface FinancialRecord extends Omit<Movement, 'externalReference' | 'batchId' | 'createdAt'> {
+  bankEntryId: string | null; bankLinkId: string | null; bankEntryVersion: number | null;
+  bankProviderStatus: string | null; bankState: string | null; hidden: boolean;
+}
+export interface FinancialRecordPage { items: FinancialRecord[]; total: number; page: number; size: number; pages: number }

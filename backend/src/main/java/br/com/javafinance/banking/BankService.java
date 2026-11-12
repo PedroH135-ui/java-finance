@@ -21,6 +21,7 @@ public class BankService {
     public record Bind(@NotNull UUID itemId, @NotNull UUID externalAccountId, @NotNull UUID accountId, @NotNull LocalDate importFrom, boolean confirmedBaseline) {}
     public record Sync(@NotNull LocalDate from, @NotNull LocalDate to) {}
     public record Review(long version, UUID categoryId, UUID movementId, boolean confirmedNature, boolean reviewedDuplicates) {}
+    public record Visibility(@PositiveOrZero long version,@NotNull Boolean hidden,@Size(max=300) String reason) {}
     public record Link(UUID id, UUID itemId, UUID externalAccountId, UUID accountId, String name, LocalDate importFrom,
                        boolean active, Instant lastCheckedAt, Instant providerUpdatedAt, BigDecimal reportedBalance,
                        LocalDate autoCheckedThrough, Instant autoErrorAt) {}
@@ -161,7 +162,7 @@ public class BankService {
         String state=(String)entry.get("state");
         if(!Set.of("REVIEW","CHANGED").contains(state)) throw ApiException.conflict("Este lançamento já foi revisado.");
         if(action.equals("ignore")) {
-            jdbc.update("UPDATE bank_entry SET state='IGNORED',version=version+1 WHERE id=? AND owner_id=?",id,owner);
+            jdbc.update("UPDATE bank_entry SET state='IGNORED',hidden=true,version=version+1 WHERE id=? AND owner_id=?",id,owner);
             audit.record(owner,id,"BANK_IGNORED","Ignorado na revisão, sem movimentação financeira."); return;
         }
         if(entry.get("movement_id")!=null || !"POSTED".equals(entry.get("provider_status")))
@@ -198,6 +199,19 @@ public class BankService {
         if(links.isEmpty()) throw ApiException.missing();
         jdbc.update("UPDATE bank_link SET active=false WHERE id=? AND owner_id=?",id,owner);
         audit.record(owner,id,"BANK_DISCONNECTED","Consultas desativadas neste sistema. Revogue também a autorização no Meu Pluggy/banco.");
+    }
+    @Transactional public void visibility(UUID owner,UUID id,Visibility input) {
+        owner(owner);
+        var rows=jdbc.queryForList("SELECT * FROM bank_entry WHERE id=? AND owner_id=? FOR UPDATE",id,owner);
+        if(rows.isEmpty()) throw ApiException.missing();
+        var entry=rows.getFirst();
+        if(input.hidden()==null) throw ApiException.bad("Informe a visibilidade do registro.");
+        if(((Number)entry.get("version")).longValue()!=input.version()) throw ApiException.conflict("O registro mudou. Atualize a lista.");
+        // Separate visibility preserves classification and survives future provider updates.
+        jdbc.update("UPDATE bank_entry SET hidden=?,state=CASE WHEN NOT ? AND state='IGNORED' THEN CASE WHEN movement_id IS NULL THEN 'REVIEW' ELSE 'CHANGED' END ELSE state END,version=version+1 WHERE id=? AND owner_id=?",
+            input.hidden(),input.hidden(),id,owner);
+        String reason=input.reason()==null || input.reason().isBlank() ? (input.hidden()?"Ocultado pelo usuário; fora dos relatórios, sem alterar saldo.":"Restaurado pelo usuário; volta à lista e aos relatórios.") : input.reason().strip();
+        audit.record(owner,id,input.hidden()?"BANK_HIDDEN":"BANK_RESTORED",reason);
     }
     public void reconnect(UUID owner, UUID id) {
         Link link=links(owner).stream().filter(l->l.id().equals(id)).findFirst().orElseThrow(ApiException::missing);
