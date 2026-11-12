@@ -140,6 +140,17 @@ class BankingIT {
         assertThatThrownBy(()->bank.sync(owner,link.id(),new BankService.Sync(account.openingDate(),today))).isInstanceOf(ApiException.class);
         assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
     }
+    @Test void diagnosticPreservesStorageExceptionAndRollsBackWholeRead() {
+        var link=bind();
+        when(provider.transactions(external,link.importFrom(),today)).thenReturn(List.of(
+            remote("valid-first","10.00","POSTED"),
+            new BankProvider.RemoteEntry("invalid-second","x".repeat(201),new BigDecimal("20.00"),date,"DEBIT","POSTED")));
+        assertThatThrownBy(()->bank.sync(owner,link.id(),new BankService.Sync(link.importFrom(),today)))
+            .isInstanceOf(org.springframework.dao.DataAccessException.class);
+        assertThat(bank.entries(owner,link.id(),0)).isEmpty();
+        assertThat(bank.links(owner).getFirst().lastCheckedAt()).isNull();
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
+    }
     @Test void ownTransferCanMatchBothAccountsWithoutBecomingIncomeOrExpense() {
         var destination=accounts.create(owner,new AccountService.Create("Outra conta fictícia","",Account.Kind.CHECKING,"100",today.minusDays(10)));
         UUID externalDestination=UUID.randomUUID();

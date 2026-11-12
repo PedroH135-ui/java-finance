@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.dao.DataAccessException;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class BankService {
@@ -72,6 +74,26 @@ public class BankService {
         });
     }
     public int sync(UUID owner, UUID id, Sync input) {
+        long started = System.nanoTime();
+        boolean completed = false;
+        String reference = UUID.randomUUID().toString();
+        try {
+            int read = read(owner, id, input);
+            completed = true;
+            return read;
+        } catch (BankReadException ex) {
+            reference = ex.reference;
+            throw ex;
+        } catch (DataAccessException ex) {
+            // Database exception messages may contain SQL, identifiers and financial values.
+            LoggerFactory.getLogger(BankService.class).warn("bank_read_failed stage=STORAGE code=STORAGE_ERROR reference={}", reference);
+            throw ex;
+        } finally {
+            LoggerFactory.getLogger(BankService.class).info("bank_read_finished reference={} completed={} duration_ms={}",
+                reference, completed, (System.nanoTime() - started) / 1_000_000);
+        }
+    }
+    private int read(UUID owner, UUID id, Sync input) {
         Link link=links(owner).stream().filter(l->l.id().equals(id)).findFirst().orElseThrow(ApiException::missing);
         remote(owner,link.itemId());
         if(!link.active()) throw ApiException.bad("A conexão está desconectada neste sistema.");

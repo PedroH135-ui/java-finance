@@ -7,7 +7,8 @@ import java.net.http.*;
 import java.math.*;
 import java.time.*;
 import java.util.*;
-import org.springframework.http.HttpStatus;
+import static br.com.javafinance.banking.BankReadException.Code.*;
+import static br.com.javafinance.banking.BankReadException.Stage.*;
 import org.springframework.stereotype.Component;
 
 /** Fixed host and read-only financial endpoints. No payments, item creation or refresh endpoints. */
@@ -31,87 +32,104 @@ public class PluggyReadClient implements BankProvider {
         try {
             var body = json.writeValueAsString(Map.of("clientId", config.getClientId(), "clientSecret", config.getClientSecret()));
             JsonNode result = exchange(HttpRequest.newBuilder(URI.create("https://api.pluggy.ai/auth")).timeout(Duration.ofSeconds(15))
-                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build());
+                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build(), AUTH);
             String key = result.path("apiKey").asText();
-            if (key.isBlank()) throw unavailable();
+            if (key.isBlank()) throw BankReadException.failure(AUTH, INVALID_RESPONSE);
             token = key; tokenExpiry = Instant.now().plusSeconds(6000); return token;
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) { throw unavailable(); }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) { throw BankReadException.failure(AUTH, INVALID_RESPONSE); }
     }
     private JsonNode get(String path) {
         // Only these fixed paths may reach the provider. Never accept a URL from a user or provider response.
         if (!(path.startsWith("/items/") || path.startsWith("/accounts?") || path.startsWith("/transactions?"))) throw new IllegalArgumentException("Read endpoint required");
+        var stage = path.startsWith("/items/") ? ITEM : path.startsWith("/accounts?") ? ACCOUNTS : TRANSACTIONS;
         return exchange(HttpRequest.newBuilder(URI.create("https://api.pluggy.ai" + path)).timeout(Duration.ofSeconds(20))
-            .header("X-API-KEY", token()).GET().build());
+            .header("X-API-KEY", token()).GET().build(), stage);
     }
-    private JsonNode exchange(HttpRequest request) {
+    private JsonNode exchange(HttpRequest request, BankReadException.Stage stage) {
         try {
             var response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
             try (var stream = response.body()) {
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
                     if (response.statusCode() == 401) { token = null; tokenExpiry = Instant.EPOCH; }
-                    throw unavailable();
+                    var code = switch (response.statusCode()) {
+                        case 401 -> AUTH_DENIED;
+                        case 403 -> ACCESS_DENIED;
+                        case 429 -> RATE_LIMIT;
+                        default -> HTTP_ERROR;
+                    };
+                    throw BankReadException.failure(stage, code, response.statusCode());
                 }
                 byte[] bytes = stream.readNBytes(2_000_001);
-                if (bytes.length > 2_000_000) throw unavailable();
+                if (bytes.length > 2_000_000) throw BankReadException.failure(stage, INVALID_RESPONSE);
                 JsonNode result=json.readTree(bytes);
-                if(result==null) throw unavailable();
+                if(result==null) throw BankReadException.failure(stage, INVALID_RESPONSE);
                 return result;
             }
-        } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw unavailable(); }
-        catch (java.io.IOException | IllegalArgumentException e) { throw unavailable(); }
+        } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw BankReadException.failure(stage, NETWORK); }
+        catch (HttpTimeoutException e) { throw BankReadException.failure(stage, TIMEOUT); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException e) { throw BankReadException.failure(stage, INVALID_RESPONSE); }
+        catch (java.io.IOException e) { throw BankReadException.failure(stage, NETWORK); }
     }
     @Override public Snapshot accounts(UUID item) {
         if (!config.getItemIds().contains(item)) throw ApiException.missing();
         try {
             JsonNode info = get("/items/" + item);
-            if (!item.toString().equals(info.path("id").asText())) throw unavailable();
+            if (!item.toString().equals(info.path("id").asText())) throw BankReadException.failure(ITEM, INVALID_RESPONSE);
             if (!"UPDATED".equals(info.path("status").asText()))
-                throw ApiException.bad("A conexão ainda não está atualizada. Confira a autorização no Meu Pluggy.");
+                throw BankReadException.failure(ITEM, ITEM_NOT_READY);
             JsonNode result = get("/accounts?itemId=" + item + "&type=BANK").path("results");
-            if (!result.isArray() || result.size() > 100) throw unavailable();
+            if (!result.isArray() || result.size() > 100) throw invalidValue(BankReadException.Field.RESPONSE);
             List<RemoteAccount> accounts = new ArrayList<>();
             for (JsonNode a : result) {
-                if (!item.toString().equals(a.path("itemId").asText())) throw unavailable();
+                if (!item.toString().equals(a.path("itemId").asText())) throw invalidValue(BankReadException.Field.ACCOUNT_ID);
                 if (!"BANK".equals(a.path("type").asText()) || !"BRL".equals(a.path("currencyCode").asText())) continue;
                 accounts.add(new RemoteAccount(UUID.fromString(a.path("id").asText()), text(a,"name",100), "BANK", "BRL", decimal(a,"balance",false)));
             }
             String updated = info.path("lastUpdatedAt").asText("");
             return new Snapshot(updated.isBlank() ? null : Instant.parse(updated), List.copyOf(accounts));
-        } catch (IllegalArgumentException | DateTimeException e) { throw unavailable(); }
+        } catch (ProviderValueException e) { throw BankReadException.failure(ACCOUNTS, INVALID_RESPONSE, 0, e.field); }
+        catch (IllegalArgumentException | DateTimeException e) { throw BankReadException.failure(ACCOUNTS, INVALID_RESPONSE); }
     }
     @Override public List<RemoteEntry> transactions(UUID account, LocalDate from, LocalDate to) {
         try {
             List<RemoteEntry> all = new ArrayList<>();
             long started=System.nanoTime();
             for (int page = 1; page <= 20; page++) {
-                if(System.nanoTime()-started>60_000_000_000L) throw unavailable();
+                if(System.nanoTime()-started>60_000_000_000L) throw BankReadException.failure(TRANSACTIONS, TIMEOUT);
                 JsonNode result = get("/transactions?accountId=" + account + "&from=" + from.minusDays(1) + "&to=" + to.plusDays(1) + "&pageSize=100&page=" + page);
                 JsonNode entries = result.path("results"); int pages = result.path("totalPages").asInt(-1);
-                if (!entries.isArray() || entries.size() > 100 || pages < 0 || pages > 20) throw ApiException.bad("Consulta grande ou incompleta. Consulte um intervalo menor (máximo de 2.000 lançamentos).");
+                if (!entries.isArray() || entries.size() > 100 || pages < 0 || pages > 20) throw BankReadException.failure(TRANSACTIONS, RESULT_LIMIT);
                 for (JsonNode entry : entries) {
-                    if (!account.toString().equals(entry.path("accountId").asText()) || !"BRL".equals(entry.path("currencyCode").asText())) throw unavailable();
-                    LocalDate date = LocalDate.parse(entry.path("date").asText().substring(0,10));
+                    if (!account.toString().equals(entry.path("accountId").asText())) throw invalidValue(BankReadException.Field.ACCOUNT_ID);
+                    if (!"BRL".equals(entry.path("currencyCode").asText())) throw invalidValue(BankReadException.Field.CURRENCY);
+                    LocalDate date;
+                    try { date = LocalDate.parse(entry.path("date").asText().substring(0,10)); }
+                    catch (DateTimeException | IndexOutOfBoundsException ex) { throw invalidValue(BankReadException.Field.DATE); }
                     if (date.isBefore(from) || date.isAfter(to)) continue;
                     String direction = entry.path("type").asText(), status = entry.path("status").asText();
-                    if (!Set.of("DEBIT","CREDIT").contains(direction) || !Set.of("POSTED","PENDING").contains(status)) throw unavailable();
+                    if (!Set.of("DEBIT","CREDIT").contains(direction) || !Set.of("POSTED","PENDING").contains(status)) throw invalidValue(BankReadException.Field.STATUS);
                     all.add(new RemoteEntry(text(entry,"id",200), text(entry,"description",200), decimal(entry,"amount",true), date, direction, status));
                 }
                 if (page >= pages) return List.copyOf(all);
             }
-            throw unavailable();
-        } catch (IllegalArgumentException | DateTimeException | IndexOutOfBoundsException e) { throw unavailable(); }
+            throw BankReadException.failure(TRANSACTIONS, RESULT_LIMIT);
+        } catch (ProviderValueException e) { throw BankReadException.failure(TRANSACTIONS, INVALID_RESPONSE, 0, e.field); }
+        catch (IllegalArgumentException | DateTimeException | IndexOutOfBoundsException e) { throw BankReadException.failure(TRANSACTIONS, INVALID_RESPONSE); }
     }
     private static String text(JsonNode node, String key, int max) {
-        if(!node.path(key).isTextual()) throw unavailable();
-        String value = node.path(key).asText("").strip(); if (value.isBlank() || value.length() > max) throw unavailable(); return value;
+        var field = switch (key) { case "id" -> BankReadException.Field.ID; case "name" -> BankReadException.Field.NAME; default -> BankReadException.Field.DESCRIPTION; };
+        if(!node.path(key).isTextual()) throw invalidValue(field);
+        String value = node.path(key).asText("").strip(); if (value.isBlank() || value.length() > max) throw invalidValue(field); return value;
     }
     private static BigDecimal decimal(JsonNode node, String key, boolean positive) {
-        if (!node.path(key).isNumber()) throw unavailable();
+        if (!node.path(key).isNumber()) throw invalidValue(BankReadException.Field.AMOUNT);
         BigDecimal value = node.get(key).decimalValue(); if (positive) value = value.abs();
-        try { value = Money.parse(value.stripTrailingZeros().toPlainString()); } catch (ApiException e) { throw unavailable(); }
-        if (positive && value.signum() <= 0) throw unavailable(); return value;
+        try { value = Money.parse(value.stripTrailingZeros().toPlainString()); } catch (ApiException e) { throw invalidValue(BankReadException.Field.AMOUNT); }
+        if (positive && value.signum() <= 0) throw invalidValue(BankReadException.Field.AMOUNT); return value;
     }
-    private static ApiException unavailable() {
-        return new ApiException(HttpStatus.BAD_GATEWAY, "Não foi possível consultar o Meu Pluggy. Confira as credenciais, a autorização e tente novamente. Nenhum lançamento foi confirmado.");
+    private static ProviderValueException invalidValue(BankReadException.Field field) { return new ProviderValueException(field); }
+    private static final class ProviderValueException extends IllegalArgumentException {
+        private final BankReadException.Field field;
+        private ProviderValueException(BankReadException.Field field) { super("Invalid provider value"); this.field = field; }
     }
 }
