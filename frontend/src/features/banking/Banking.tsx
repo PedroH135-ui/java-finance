@@ -5,12 +5,10 @@ import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { Alert, Box, Button, Checkbox, Chip, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { AddLink, Refresh } from '@mui/icons-material';
 import { api, json } from '../../lib/api';
-import type { Account, Category } from '../../lib/types';
+import type { Account, Category, BankConfig as Config, BankLink } from '../../lib/types';
 import { civilDate, money, today } from '../../lib/format';
 import { Empty, Failure, FormDialog, Loading, PageHeader, Panel } from '../../components/Shared';
 
-interface Config { ready: boolean; userId: string; items: string[]; provider: string; automaticRead?: boolean }
-interface BankLink { id: string; name: string; accountId: string; importFrom: string; active: boolean; lastCheckedAt: string | null; providerUpdatedAt: string | null; reportedBalance: string | null; autoCheckedThrough?: string | null; autoErrorAt?: string | null }
 interface Candidate { id: string; description: string; amount: string; date: string; kind: string }
 interface Entry { id: string; linkId: string; accountName: string; description: string; amount: string; date: string; direction: string; providerStatus: string; state: string; movementId: string | null; version: number; candidates: Candidate[] }
 const states: Record<string, string> = { REVIEW: 'Revisar', IMPORTED: 'Importado', MATCHED: 'Vinculado', IGNORED: 'Ignorado', CHANGED: 'Alterado no banco' };

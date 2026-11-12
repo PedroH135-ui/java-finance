@@ -1,4 +1,10 @@
 export interface Profile { id: string; email: string; name: string }
+export interface BankConfig { ready: boolean; userId: string; items: string[]; provider: string; automaticRead?: boolean }
+export interface BankLink {
+  id: string; name: string; accountId: string; importFrom: string; active: boolean;
+  lastCheckedAt: string | null; providerUpdatedAt: string | null; reportedBalance: string | null;
+  autoCheckedThrough?: string | null; autoErrorAt?: string | null;
+}
 export interface Account { id: string; name: string; institution: string; kind: string; currency: string; openingDate: string; balance: string; archived: boolean; version: number }
 export interface Category { id: string; name: string; kind: string; essential: boolean; archived: boolean; version: number }
 export interface Movement {

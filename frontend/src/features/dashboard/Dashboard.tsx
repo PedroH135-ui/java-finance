@@ -1,12 +1,13 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Add, AddLink, ArrowDownward, ArrowUpward, AccountBalanceWalletOutlined, TrendingUp } from '@mui/icons-material';
+import { Add, ArrowDownward, ArrowUpward, AccountBalanceWalletOutlined, TrendingUp } from '@mui/icons-material';
 import { Alert, Box, Button, Divider, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '../../lib/api';
 import type { Summary } from '../../lib/types';
 import { civilDate, money, monthLabel, today } from '../../lib/format';
 import { Empty, Failure, Loading, PageHeader, Panel } from '../../components/Shared';
+import { BankOverview } from '../banking/BankOverview';
 export function Dashboard() {
   const [params,setParams]=useSearchParams(),month=params.get('month')??today().slice(0,7);
   const query=useQuery({queryKey:['summary',month],queryFn:()=>api<Summary>('/reports/summary?month='+month)});
@@ -14,7 +15,7 @@ export function Dashboard() {
   if(query.error)return <Failure error={query.error} retry={()=>void query.refetch()}/>;
   const d=query.data;
   const metrics=[
-    {title:'Saldo atual',value:d.balance,caption:'Todas as contas · realizado até hoje',icon:<AccountBalanceWalletOutlined/>,color:'#174bbd',link:'/accounts'},
+    {title:'Saldo interno',value:d.balance,caption:'Saldo inicial e lançamentos efetivados · todas as contas',icon:<AccountBalanceWalletOutlined/>,color:'#174bbd',link:'/accounts'},
     {title:'Receitas do mês',value:d.competence.income,caption:'Receitas efetivadas · competência',icon:<ArrowUpward/>,color:'#16734f',link:'/movements?kind=INCOME&basis=competence&status=CONFIRMED&month='+month},
     {title:'Despesas do mês',value:d.competence.expenses,caption:'Despesas efetivadas · competência',icon:<ArrowDownward/>,color:'#b33440',link:'/movements?kind=EXPENSE&basis=competence&status=CONFIRMED&month='+month},
     {title:'Resultado do mês',value:d.competence.result,caption:'Receitas menos despesas · competência',icon:<TrendingUp/>,color:'#174bbd',link:'/movements?basis=competence&status=CONFIRMED&month='+month},
@@ -27,15 +28,7 @@ export function Dashboard() {
       <Box><Typography variant="overline" color="primary">VISÃO GERAL</Typography><Typography variant="body2" color="text.secondary">Dados reais · BRL · Atualizado com seus lançamentos</Typography></Box>
       <TextField label="Mês de competência" type="month" value={month} onChange={e=>{if(e.target.value)setParams({month:e.target.value});}} slotProps={{inputLabel:{shrink:true}}} sx={{width:{xs:'100%',sm:220}}}/>
     </Stack>
-    <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
-      <Stack direction={{ xs: 'column', md: 'row' }} gap={2} alignItems={{ md: 'center' }} justifyContent="space-between">
-        <Box>
-          <Typography component="h2" variant="h6">Seu banco mais perto do seu controle</Typography>
-          <Typography variant="body2" color="text.secondary">Vincule a conta Nubank já autorizada no Meu Pluggy. Somente leitura, sem pagamentos e sem importar lançamentos automaticamente.</Typography>
-        </Box>
-        <Button component={Link} to="/banking?new=1" variant="outlined" startIcon={<AddLink/>} sx={{ flexShrink: 0 }}>Vincular meu banco</Button>
-      </Stack>
-    </Paper>
+    <BankOverview/>
     {d.accountCount===0&&<Alert severity="info" sx={{mb:3}} action={<Button component={Link} to="/accounts">Cadastrar conta</Button>}>Seu espaço está pronto. Comece cadastrando uma conta com o saldo que você já possui.</Alert>}
     <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'repeat(2,minmax(0,1fr))',xl:'repeat(4,minmax(0,1fr))'},gap:2,mb:3}}>
       {metrics.map(m=><Paper key={m.title} variant="outlined" sx={{p:2.5,minWidth:0}}>
