@@ -21,7 +21,7 @@ export function Banking() {
   const config = useQuery({ queryKey: ['bankConfig'], queryFn: () => api<Config>('/banking/config') });
   const ready = config.data?.ready ?? false;
   const links = useQuery({ queryKey: ['bankLinks'], queryFn: () => api<BankLink[]>('/banking/links'), enabled: ready, refetchInterval: ready ? 30000 : false });
-  const [selected, setSelected] = useState(''), [page, setPage] = useState(0), [binding, setBinding] = useState(false);
+  const [selected, setSelected] = useState(params.get('link') ?? ''), [page, setPage] = useState(0), [binding, setBinding] = useState(false);
   const bindingRequested = binding || params.get('new') === '1';
   function closeBinding() {
     setBinding(false);

@@ -57,6 +57,29 @@ class BankingIT {
     }
     void allowSync(UUID link) { jdbc.update("UPDATE bank_link SET last_attempt_at=null WHERE id=?",link); }
     UUID category() { return categories.create(owner,new CategoryService.Create("Alimentação",Category.Kind.EXPENSE,true)).id(); }
+    @Test void pendingEntriesAreFilteredBeforePaginationWithoutPostingOrCallingProvider() throws Exception {
+        var link=bind();
+        for(int i=0;i<107;i++) {
+            String state=i<55?"IGNORED":i==106?"CHANGED":"REVIEW";
+            jdbc.update("INSERT INTO bank_entry(id,owner_id,link_id,external_id,description,amount,date,direction,provider_status,state) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                UUID.randomUUID(),owner,link.id(),"pending-filter-"+i,"Registro fictício "+i,new BigDecimal("1.00"),
+                i<55?today:date,"DEBIT","POSTED",state);
+        }
+        clearInvocations(provider);
+        assertThat(bank.entries(owner,link.id(),0)).hasSize(50).allSatisfy(entry->assertThat(entry.state()).isEqualTo("IGNORED"));
+        var first=bank.entries(owner,link.id(),0,true);
+        var second=bank.entries(owner,link.id(),1,true);
+        assertThat(first).hasSize(50).allSatisfy(entry->assertThat(entry.state()).isIn("REVIEW","CHANGED"));
+        assertThat(second).hasSize(2).allSatisfy(entry->assertThat(entry.state()).isIn("REVIEW","CHANGED"));
+        assertThat(bank.entries(owner,UUID.randomUUID(),0,true)).isEmpty();
+        assertThatThrownBy(()->bank.entries(UUID.randomUUID(),link.id(),0,true)).isInstanceOf(ApiException.class);
+        mvc.perform(get("/api/banking/links/"+link.id()+"/entries?pending=true&page=1").with(user(principal)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE owner_id=?",Long.class,owner)).isEqualTo(107);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND kind!='OPENING'",Long.class,owner)).isZero();
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
+        verifyNoInteractions(provider);
+    }
     @Test void linkingAndReadingDoNotChangeLedgerAndRepeatedSyncIsIdempotent() {
         var link=bind(); var entry=sync(link,List.of(remote("entry-1","50.00","POSTED")));
         assertThat(entry.state()).isEqualTo("REVIEW"); assertThat(bank.links(owner).getFirst().reportedBalance()).isEqualByComparingTo("950");

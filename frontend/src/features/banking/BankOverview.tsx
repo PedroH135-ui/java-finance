@@ -2,14 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Alert, Box, Button, Divider, Stack, Typography } from '@mui/material';
 import { api } from '../../lib/api';
-import { money } from '../../lib/format';
+import { bankDateTime, money } from '../../lib/format';
 import type { BankConfig, BankLink } from '../../lib/types';
 import { Panel } from '../../components/Shared';
-
-function updatedAt(value: string | null) {
-  if (!value || !Number.isFinite(Date.parse(value))) return 'Não informada';
-  return new Date(value).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' (Brasília)';
-}
 
 /** Only reads stored snapshots. Rendering this panel never queries the bank or imports entries. */
 export function BankOverview() {
@@ -24,8 +19,8 @@ export function BankOverview() {
       : linked ? <Stack spacing={2} divider={<Divider/>}>{links.data?.map(link => <Box key={link.id}>
         <Typography component="h3" variant="subtitle1" fontWeight={600} sx={{ overflowWrap: 'anywhere' }}>{link.name}</Typography>
         <Typography variant="h5" className="money">{link.reportedBalance == null ? 'Saldo não disponível' : money(link.reportedBalance)}</Typography>
-        <Typography variant="body2" color="text.secondary" mt={1}>Atualização no banco: {updatedAt(link.providerUpdatedAt)}</Typography>
-        <Typography variant="body2" color="text.secondary">Última consulta no sistema: {updatedAt(link.lastCheckedAt)}</Typography>
+        <Typography variant="body2" color="text.secondary" mt={1}>Atualização no banco: {bankDateTime(link.providerUpdatedAt)}</Typography>
+        <Typography variant="body2" color="text.secondary">Última consulta no sistema: {bankDateTime(link.lastCheckedAt)}</Typography>
         {!link.active && <Typography variant="body2" color="text.secondary" mt={1}>Leitura desativada. Exibindo o último saldo armazenado.</Typography>}
       </Box>)}</Stack>
       : <Typography color="text.secondary">Vincule sua conta Nubank autorizada no Meu Pluggy para acompanhar o saldo informado pelo banco.</Typography>}

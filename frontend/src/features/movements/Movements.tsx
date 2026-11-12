@@ -2,14 +2,28 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Add,FilterAltOff } from '@mui/icons-material';
-import { Alert,Box,Button,Chip,MenuItem,Paper,Stack,Table,TableBody,TableCell,TableContainer,TableHead,TableRow,TextField,Typography } from '@mui/material';
+import { Alert,Box,Button,Chip,MenuItem,Paper,Stack,Tab,Tabs,Table,TableBody,TableCell,TableContainer,TableHead,TableRow,TextField,Typography } from '@mui/material';
 import { api } from '../../lib/api';
 import type { Account,Category,MovementPage } from '../../lib/types';
 import { civilDate,kindLabels,money,monthBounds,statusLabels,today } from '../../lib/format';
 import { Empty,Failure,Loading,PageHeader } from '../../components/Shared';
 import { MovementForm } from './MovementForm';
 import { MovementDetail } from './MovementDetail';
+import { BankPendingEntries } from './BankPendingEntries';
 export function Movements() {
+  const [params,setParams]=useSearchParams();
+  const reviewing=params.get('tab')==='review';
+  return <>
+    <PageHeader title="Movimentações" subtitle="Seus lançamentos internos e os registros bancários que aguardam revisão." action={<Button variant="contained" startIcon={<Add/>} onClick={()=>setParams(previous=>{const next=new URLSearchParams(previous);next.delete('tab');next.set('new','1');return next;})}>Nova movimentação</Button>}/>
+    <Tabs value={reviewing?'review':'records'} onChange={(_,value:string)=>setParams(previous=>{const next=new URLSearchParams(previous);if(value==='review'){next.set('tab','review');next.delete('new');next.delete('detail');}else next.delete('tab');return next;})} aria-label="Tipos de movimentações" sx={{mb:3}} variant="scrollable" scrollButtons="auto">
+      <Tab id="movements-tab-records" aria-controls="movements-panel-records" value="records" label="Lançamentos internos"/>
+      <Tab id="movements-tab-review" aria-controls="movements-panel-review" value="review" label="Aguardando revisão"/>
+    </Tabs>
+    <Box role="tabpanel" id="movements-panel-records" aria-labelledby="movements-tab-records" hidden={reviewing}>{!reviewing&&<MovementRecords/>}</Box>
+    <Box role="tabpanel" id="movements-panel-review" aria-labelledby="movements-tab-review" hidden={!reviewing}>{reviewing&&<BankPendingEntries/>}</Box>
+  </>;
+}
+function MovementRecords() {
   const [params,setParams]=useSearchParams(),[notice,setNotice]=useState('');
   const month=params.get('month')??today().slice(0,7),page=Number(params.get('page')??0);
   const queryParams=new URLSearchParams({...monthBounds(month),page:String(page),size:'20'});
@@ -21,7 +35,6 @@ export function Movements() {
   const active=['account','category','kind','status','text'].filter(k=>params.has(k));
   const closeForm=()=>set('new','');
   return <>
-    <PageHeader title="Movimentações" subtitle="Acompanhe o que entrou, saiu e ainda está previsto." action={<Button variant="contained" startIcon={<Add/>} onClick={()=>set('new','1')}>Nova movimentação</Button>}/>
     {notice&&<Alert severity="success" onClose={()=>setNotice('')} sx={{mb:2}}>{notice}</Alert>}
     <Paper variant="outlined" sx={{p:2,mb:2}}>
       <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'1fr 1fr',md:'repeat(4,minmax(0,1fr))'},gap:2}}>

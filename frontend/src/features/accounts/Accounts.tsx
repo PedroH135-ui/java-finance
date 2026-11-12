@@ -1,29 +1,46 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Box, Button, Chip, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Divider, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { Add, AccountBalanceOutlined, EditOutlined } from '@mui/icons-material';
 import { api, ApiError, json } from '../../lib/api';
 import type { Account } from '../../lib/types';
-import { accountKinds, civilDate, money, today } from '../../lib/format';
+import { accountKinds, bankDateTime, civilDate, money, today } from '../../lib/format';
+import { useStoredBankLinks } from '../banking/useStoredBankLinks';
 import { Empty, Failure, FormDialog, Loading, MoneyInput, PageHeader } from '../../components/Shared';
 interface Values { name:string; institution:string; kind:string; openingBalance:string; openingDate:string }
 export function Accounts() {
   const query=useQuery({queryKey:['accounts'],queryFn:()=>api<Account[]>('/accounts')});
+  const banking=useStoredBankLinks();
   const [editing,setEditing]=useState<Account|null|undefined>(undefined),[notice,setNotice]=useState('');
   return <>
     <PageHeader title="Contas" subtitle="O dinheiro que você tem, organizado por conta." action={<Button variant="contained" startIcon={<Add/>} onClick={()=>setEditing(null)}>Nova conta</Button>}/>
     {notice&&<Alert severity="success" onClose={()=>setNotice('')} sx={{mb:2}}>{notice}</Alert>}
-    <Alert severity="info" sx={{mb:3}}>O saldo é calculado pelos lançamentos efetivados. O saldo inicial não entra como receita do mês.</Alert>
+    <Alert severity="info" sx={{mb:3}}>O saldo interno é calculado pelo saldo inicial e pelos lançamentos efetivados. O saldo informado pelo banco é exibido separadamente e não altera o saldo interno.</Alert>
+    {banking.loading&&<Typography role="status" mb={2}>Carregando saldos bancários armazenados…</Typography>}
+    {banking.error&&<Alert severity="warning" sx={{mb:2}}>Não foi possível carregar os saldos bancários. As contas e os saldos internos continuam disponíveis.</Alert>}
     {query.isPending?<Loading/>:query.error?<Failure error={query.error} retry={()=>void query.refetch()}/>:query.data.length===0?
       <Paper variant="outlined"><Empty title="Comece pela sua primeira conta" action={<Button variant="outlined" onClick={()=>setEditing(null)}>Cadastrar conta</Button>}>Pode ser sua conta corrente, carteira ou dinheiro em espécie.</Empty></Paper>:
       <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'repeat(2,minmax(0,1fr))',xl:'repeat(3,minmax(0,1fr))'},gap:2}}>
-        {query.data.map(a=><Paper key={a.id} variant="outlined" sx={{p:3}}>
+        {query.data.map(a=><Paper key={a.id} variant="outlined" sx={{p:3}} component="section" aria-label={'Conta '+a.name}>
           <Stack direction="row" justifyContent="space-between" alignItems="center"><AccountBalanceOutlined color="primary"/><Chip size="small" label={a.archived?'Arquivada':'Ativa'} variant="outlined"/></Stack>
           <Typography variant="h6" mt={2} sx={{overflowWrap:'anywhere'}}>{a.name}</Typography>
           <Typography color="text.secondary" variant="body2">{accountKinds[a.kind]}{a.institution?' · '+a.institution:''}</Typography>
-          <Typography variant="h5" className="money" my={2} sx={{fontSize:{xs:'1.1rem',sm:'1.4rem'}}}>{money(a.balance)}</Typography>
+          <Typography variant="body2" mt={2}>Saldo interno</Typography>
+          <Typography variant="h5" className="money" my={1} sx={{fontSize:{xs:'1.1rem',sm:'1.4rem'}}}>{money(a.balance)}</Typography>
           <Typography variant="caption" color="text.secondary">Saldo realizado · desde {civilDate(a.openingDate)}</Typography>
+          {banking.ready&&!banking.error&&banking.links.data?.filter(link=>link.accountId===a.id).map(link=><Box key={link.id} mt={2}>
+            <Divider sx={{mb:2}}/>
+            <Typography variant="body2" fontWeight={600}>Saldo informado pelo banco</Typography>
+            <Typography variant="h5" className="money" my={1}>{link.reportedBalance==null?'Não disponível':money(link.reportedBalance)}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{overflowWrap:'anywhere'}}>{link.name}</Typography>
+            <Typography variant="caption" display="block">Atualização no banco: {bankDateTime(link.providerUpdatedAt)}</Typography>
+            <Typography variant="caption" display="block">Última consulta no sistema: {bankDateTime(link.lastCheckedAt)}</Typography>
+            {!link.active&&<Typography variant="caption" display="block">Leitura desativada · último saldo armazenado.</Typography>}
+            <Typography variant="caption" color="text.secondary" display="block" mt={1}>Não é saldo em tempo real. Os lançamentos aguardam revisão manual.</Typography>
+            <Button component={Link} to={'/movements?tab=review&link='+encodeURIComponent(link.id)} size="small" sx={{mt:1}}>Ver registros para revisão</Button>
+          </Box>)}
           <Box mt={2}><Button startIcon={<EditOutlined/>} onClick={()=>setEditing(a)}>Editar conta</Button></Box>
         </Paper>)}
       </Box>}

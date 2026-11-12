@@ -124,19 +124,23 @@ public class BankService {
         });
     }
     public List<Entry> entries(UUID owner, UUID linkId, int page) {
+        return entries(owner,linkId,page,false);
+    }
+    public List<Entry> entries(UUID owner, UUID linkId, int page, boolean pending) {
         owner(owner);
         if(page<0 || page>10000) throw ApiException.bad("Página inválida.");
         return jdbc.query("""
             SELECT e.*,a.name account_name,l.account_id FROM bank_entry e
             JOIN bank_link l ON l.id=e.link_id AND l.owner_id=e.owner_id
             JOIN account a ON a.id=l.account_id AND a.owner_id=e.owner_id
-            WHERE e.owner_id=? AND e.link_id=? ORDER BY e.date DESC,e.id LIMIT 50 OFFSET ?
+            WHERE e.owner_id=? AND e.link_id=? AND (NOT ? OR e.state IN ('REVIEW','CHANGED'))
+            ORDER BY e.date DESC,e.id LIMIT 50 OFFSET ?
             """,(rs,n)->{
                 var amount=rs.getBigDecimal("amount"); var date=rs.getObject("date",LocalDate.class); var direction=rs.getString("direction");
                 var state=rs.getString("state");
                 return new Entry(rs.getObject("id",UUID.class),linkId,rs.getString("account_name"),rs.getString("description"),amount,date,direction,rs.getString("provider_status"),state,
                     rs.getObject("movement_id",UUID.class),rs.getLong("version"),state.equals("REVIEW")?candidates(owner,rs.getObject("account_id",UUID.class),amount,date,direction):List.of());
-            },owner,linkId,page*50);
+            },owner,linkId,pending,page*50);
     }
     private List<Candidate> candidates(UUID owner, UUID account, BigDecimal amount, LocalDate date, String direction) {
         return jdbc.query("""
