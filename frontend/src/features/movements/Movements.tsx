@@ -14,9 +14,9 @@ export function Movements() {
   const [params,setParams]=useSearchParams();
   const reviewing=params.get('tab')==='review';
   return <>
-    <PageHeader title="Movimentações" subtitle="Seus lançamentos internos e os registros bancários que aguardam revisão." action={<Button variant="contained" startIcon={<Add/>} onClick={()=>setParams(previous=>{const next=new URLSearchParams(previous);next.delete('tab');next.set('new','1');return next;})}>Nova movimentação</Button>}/>
+    <PageHeader title="Movimentações" subtitle="Seus lançamentos e os registros bancários que aguardam classificação." action={<Button variant="contained" startIcon={<Add/>} onClick={()=>setParams(previous=>{const next=new URLSearchParams(previous);next.delete('tab');next.set('new','1');return next;})}>Nova movimentação</Button>}/>
     <Tabs value={reviewing?'review':'records'} onChange={(_,value:string)=>setParams(previous=>{const next=new URLSearchParams(previous);if(value==='review'){next.set('tab','review');next.delete('new');next.delete('detail');}else next.delete('tab');return next;})} aria-label="Tipos de movimentações" sx={{mb:3}} variant="scrollable" scrollButtons="auto">
-      <Tab id="movements-tab-records" aria-controls="movements-panel-records" value="records" label="Lançamentos internos"/>
+      <Tab id="movements-tab-records" aria-controls="movements-panel-records" value="records" label="Lançamentos e relatórios"/>
       <Tab id="movements-tab-review" aria-controls="movements-panel-review" value="review" label="Aguardando revisão"/>
     </Tabs>
     <Box role="tabpanel" id="movements-panel-records" aria-labelledby="movements-tab-records" hidden={reviewing}>{!reviewing&&<MovementRecords/>}</Box>

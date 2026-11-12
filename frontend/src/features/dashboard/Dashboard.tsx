@@ -10,12 +10,13 @@ import { Empty, Failure, Loading, PageHeader, Panel } from '../../components/Sha
 import { BankOverview } from '../banking/BankOverview';
 export function Dashboard() {
   const [params,setParams]=useSearchParams(),month=params.get('month')??today().slice(0,7);
-  const query=useQuery({queryKey:['summary',month],queryFn:()=>api<Summary>('/reports/summary?month='+month)});
+  // Reads stored balances only; never triggers bank synchronization or classification.
+  const query=useQuery({queryKey:['summary',month],queryFn:()=>api<Summary>('/reports/summary?month='+month),refetchInterval:60000});
   if(query.isPending)return <Loading/>;
   if(query.error)return <Failure error={query.error} retry={()=>void query.refetch()}/>;
   const d=query.data;
   const metrics=[
-    {title:'Saldo interno',value:d.balance,caption:'Saldo inicial e lançamentos efetivados · todas as contas',icon:<AccountBalanceWalletOutlined/>,color:'#174bbd',link:'/accounts'},
+    {title:'Saldo das contas',value:d.balance,caption:'Saldo bancário nas vinculadas · calculado nas manuais',icon:<AccountBalanceWalletOutlined/>,color:'#174bbd',link:'/accounts'},
     {title:'Receitas do mês',value:d.competence.income,caption:'Receitas efetivadas · competência',icon:<ArrowUpward/>,color:'#16734f',link:'/movements?kind=INCOME&basis=competence&status=CONFIRMED&month='+month},
     {title:'Despesas do mês',value:d.competence.expenses,caption:'Despesas efetivadas · competência',icon:<ArrowDownward/>,color:'#b33440',link:'/movements?kind=EXPENSE&basis=competence&status=CONFIRMED&month='+month},
     {title:'Resultado do mês',value:d.competence.result,caption:'Receitas menos despesas · competência',icon:<TrendingUp/>,color:'#174bbd',link:'/movements?basis=competence&status=CONFIRMED&month='+month},
@@ -25,15 +26,16 @@ export function Dashboard() {
   return <>
     <PageHeader title="Seu mês, com clareza" subtitle="Uma visão do presente para decidir os próximos passos." action={<Button component={Link} to="/movements?new=1" variant="contained" startIcon={<Add/>}>Nova movimentação</Button>}/>
     <Stack direction={{xs:'column',sm:'row'}} justifyContent="space-between" alignItems={{sm:'center'}} gap={2} mb={3}>
-      <Box><Typography variant="overline" color="primary">VISÃO GERAL</Typography><Typography variant="body2" color="text.secondary">Dados reais · BRL · Atualizado com seus lançamentos</Typography></Box>
+      <Box><Typography variant="overline" color="primary">VISÃO GERAL</Typography><Typography variant="body2" color="text.secondary">BRL · Saldos das contas e registros revisados</Typography></Box>
       <TextField label="Mês de competência" type="month" value={month} onChange={e=>{if(e.target.value)setParams({month:e.target.value});}} slotProps={{inputLabel:{shrink:true}}} sx={{width:{xs:'100%',sm:220}}}/>
     </Stack>
-    <BankOverview/>
+    {d.accountCount===0&&<BankOverview/>}
+    {d.balanceComplete===false&&<Alert severity="warning" sx={{mb:3}}>Há uma conta vinculada sem saldo bancário disponível. O total fica indisponível até receber esse saldo, sem substituí-lo por um valor calculado.</Alert>}
     {d.accountCount===0&&<Alert severity="info" sx={{mb:3}} action={<Button component={Link} to="/accounts">Cadastrar conta</Button>}>Seu espaço está pronto. Comece cadastrando uma conta com o saldo que você já possui.</Alert>}
     <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'repeat(2,minmax(0,1fr))',xl:'repeat(4,minmax(0,1fr))'},gap:2,mb:3}}>
       {metrics.map(m=><Paper key={m.title} variant="outlined" sx={{p:2.5,minWidth:0}}>
         <Stack direction="row" justifyContent="space-between" mb={2}><Typography fontWeight={600} variant="body2">{m.title}</Typography><Box sx={{color:m.color}}>{m.icon}</Box></Stack>
-        <Typography component={Link} to={m.link} className="money" sx={{display:'block',color:'text.primary',textDecoration:'none',fontSize:{xs:'1.35rem',sm:'1.55rem'},fontWeight:750,letterSpacing:'-0.04em'}}>{money(m.value)}</Typography>
+        <Typography component={Link} to={m.link} className="money" sx={{display:'block',color:'text.primary',textDecoration:'none',fontSize:{xs:'1.35rem',sm:'1.55rem'},fontWeight:750,letterSpacing:'-0.04em'}}>{m.value==null?'Não disponível':money(m.value)}</Typography>
         <Typography variant="caption" color="text.secondary" sx={{display:'block',mt:1}}>{m.caption}</Typography>
       </Paper>)}
     </Box>

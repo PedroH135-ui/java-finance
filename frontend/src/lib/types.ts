@@ -5,7 +5,8 @@ export interface BankLink {
   lastCheckedAt: string | null; providerUpdatedAt: string | null; reportedBalance: string | null;
   autoCheckedThrough?: string | null; autoErrorAt?: string | null;
 }
-export interface Account { id: string; name: string; institution: string; kind: string; currency: string; openingDate: string; balance: string; archived: boolean; version: number }
+export interface Account { id: string; name: string; institution: string; kind: string; currency: string; openingDate: string; balance: string | null; archived: boolean; version: number;
+  balanceSource?: 'BANK' | 'CALCULATED'; bankUpdatedAt?: string | null; bankCheckedAt?: string | null; bankReadActive?: boolean; bankLinkId?: string | null }
 export interface Category { id: string; name: string; kind: string; essential: boolean; archived: boolean; version: number }
 export interface Movement {
   id: string; description: string; amount: string; kind: string; status: string; accountId: string; destinationId: string | null;
@@ -13,7 +14,7 @@ export interface Movement {
   notes: string; source: string; externalReference: string | null; batchId: string | null; createdAt: string; version: number;
 }
 export interface Summary {
-  month: string; today: string; balance: string;
+  month: string; today: string; balance: string | null; balanceComplete?: boolean;
   competence: { income: string; expenses: string; result: string; savingsRate: string | null };
   cashFlow: string; categories: { id: string; name: string; total: string }[];
   evolution: { month: string; income: string; expenses: string; records: number }[];

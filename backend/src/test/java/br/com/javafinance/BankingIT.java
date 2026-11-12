@@ -1,6 +1,8 @@
 package br.com.javafinance;
 
 import br.com.javafinance.accounts.*;
+import br.com.javafinance.reports.ReportService;
+import br.com.javafinance.budgets.BudgetService;
 import br.com.javafinance.banking.*;
 import br.com.javafinance.categories.*;
 import br.com.javafinance.common.ApiException;
@@ -29,7 +31,7 @@ class BankingIT {
     @Autowired BankService bank; @Autowired BankProperties config; @Autowired UserService users;
     @Autowired AccountService accounts; @Autowired CategoryService categories; @Autowired MovementService movements;
     @Autowired JdbcTemplate jdbc; @Autowired Clock clock; @Autowired MockMvc mvc;
-    @Autowired BankAutoSync automatic;
+    @Autowired BankAutoSync automatic; @Autowired ReportService reports; @Autowired BudgetService budgets; @Autowired LedgerService ledger;
     @MockitoBean BankProvider provider;
     UUID owner,item,external; UserPrincipal principal; AccountService.View account;
     LocalDate today,date; BankProvider.Snapshot snapshot;
@@ -77,29 +79,40 @@ class BankingIT {
             .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE owner_id=?",Long.class,owner)).isEqualTo(107);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND kind!='OPENING'",Long.class,owner)).isZero();
-        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
         verifyNoInteractions(provider);
     }
     @Test void linkingAndReadingDoNotChangeLedgerAndRepeatedSyncIsIdempotent() {
         var link=bind(); var entry=sync(link,List.of(remote("entry-1","50.00","POSTED")));
         assertThat(entry.state()).isEqualTo("REVIEW"); assertThat(bank.links(owner).getFirst().reportedBalance()).isEqualByComparingTo("950");
-        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
         assertThatThrownBy(()->bank.sync(owner,link.id(),new BankService.Sync(link.importFrom(),today))).isInstanceOf(ApiException.class);
         allowSync(link.id()); bank.sync(owner,link.id(),new BankService.Sync(link.importFrom(),today));
         assertThat(bank.entries(owner,link.id(),0)).hasSize(1); assertThat(bank.entries(owner,link.id(),0).getFirst().version()).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND kind!='OPENING'",Long.class,owner)).isZero();
     }
-    @Test void explicitImportCreatesExactlyOneExpenseWithSourceAndBudgetCompatibility() {
+    @Test void classificationFeedsReportsAndBudgetsWithoutAnotherDebit() {
         var link=bind(); var entry=sync(link,List.of(remote("entry-1","50.25","POSTED"))); UUID category=category();
         assertThatThrownBy(()->bank.review(owner,entry.id(),"import",new BankService.Review(entry.version(),category,null,false,false))).isInstanceOf(ApiException.class);
         bank.review(owner,entry.id(),"import",new BankService.Review(entry.version(),category,null,true,false));
-        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("949.75");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
         var reviewed=bank.entries(owner,link.id(),0).getFirst();
         assertThat(reviewed.state()).isEqualTo("IMPORTED");
         assertThat(movements.get(owner,reviewed.movementId()).source()).isEqualTo("MEU_PLUGGY");
         assertThat(movements.get(owner,reviewed.movementId()).competence()).isEqualTo(date.withDayOfMonth(1));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM posting WHERE movement_id=?",Long.class,reviewed.movementId())).isZero();
+        assertThat(ledger.balance(owner,account.id(),today)).isEqualByComparingTo("1000");
+        var summary=reports.summary(owner,YearMonth.from(date));
+        assertThat(summary.balance()).isEqualByComparingTo("950");
+        assertThat(summary.competence().expenses()).isEqualByComparingTo("50.25");
+        assertThat(summary.cashFlow()).isEqualByComparingTo("-50.25");
+        assertThat(summary.records()).isEqualTo(1);
+        assertThat(summary.categories()).hasSize(1);
+        assertThat(budgets.month(owner,YearMonth.from(date)).categories()).anySatisfy(row->{
+            assertThat(row.categoryId()).isEqualTo(category); assertThat(row.spent()).isEqualByComparingTo("50.25");
+        });
         assertThatThrownBy(()->bank.review(owner,entry.id(),"import",new BankService.Review(entry.version(),category,null,true,false))).isInstanceOf(ApiException.class);
-        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("949.75");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
     }
     @Test void matchingAnExistingMovementDoesNotDuplicateAndDuplicateImportNeedsAcknowledgment() {
         UUID category=category();
@@ -132,7 +145,7 @@ class BankingIT {
         bank.reconnect(owner,link.id());
         bank.review(owner,entry.id(),"ignore",new BankService.Review(entry.version(),null,null,false,false));
         assertThat(bank.entries(owner,link.id(),0).getFirst().state()).isEqualTo("IGNORED");
-        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
     }
     @Test void cannotReadUnlistedItemsOrOtherProfilesAndSecretsAreNeverInConfiguration() throws Exception {
         mvc.perform(get("/api/banking/config")).andExpect(status().isUnauthorized());
@@ -161,7 +174,7 @@ class BankingIT {
         assertThatThrownBy(()->bank.sync(owner,link.id(),new BankService.Sync(link.importFrom(),today))).isInstanceOf(ApiException.class);
         assertThat(bank.entries(owner,link.id(),0)).isEmpty();
         assertThatThrownBy(()->bank.sync(owner,link.id(),new BankService.Sync(account.openingDate(),today))).isInstanceOf(ApiException.class);
-        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
     }
     @Test void diagnosticPreservesStorageExceptionAndRollsBackWholeRead() {
         var link=bind();
@@ -172,7 +185,7 @@ class BankingIT {
             .isInstanceOf(org.springframework.dao.DataAccessException.class);
         assertThat(bank.entries(owner,link.id(),0)).isEmpty();
         assertThat(bank.links(owner).getFirst().lastCheckedAt()).isNull();
-        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
     }
     @Test void ownTransferCanMatchBothAccountsWithoutBecomingIncomeOrExpense() {
         var destination=accounts.create(owner,new AccountService.Create("Outra conta fictícia","",Account.Kind.CHECKING,"100",today.minusDays(10)));
@@ -207,8 +220,64 @@ class BankingIT {
             var results=pool.invokeAll(List.of(action,action));
             assertThat(results.get(0).get() ^ results.get(1).get()).isTrue();
         } finally { pool.shutdownNow(); }
-        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("949.75");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND source='MEU_PLUGGY'",Long.class,owner)).isEqualTo(1);
+    }
+    @Test void bankAndManualBalancesAreCombinedOnceAndCancellationOnlyChangesReports() {
+        var manual=accounts.create(owner,new AccountService.Create("Carteira manual","",Account.Kind.WALLET,"100",today.minusDays(10)));
+        UUID category=category();
+        movements.create(owner,new MovementDtos.Create(UUID.randomUUID(),"Despesa manual","20",Movement.Kind.EXPENSE,Movement.Status.CONFIRMED,
+            manual.id(),null,category,date,date.withDayOfMonth(1),date,date,""));
+        var link=bind(); var entry=sync(link,List.of(remote("classified","50.25","POSTED")));
+        bank.review(owner,entry.id(),"import",new BankService.Review(entry.version(),category,null,true,true));
+        var summary=reports.summary(owner,YearMonth.from(date));
+        assertThat(summary.balance()).isEqualByComparingTo("1030"); // 950 bank + 80 calculated, no second debit.
+        assertThat(summary.cashFlow()).isEqualByComparingTo("-70.25");
+        assertThat(summary.competence().expenses()).isEqualByComparingTo("70.25");
+        var classified=movements.get(owner,bank.entries(owner,link.id(),0).getFirst().movementId());
+        movements.cancel(owner,classified.id(),new MovementDtos.Change(classified.version(),"Correção de classificação",null));
+        summary=reports.summary(owner,YearMonth.from(date));
+        assertThat(summary.balance()).isEqualByComparingTo("1030");
+        assertThat(summary.cashFlow()).isEqualByComparingTo("-20");
+        assertThat(summary.competence().expenses()).isEqualByComparingTo("20");
+        assertThat(accounts.list(owner)).anySatisfy(a->{assertThat(a.id()).isEqualTo(manual.id());
+            assertThat(a.balance()).isEqualByComparingTo("80"); assertThat(a.balanceSource()).isEqualTo(AccountBalanceService.Source.CALCULATED);});
+    }
+    @Test void zeroMissingAndDisconnectedBankSnapshotsNeverFallBackToCalculatedBalance() throws Exception {
+        var link=bind();
+        jdbc.update("UPDATE bank_link SET reported_balance=0 WHERE id=?",link.id());
+        assertThat(accounts.list(owner).getFirst().balance()).isZero();
+        assertThat(reports.summary(owner,YearMonth.from(date)).balance()).isZero();
+        bank.disconnect(owner,link.id());
+        var position=accounts.list(owner).getFirst();
+        assertThat(position.balanceSource()).isEqualTo(AccountBalanceService.Source.BANK);
+        assertThat(position.bankReadActive()).isFalse();
+        assertThat(position.bankUpdatedAt()).isCloseTo(snapshot.updatedAt(),within(1,java.time.temporal.ChronoUnit.MILLIS));
+        assertThat(position.balance()).isZero();
+        jdbc.update("UPDATE bank_link SET reported_balance=null WHERE id=?",link.id());
+        assertThat(accounts.list(owner).getFirst().balance()).isNull();
+        assertThat(reports.summary(owner,YearMonth.from(date)).balance()).isNull();
+        assertThat(reports.summary(owner,YearMonth.from(date)).balanceComplete()).isFalse();
+        mvc.perform(get("/api/accounts").with(user(principal))).andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].balance").isEmpty()).andExpect(jsonPath("$[0].balanceSource").value("BANK"));
+        assertThat(ledger.balance(owner,account.id(),today)).isEqualByComparingTo("1000");
+    }
+    @Test void newBankReadUpdatesPrimaryBalanceWhileLegacyPostingsArePreservedAndOwnersIsolated() {
+        var manual=movements.create(owner,new MovementDtos.Create(UUID.randomUUID(),"Legado","50",Movement.Kind.EXPENSE,Movement.Status.CONFIRMED,
+            account.id(),null,category(),date,date.withDayOfMonth(1),date,date,""));
+        jdbc.update("UPDATE movement SET source='MEU_PLUGGY',external_reference='legacy' WHERE id=?",manual.id());
+        var link=bind();
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
+        when(provider.accounts(item)).thenReturn(new BankProvider.Snapshot(clock.instant(),List.of(
+            new BankProvider.RemoteAccount(external,"Nubank fictício","BANK","BRL",new BigDecimal("900")))));
+        sync(link,List.of(remote("new-pending","50","POSTED")));
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("900");
+        assertThat(reports.summary(owner,YearMonth.from(date)).cashFlow()).isEqualByComparingTo("-50");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM posting WHERE movement_id=?",Long.class,manual.id())).isEqualTo(1);
+        UUID other=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Outro","UmaSenhaSegura123!")).id();
+        accounts.create(other,new AccountService.Create("Manual","",Account.Kind.WALLET,"17",today.minusDays(1)));
+        assertThat(accounts.list(other)).hasSize(1);
+        assertThat(reports.summary(other,YearMonth.from(today)).balance()).isEqualByComparingTo("17");
     }
     String event(UUID eventId, UUID itemId) {
         return "{\"event\":\"item/updated\",\"eventId\":\""+eventId+"\",\"itemId\":\""+itemId+"\",\"clientUserId\":\"untrusted-ignored\"}";
@@ -221,7 +290,7 @@ class BankingIT {
         assertThat(bank.entries(owner,link.id(),0)).hasSize(1).allMatch(e->e.state().equals("REVIEW"));
         assertThat(bank.links(owner).getFirst().autoCheckedThrough()).isEqualTo(today);
         verify(provider,times(1)).transactions(external,link.importFrom(),today);
-        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("1000");
+        assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND kind!='OPENING'",Long.class,owner)).isZero();
     }
     @Test void failedWebhookIsDurableAndSameDeliveryRetriesSuccessfully() throws Exception {

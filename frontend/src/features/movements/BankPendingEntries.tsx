@@ -28,7 +28,7 @@ export function BankPendingEntries() {
     setParams(previous => { const next = new URLSearchParams(previous); next.set('reviewPage', String(value)); return next; });
   }
   return <Stack spacing={2}>
-    <Alert severity="info">Registros recebidos do banco, de todas as datas, que ainda precisam de revisão. Não entram no saldo interno nem nos totais de receitas e despesas até sua confirmação manual.</Alert>
+    <Alert severity="info">Registros recebidos do banco, de todas as datas, que ainda precisam de revisão. Sua classificação alimenta categorias e relatórios; o saldo da conta continua sendo o informado pelo banco, sem descontar esses valores novamente.</Alert>
     {banking.loading ? <Loading/> : banking.error ? <Failure error={banking.error} retry={() => { void banking.config.refetch(); if (banking.ready) void banking.links.refetch(); }}/>
       : !selected ? <Paper variant="outlined"><Empty title="Nenhuma conta bancária vinculada" action={<Button component={Link} to="/banking">Ver conexões bancárias</Button>}>Após vincular uma conta e receber dados, os registros para revisão aparecerão aqui.</Empty></Paper>
       : <>

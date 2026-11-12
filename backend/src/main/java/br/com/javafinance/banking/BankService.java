@@ -53,7 +53,7 @@ public class BankService {
             rs.getObject("auto_checked_through",LocalDate.class),instant(rs.getTimestamp("auto_error_at"))),owner);
     }
     public void bind(UUID owner, Bind input) {
-        if(!input.confirmedBaseline()) throw ApiException.bad("Confirme a data e o saldo de abertura antes de vincular a conta.");
+        if(!input.confirmedBaseline()) throw ApiException.bad("Confirme a data inicial e revise os registros existentes antes de vincular a conta.");
         var snapshot=discover(owner,input.itemId());
         var external=snapshot.accounts().stream().filter(a->a.id().equals(input.externalAccountId()) && a.type().equals("BANK") && a.currency().equals("BRL")).findFirst().orElseThrow(ApiException::missing);
         tx.executeWithoutResult(status->{
@@ -70,7 +70,7 @@ public class BankService {
             UUID id=UUID.randomUUID();
             jdbc.update("INSERT INTO bank_link(id,owner_id,item_id,external_account_id,account_id,name,import_from,provider_updated_at,reported_balance) VALUES (?,?,?,?,?,?,?,?,?)",
                 id,owner,input.itemId(),external.id(),input.accountId(),external.name(),input.importFrom(),timestamp(snapshot.updatedAt()),external.balance());
-            audit.record(owner,id,"BANK_LINKED","Conta vinculada para leitura. Nenhum saldo ou lançamento foi alterado.");
+            audit.record(owner,id,"BANK_LINKED","Conta vinculada para leitura; saldo principal informado pelo banco. Nenhum registro classificado automaticamente.");
         });
     }
     public int sync(UUID owner, UUID id, Sync input) {
@@ -185,13 +185,12 @@ public class BankService {
             if(!matches.isEmpty() && !input.reviewedDuplicates()) throw ApiException.conflict("Há possíveis duplicidades. Vincule o lançamento existente ou confirme que são operações distintas.");
             if(input.categoryId()==null) throw ApiException.bad("Selecione a categoria.");
             UUID request=UUID.nameUUIDFromBytes(("MEU_PLUGGY:"+owner+":"+id).getBytes(StandardCharsets.UTF_8));
-            var created=movements.create(owner,new MovementDtos.Create(request,(String)entry.get("description"),amount.toPlainString(),
-                direction.equals("DEBIT")?Movement.Kind.EXPENSE:Movement.Kind.INCOME,Movement.Status.CONFIRMED,account,null,input.categoryId(),date,date.withDayOfMonth(1),date,date,"Importado após revisão do Meu Pluggy."));
+            var created=movements.recordBankReview(owner,new MovementDtos.Create(request,(String)entry.get("description"),amount.toPlainString(),
+                direction.equals("DEBIT")?Movement.Kind.EXPENSE:Movement.Kind.INCOME,Movement.Status.CONFIRMED,account,null,input.categoryId(),date,date.withDayOfMonth(1),date,date,"Classificado após revisão do Meu Pluggy; sem alterar saldo bancário."),(String)entry.get("external_id"));
             movement=created.id();
-            jdbc.update("UPDATE movement SET source='MEU_PLUGGY',external_reference=? WHERE id=? AND owner_id=?",entry.get("external_id"),movement,owner);
         } else throw ApiException.bad("Ação inválida.");
         jdbc.update("UPDATE bank_entry SET state=?,movement_id=?,version=version+1 WHERE id=? AND owner_id=?",action.equals("match")?"MATCHED":"IMPORTED",movement,id,owner);
-        audit.record(owner,id,"BANK_REVIEWED",action.equals("match")?"Vinculado a lançamento existente, sem duplicar saldo.":"Importação confirmada pelo usuário.");
+        audit.record(owner,id,"BANK_REVIEWED",action.equals("match")?"Vinculado a lançamento existente, sem duplicar saldo.":"Classificação confirmada para relatórios, sem alterar saldo bancário.");
     }
     @Transactional public void disconnect(UUID owner, UUID id) {
         owner(owner);

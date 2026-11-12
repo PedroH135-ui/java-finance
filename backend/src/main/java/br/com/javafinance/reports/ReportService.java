@@ -1,5 +1,6 @@
 package br.com.javafinance.reports;
 import br.com.javafinance.common.*;
+import br.com.javafinance.accounts.AccountBalanceService;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
@@ -14,21 +15,20 @@ public class ReportService {
     public record MonthTotal(String month,BigDecimal income,BigDecimal expenses,long records) {}
     public record Upcoming(UUID id,String description,LocalDate dueDate,BigDecimal amount,String kind) {}
     public record Summary(String month,LocalDate today,BigDecimal balance,Totals competence,BigDecimal cashFlow,
-        List<CategoryTotal> categories,List<MonthTotal> evolution,List<Upcoming> upcoming,long accountCount,long records) {}
+        List<CategoryTotal> categories,List<MonthTotal> evolution,List<Upcoming> upcoming,long accountCount,long records,boolean balanceComplete) {}
     private final JdbcTemplate jdbc; private final Clock clock;
-    public ReportService(JdbcTemplate jdbc,Clock clock) { this.jdbc=jdbc; this.clock=clock; }
+    private final AccountBalanceService balances;
+    public ReportService(JdbcTemplate jdbc,Clock clock,AccountBalanceService balances) { this.jdbc=jdbc; this.clock=clock; this.balances=balances; }
     public Summary summary(UUID owner,YearMonth month) {
         if(month.getYear()<1900 || month.getYear()>2200) throw ApiException.bad("Período fora do intervalo suportado.");
         LocalDate today=LocalDate.now(clock);
         Totals totals=totals(owner,month);
-        BigDecimal balance=jdbc.queryForObject("""
-            SELECT COALESCE(SUM(p.amount),0)::numeric(19,2) FROM posting p
-            JOIN movement m ON m.id=p.movement_id AND m.owner_id=p.owner_id
-            WHERE m.owner_id=? AND m.status='CONFIRMED' AND m.settled_date<=?
-            """,BigDecimal.class,owner,today);
+        var positions=balances.current(owner).values();
+        boolean complete=positions.stream().noneMatch(position->position.amount()==null);
+        BigDecimal balance=complete?positions.stream().map(AccountBalanceService.Balance::amount).reduce(new BigDecimal("0.00"),BigDecimal::add):null;
         BigDecimal cash=jdbc.queryForObject("""
-            SELECT COALESCE(SUM(p.amount),0)::numeric(19,2) FROM posting p
-            JOIN movement m ON m.id=p.movement_id AND m.owner_id=p.owner_id
+            SELECT COALESCE(SUM(CASE WHEN m.kind='EXPENSE' THEN -m.amount ELSE m.amount END),0)::numeric(19,2)
+            FROM movement m
             WHERE m.owner_id=? AND m.status='CONFIRMED' AND m.kind NOT IN ('OPENING','TRANSFER')
             AND m.settled_date BETWEEN ? AND ?
             """,BigDecimal.class,owner,month.atDay(1),month.atEndOfMonth());
@@ -50,7 +50,7 @@ public class ReportService {
             """,(rs,n)->new Upcoming(rs.getObject("id",UUID.class),rs.getString("description"),rs.getObject("due_date",LocalDate.class),rs.getBigDecimal("amount"),rs.getString("kind")),owner);
         long accounts=jdbc.queryForObject("SELECT count(*) FROM account WHERE owner_id=?",Long.class,owner);
         long records=jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=? AND kind IN ('INCOME','EXPENSE') AND status='CONFIRMED' AND competence=?",Long.class,owner,month.atDay(1));
-        return new Summary(month.toString(),today,balance,totals,cash,categories,evolution,upcoming,accounts,records);
+        return new Summary(month.toString(),today,balance,totals,cash,categories,evolution,upcoming,accounts,records,complete);
     }
     private Totals totals(UUID owner,YearMonth month) {
         return jdbc.queryForObject("""

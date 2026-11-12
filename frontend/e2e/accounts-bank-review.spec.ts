@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 
-type State = 'ready' | 'missing-balance' | 'bank-error' | 'empty' | 'entries-error' | 'unconfigured';
+type State = 'ready' | 'missing-balance' | 'disabled' | 'empty' | 'entries-error' | 'unconfigured';
 async function mockApi(page: Page, state: State) {
   const requests: string[] = [];
   await page.route('**/api/**', async route => {
@@ -10,14 +10,13 @@ async function mockApi(page: Page, state: State) {
     let body: unknown;
     if (path === '/api/auth/me') body = { id: 'profile-test', name: 'Perfil de teste', email: 'test@example.test' };
     else if (path === '/api/accounts') body = [
-      { id: 'internal-a', name: 'Nubank de teste', institution: 'Nubank', kind: 'CHECKING', currency: 'BRL', openingDate: '2026-10-14', balance: '0.00', archived: false, version: 0 },
-      { id: 'internal-b', name: 'Reserva de teste', institution: '', kind: 'SAVINGS', currency: 'BRL', openingDate: '2026-10-14', balance: '1000.00', archived: false, version: 0 },
+      { id: 'internal-a', name: 'Nubank de teste', institution: 'Nubank', kind: 'CHECKING', currency: 'BRL', openingDate: '2026-10-14', balance: '0.00', balanceSource: 'CALCULATED', archived: false, version: 0 },
+      { id: 'internal-b', name: 'Reserva de teste', institution: '', kind: 'SAVINGS', currency: 'BRL', openingDate: '2026-10-14', balance: state === 'missing-balance' ? null : '950.25', balanceSource: 'BANK', bankLinkId: 'bank-link-b', bankReadActive: state !== 'disabled', bankUpdatedAt: '2026-11-12T01:23:39Z', bankCheckedAt: '2026-11-12T17:52:13Z', archived: false, version: 0 },
     ];
     else if (path === '/api/categories') body = [];
     else if (path === '/api/movements') body = { items: [], total: 0, page: 0, size: 20, pages: 0 };
     else if (path === '/api/banking/config') body = { ready: state !== 'unconfigured', userId: 'profile-test', items: ['item-test'], provider: 'Meu Pluggy' };
     else if (path === '/api/banking/links') {
-      if (state === 'bank-error') { await route.fulfill({ status: 503, json: { message: 'Falha simulada' } }); return; }
       // The bank name deliberately differs from the local name: association must use accountId.
       body = [{ id: 'bank-link-b', name: 'Nubank simulado', accountId: 'internal-b', active: true, importFrom: '2026-10-15',
         reportedBalance: state === 'missing-balance' ? null : '950.25', providerUpdatedAt: '2026-11-12T01:23:39Z', lastCheckedAt: '2026-11-12T17:52:13Z' }];
@@ -33,20 +32,20 @@ async function mockApi(page: Page, state: State) {
   return requests;
 }
 
-for (const state of ['ready', 'missing-balance', 'bank-error'] as const) {
-  test(`Contas: ${state}, associação por identificador e saldo interno preservado`, async ({ page }, info) => {
+for (const state of ['ready', 'missing-balance', 'disabled'] as const) {
+  test(`Contas: ${state}, saldo bancário principal e saldo manual calculado`, async ({ page }, info) => {
     const requests = await mockApi(page, state);
     await page.goto('/#/accounts');
     const local = page.getByRole('region', { name: 'Conta Nubank de teste', exact: true });
     const linked = page.getByRole('region', { name: 'Conta Reserva de teste', exact: true });
     await expect(local.getByText('R$ 0,00', { exact: true })).toBeVisible();
-    await expect(linked.getByText('R$ 1.000,00', { exact: true })).toBeVisible();
-    await expect(local.getByText('Saldo informado pelo banco', { exact: true })).toHaveCount(0);
-    if (state === 'bank-error') await expect(page.getByText(/Não foi possível carregar os saldos bancários/)).toBeVisible();
-    else {
-      await expect(linked.getByText(state === 'missing-balance' ? 'Não disponível' : 'R$ 950,25', { exact: true })).toBeVisible();
-      await expect(linked.getByText('Atualização no banco: 11/11/2026, 22:23:39 (Brasília)', { exact: true })).toBeVisible();
-    }
+    await expect(linked.getByText('R$ 1.000,00', { exact: true })).toHaveCount(0);
+    await expect(local.getByText('Saldo calculado', { exact: true })).toBeVisible();
+    await expect(linked.getByText('Saldo do banco', { exact: true })).toBeVisible();
+    await expect(linked.getByText(state === 'missing-balance' ? 'Saldo não disponível' : 'R$ 950,25', { exact: true })).toBeVisible();
+    await expect(linked.getByText('Atualização no banco: 11/11/2026, 22:23:39 (Brasília)', { exact: true })).toBeVisible();
+    if (state === 'disabled') await expect(linked.getByText(/Leitura desativada/)).toBeVisible();
+    expect(requests.some(request => request.includes('/banking/links'))).toBe(false);
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -69,7 +68,7 @@ for (const state of ['ready', 'empty', 'entries-error', 'unconfigured'] as const
     await page.goto('/#/movements?month=2026-10&kind=EXPENSE');
     await expect(page.getByText('Nenhuma movimentação neste período', { exact: true })).toBeVisible();
     await page.getByRole('tab', { name: 'Aguardando revisão', exact: true }).click();
-    await expect(page.getByText(/Não entram no saldo interno/)).toBeVisible();
+    await expect(page.getByText(/sem descontar esses valores novamente/)).toBeVisible();
     if (state === 'ready') {
       await expect(page.getByRole('article')).toHaveCount(50);
       await expect(page.getByText('Pendente no banco', { exact: true })).toBeVisible();
@@ -89,7 +88,7 @@ for (const state of ['ready', 'empty', 'entries-error', 'unconfigured'] as const
       await expect(page.getByText('Nenhuma conta bancária vinculada', { exact: true })).toBeVisible();
       expect(requests.some(request => request.includes('/banking/links'))).toBe(false);
     }
-    await page.getByRole('tab', { name: 'Lançamentos internos', exact: true }).click();
+    await page.getByRole('tab', { name: 'Lançamentos e relatórios', exact: true }).click();
     await expect(page.getByLabel('Mês do filtro')).toHaveValue('2026-10');
     await expect(page.getByText('Nenhuma movimentação neste período', { exact: true })).toBeVisible();
     expect(requests.every(request => request.startsWith('GET '))).toBe(true);
