@@ -3,6 +3,9 @@ package br.com.javafinance.banking;
 import br.com.javafinance.common.*;
 import com.fasterxml.jackson.databind.*;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.net.http.*;
 import java.math.*;
 import java.time.*;
@@ -40,7 +43,7 @@ public class PluggyReadClient implements BankProvider {
     }
     private JsonNode get(String path) {
         // Only these fixed paths may reach the provider. Never accept a URL from a user or provider response.
-        if (!(path.startsWith("/items/") || path.startsWith("/accounts?") || path.startsWith("/transactions?"))) throw new IllegalArgumentException("Read endpoint required");
+        if (!(path.startsWith("/items/") || path.startsWith("/accounts?") || path.startsWith("/v2/transactions?"))) throw new IllegalArgumentException("Read endpoint required");
         var stage = path.startsWith("/items/") ? ITEM : path.startsWith("/accounts?") ? ACCOUNTS : TRANSACTIONS;
         return exchange(HttpRequest.newBuilder(URI.create("https://api.pluggy.ai" + path)).timeout(Duration.ofSeconds(20))
             .header("X-API-KEY", token()).GET().build(), stage);
@@ -93,12 +96,19 @@ public class PluggyReadClient implements BankProvider {
     @Override public List<RemoteEntry> transactions(UUID account, LocalDate from, LocalDate to) {
         try {
             List<RemoteEntry> all = new ArrayList<>();
+            Set<String> cursors = new HashSet<>();
+            String query = "accountId=" + account + "&dateFrom=" + from.minusDays(1) + "&dateTo=" + to.plusDays(1);
+            String after = null;
+            int received = 0;
             long started=System.nanoTime();
             for (int page = 1; page <= 20; page++) {
                 if(System.nanoTime()-started>60_000_000_000L) throw BankReadException.failure(TRANSACTIONS, TIMEOUT);
-                JsonNode result = get("/transactions?accountId=" + account + "&from=" + from.minusDays(1) + "&to=" + to.plusDays(1) + "&pageSize=100&page=" + page);
-                JsonNode entries = result.path("results"); int pages = result.path("totalPages").asInt(-1);
-                if (!entries.isArray() || entries.size() > 100 || pages < 0 || pages > 20) throw BankReadException.failure(TRANSACTIONS, RESULT_LIMIT);
+                JsonNode result = get("/v2/transactions?" + query
+                    + (after == null ? "" : "&after=" + URLEncoder.encode(after, StandardCharsets.UTF_8)));
+                JsonNode entries = result.path("results");
+                if (!entries.isArray()) throw invalidValue(BankReadException.Field.RESPONSE);
+                received += entries.size();
+                if (entries.size() > 500 || received > 2000) throw BankReadException.failure(TRANSACTIONS, RESULT_LIMIT);
                 for (JsonNode entry : entries) {
                     if (!account.toString().equals(entry.path("accountId").asText())) throw invalidValue(BankReadException.Field.ACCOUNT_ID);
                     if (!"BRL".equals(entry.path("currencyCode").asText())) throw invalidValue(BankReadException.Field.CURRENCY);
@@ -110,11 +120,37 @@ public class PluggyReadClient implements BankProvider {
                     if (!Set.of("DEBIT","CREDIT").contains(direction) || !Set.of("POSTED","PENDING").contains(status)) throw invalidValue(BankReadException.Field.STATUS);
                     all.add(new RemoteEntry(text(entry,"id",200), text(entry,"description",200), decimal(entry,"amount",true), date, direction, status));
                 }
-                if (page >= pages) return List.copyOf(all);
+                JsonNode next = result.path("next");
+                if (next.isNull()) return List.copyOf(all);
+                if (!next.isTextual()) throw invalidValue(BankReadException.Field.RESPONSE);
+                after = nextCursor(next.textValue(), account, from, to);
+                if (!cursors.add(after)) throw invalidValue(BankReadException.Field.RESPONSE);
             }
             throw BankReadException.failure(TRANSACTIONS, RESULT_LIMIT);
         } catch (ProviderValueException e) { throw BankReadException.failure(TRANSACTIONS, INVALID_RESPONSE, 0, e.field); }
         catch (IllegalArgumentException | DateTimeException | IndexOutOfBoundsException e) { throw BankReadException.failure(TRANSACTIONS, INVALID_RESPONSE); }
+    }
+    private static String nextCursor(String next, UUID account, LocalDate from, LocalDate to) {
+        // Never follow provider URLs. Extract only the cursor, keeping our host, account and dates fixed.
+        if (!next.startsWith("?") || next.length() > 8192 || next.indexOf('#') >= 0)
+            throw invalidValue(BankReadException.Field.RESPONSE);
+        Map<String,String> parameters = new HashMap<>();
+        for (String part : next.substring(1).split("&", -1)) {
+            String[] pair = part.split("=", 2);
+            if (pair.length != 2) throw invalidValue(BankReadException.Field.RESPONSE);
+            String key = URLDecoder.decode(pair[0], StandardCharsets.UTF_8);
+            String value = URLDecoder.decode(pair[1], StandardCharsets.UTF_8);
+            if (!Set.of("accountId", "after", "dateFrom", "dateTo").contains(key)
+                || parameters.putIfAbsent(key, value) != null) throw invalidValue(BankReadException.Field.RESPONSE);
+        }
+        if (!account.toString().equals(parameters.get("accountId"))
+            || !from.minusDays(1).toString().equals(parameters.getOrDefault("dateFrom", from.minusDays(1).toString()))
+            || !to.plusDays(1).toString().equals(parameters.getOrDefault("dateTo", to.plusDays(1).toString())))
+            throw invalidValue(BankReadException.Field.RESPONSE);
+        String cursor = parameters.get("after");
+        if (cursor == null || cursor.isBlank() || cursor.length() > 4096 || cursor.chars().anyMatch(Character::isISOControl))
+            throw invalidValue(BankReadException.Field.RESPONSE);
+        return cursor;
     }
     private static String text(JsonNode node, String key, int max) {
         var field = switch (key) { case "id" -> BankReadException.Field.ID; case "name" -> BankReadException.Field.NAME; default -> BankReadException.Field.DESCRIPTION; };
