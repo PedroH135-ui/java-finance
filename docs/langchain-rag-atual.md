@@ -2,6 +2,8 @@
 
 Conferido no código em 13/11/2026. Este documento descreve a implementação existente, sem prometer funcionalidades futuras.
 
+Para ver as etapas e o contexto real em exemplos fictícios, execute a [demonstração local reproduzível](demo-langchain-rag.md).
+
 ## O que está publicado
 
 | Parte | Situação |

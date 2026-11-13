@@ -24,6 +24,8 @@ Atualizado em 13/11/2026.
 
 ## Próximos passos
 
+Teste local posterior: `scripts/demo-rag-local.ps1 -UseGroq` executou oito cenários fictícios da cadeia LangChain, com duas chamadas reais à Groq e comprovação de cache na repetição. Nenhum banco ou serviço Vercel foi acessado. Relatórios ficam em `.tools/local-review/rag-demo-groq`; código de demonstração e detalhes estão em `docs/demo-langchain-rag.md`. A demonstração é isolada e não foi publicada. Mantêm-se as pendências de Java/V9 descritas abaixo.
+
 O usuário informou que está sem acesso ao banco e pediu para deixar a conclusão documentada para outro computador. A V9 e o deploy Java devem continuar adiados. Começar por `docs/contexto/retomada-outro-computador.md`; não é necessário implementar a V9 novamente. `docs/langchain-rag-atual.md` explica o fluxo existente e diferencia o que foi desenvolvido do que já está em produção.
 
 1. Identificar a conta/projeto Neon que possui o endpoint confirmado nos logs, sem publicar segredos. O host ficou apenas na evidência operacional local, fora deste contexto público.

@@ -7,6 +7,7 @@ Estado: Python da IA publicado e testado em produção; Java/V9 aguardam confirm
 - [Retomada e pendências](handoff.md)
 - [Preparar outro computador e concluir a V9](retomada-outro-computador.md)
 - [LangChain e RAG, explicados pelo código atual](../langchain-rag-atual.md)
+- [Executar e inspecionar exemplos fictícios de RAG](../demo-langchain-rag.md)
 - [Revisão funcional, privacidade e rollback](../revisao-ia-producao.md)
 - [Ferramentas Neon instaladas](../neon-agent-setup.md)
 - [Validação local](../validacao-local.md)
