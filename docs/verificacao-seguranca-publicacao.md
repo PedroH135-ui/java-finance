@@ -5,6 +5,7 @@ Data: 13/11/2026. Ferramenta: Gitleaks 8.30.1 oficial, download verificado por S
 ## Resultados
 
 - Histórico: 25 commits, todas as referências locais e histórico completo; nenhum alerta encontrado.
+- Depois do commit de segurança `79f1a69`, a varredura foi repetida com 26 commits, todas as referências e histórico completo: nenhum alerta. A branch revisada foi enviada ao GitHub público após essa conferência; nenhum segredo local foi incluído.
 - Fonte Java/React destinada à publicação, exportada com `git archive HEAD`: um alerta em `.env.example`, linhas 11–12. Os campos Pluggy desse arquivo estão vazios; a inspeção confirmou que não há chave preenchida nesses campos. Tratado como falso positivo do detector multilinha; nenhuma regra foi desativada e nenhuma exceção ampla foi adicionada.
 - Pacote Python destinado à publicação: nenhum alerta.
 - Skills Neon instaladas e configuração MCP do projeto: nenhum alerta. O MCP contém somente URL OAuth somente leitura; não inclui API key.

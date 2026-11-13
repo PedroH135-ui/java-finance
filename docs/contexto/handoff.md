@@ -6,6 +6,7 @@ Atualizado em 13/11/2026.
 
 - Branch `codex/ia-pronta-producao`; fonte revisada no commit `9ffc356f054fe2ec6b817ed30ead9c35b4f1b304`.
 - Usuário autorizou Python e Java em produção, incluindo V9, com backup confirmado antes da migração. Depois autorizou envio ao GitHub após a publicação e a revisão de segredos. Não presumir autorização para merge na branch principal.
+- Código revisado enviado ao GitHub na branch `codex/ia-pronta-producao`, commit de segurança `79f1a69`. Nenhum merge ou PR foi realizado. A branch padrão remota foi preservada. A Vercel Java não tem vínculo Git, portanto esse push não dispara migração/deploy. Validação automática desse commit passou em Segredos e privacidade e Interface e dependências: https://github.com/PedroH135-ui/java-finance/actions/runs/43498485674.
 - Usuário esclareceu que deseja aplicar a estrutura necessária sem acesso manual ao banco, e não pediu uma migração de hospedagem. O código atual não contém Prisma; usa Java/JPA/Flyway. Flyway já executa V9 no início do Java usando a conexão Secret da Vercel. Prisma também precisaria de acesso ao banco e não resolve a confirmação do backup; não foi instalado ou usado como substituto.
 - Java em produção permanece no deployment `dpl_7hwmwEg2mXsnbn2PEeD3uhdD99Mz`, base `a462d694cc824e8f7a30ac18b4e1b0d0876a6644`.
 - Consulta ao health check real retornou 200/UP. O host Neon foi identificado nos logs de inicialização, sem exibir a conexão completa ou credenciais.
