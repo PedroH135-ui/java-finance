@@ -7,6 +7,8 @@ Aplicação de finanças pessoais, com execução local e publicação web/PWA. 
 
 Para configurar o terminal com Java 21 e ferramentas locais, consulte [ambiente Windows](docs/ambiente-windows.md).
 
+Para a demonstração isolada com dados fictícios e sugestões de categorias em Python, consulte [validação local](docs/validacao-local.md).
+
 Clone o repositório em uma pasta local. Com Docker Desktop aberto e o build preparado, execute na raiz do projeto:
 
 ```powershell

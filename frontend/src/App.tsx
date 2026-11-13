@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountBalanceWalletOutlined, DashboardOutlined, SwapHoriz, AccountBalanceOutlined, CategoryOutlined, SettingsOutlined, PieChartOutlined, LinkOutlined, Menu, Logout, ChevronRight } from '@mui/icons-material';
-import { AppBar, Avatar, Box, Button, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Toolbar, Typography } from '@mui/material';
+import { Alert, AppBar, Avatar, Box, Button, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Toolbar, Typography } from '@mui/material';
 import { api, ApiError } from './lib/api';
 import type { Profile } from './lib/types';
 import { AuthPage } from './features/auth/AuthPage';
@@ -46,6 +46,7 @@ export function App() {
         </Toolbar>
       </AppBar>
       <Box component="main" id="main-content" tabIndex={-1} sx={{maxWidth:1440,mx:'auto',p:{xs:2,sm:3,md:4}}}>
+        {import.meta.env.VITE_LOCAL_REVIEW==='true'&&<Alert severity="warning" sx={{mb:3}}>Ambiente local de demonstração com dados fictícios. Alterações independentes da produção. Conexão com o Nubank desativada.</Alert>}
         {logoutError&&<Failure error={logoutError}/>}
         {location.pathname==='/'?<Dashboard/>:location.pathname==='/accounts'?<Accounts/>:location.pathname==='/categories'?<Categories/>:location.pathname==='/movements'?<Movements/>:location.pathname==='/budgets'?<Budgets/>:location.pathname==='/banking'?<Banking/>:location.pathname==='/settings'?<Settings profile={profile}/>:<Box>Página não encontrada. <RouterLink to="/">Voltar à visão geral</RouterLink></Box>}
       </Box>

@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 .cloud
+.tools
 .test-db
 .vercel
 **/node_modules
