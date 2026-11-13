@@ -41,7 +41,7 @@ O primeiro passo recupera exemplos; o segundo decide como propor uma categoria:
 
 O adaptador usa `ChatOllama.with_structured_output(ModelChoice)`. A resposta só pode propor um ID de categoria permitido ou `null`. Não recebe ferramentas de banco, SQL ou de movimentação financeira. Descrições são tratadas como dados não confiáveis. Respostas de modelo recebem indicação de consistência baixa; confiança aqui é uma heurística, não uma probabilidade calibrada.
 
-Nenhum modelo está incluído, instalado ou baixado nesta etapa. O modo padrão não chama LLM. Quando `CATEGORY_AI_MODEL` ficar vazio, a cadeia continua funcionando com histórico e regras. Um modelo com pesos locais previamente instalado poderá ser habilitado depois; nomes de modelo cloud/URLs são rejeitados. Tracing externo do LangSmith é desativado no processo.
+O laboratório local pode habilitar Qwen2.5:1.5b via Ollama portátil. Consulte o [passo a passo do LLM local](../docs/llm-local.md) para entender a configuração, iniciar o modelo e reproduzir a avaliação real com dados fictícios. Os pesos ficam em `.tools`, fora do Git e do deploy. Quando `CATEGORY_AI_MODEL` ficar vazio, a cadeia continua com histórico e regras. Nomes de modelo cloud/URLs são rejeitados. Tracing externo do LangSmith é desativado no processo.
 
 Referência: [ChatOllama no LangChain](https://docs.langchain.com/oss/python/integrations/chat/ollama).
 
@@ -84,7 +84,7 @@ O endpoint exige token, limita corpo/contexto e aceita no máximo duas execuçõ
 
 ## O que foi demonstrado e o que falta antes de produção
 
-As regras Java e a API Python são executadas nos testes. A chamada HTTP da demonstração usa a cadeia LangChain real e dados fictícios. A saída LLM é testada com substituto controlado, **não com um modelo real**. Os cenários de navegador também usam dados fictícios.
+As regras Java e a API Python são executadas nos testes. A chamada HTTP da demonstração usa a cadeia LangChain real e dados fictícios. Os testes de contrato usam um substituto controlado; o avaliador `finance_ai.evaluate_local` chama um modelo real instalado localmente. Os cenários de navegador também usam dados fictícios.
 
 O processo Python é local e opcional. Ainda não integra o Dockerfile/deploy de produção. Antes de habilitá-lo em produção, é preciso decidir a hospedagem e a comunicação privada entre Java e Python, além do modelo local e seus recursos. A configuração Java vem desativada por padrão. Nenhum provedor externo, envio de histórico real, mudança em produção ou push ao GitHub faz parte desta etapa.
 

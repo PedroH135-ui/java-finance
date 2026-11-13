@@ -4,6 +4,7 @@ Run after start-review-local.ps1, using .tools/category-ai-venv/Scripts/python.e
 This script never loads production environment files or banking credentials.
 """
 import http.cookiejar
+import argparse
 import json
 from pathlib import Path
 import subprocess
@@ -29,6 +30,9 @@ def sql(statement):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--llm-examples", action="store_true", help="Adiciona dois registros fictícios de efeito líquido zero para testar o LLM.")
+    args = parser.parse_args()
     config_path = PRIVATE / "config.json"
     config = json.loads(config_path.read_text(encoding="utf-8-sig"))
     if config["database"] != "java_finance_review" or config["dbUser"] != "review_owner":
@@ -39,6 +43,9 @@ def main():
     if ports.get("5432/tcp") != [{"HostIp": "127.0.0.1", "HostPort": "55434"}]:
         raise RuntimeError("A porta do banco não corresponde à demonstração local.")
     if config.get("demoSeeded"):
+        if args.llm_examples:
+            add_llm_examples(config)
+            return
         print("Demonstração já preparada; os dados existentes foram preservados.")
         return
     # Refuse to mix fixtures with existing user work, including partially seeded data.
@@ -102,6 +109,28 @@ def main():
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
     (PRIVATE / "demo-fixture.json").write_text(json.dumps({"ownerId": owner, "accounts": accounts, "categories": categories, "entries": entries}, indent=2, ensure_ascii=False), encoding="utf-8")
     print("Cenário fictício criado: 3 contas, 11 registros bancários simulados, 2 despesas manuais e 5 orçamentos. Nenhuma consulta bancária realizada.")
+    if args.llm_examples:
+        add_llm_examples(config)
+
+
+def add_llm_examples(config):
+    """Optional, idempotent examples; balanced debit/credit preserves demo balances."""
+    owner = str(uuid.UUID(config["ownerId"]))
+    fixture_path = PRIVATE / "demo-fixture.json"
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+    account = str(uuid.UUID(fixture["accounts"][0]))
+    if sql(f"SELECT email FROM app_user WHERE id='{owner}';") != EMAIL:
+        raise RuntimeError("Perfil diferente da demonstração; nenhum exemplo será adicionado.")
+    link = str(uuid.UUID(sql(f"SELECT id FROM bank_link WHERE owner_id='{owner}' AND account_id='{account}';")))
+    statements = ["BEGIN;"]
+    for key, description, direction in [("llm_restaurant", "Restaurante Sabor da Vila", "DEBIT"), ("llm_refund", "Estorno compra fictícia de teste", "CREDIT")]:
+        statements.append(f"INSERT INTO bank_entry(id,owner_id,link_id,external_id,description,amount,date,direction,provider_status) VALUES('{uuid.uuid4()}','{owner}','{link}','demo-{key}','{description}',35,'2026-11-13','{direction}','POSTED') ON CONFLICT(link_id,external_id) DO NOTHING;")
+    statements.append("COMMIT;")
+    sql("\n".join(statements))
+    for key in ["llm_restaurant", "llm_refund"]:
+        fixture["entries"][key] = str(uuid.UUID(sql(f"SELECT id FROM bank_entry WHERE link_id='{link}' AND external_id='demo-{key}';")))
+    fixture_path.write_text(json.dumps(fixture, indent=2, ensure_ascii=False), encoding="utf-8")
+    print("Exemplos LLM preparados: restaurante R$ 35 e estorno R$ 35. Efeito líquido zero, sem alterar snapshots de saldo ou escolhas existentes.")
 
 
 if __name__ == "__main__":

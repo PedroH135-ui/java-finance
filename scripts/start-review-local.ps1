@@ -1,4 +1,4 @@
-param([switch]$Build,[switch]$Restart)
+param([switch]$Build,[switch]$Restart,[switch]$RestartAi,[ValidateSet('off','qwen2.5:1.5b')][string]$Llm)
 $ErrorActionPreference='Stop'
 $financeReviewRoot=Split-Path $PSScriptRoot -Parent
 $financeReviewPrivate=Join-Path $financeReviewRoot '.tools/local-review'
@@ -20,6 +20,13 @@ try {
         $financeReviewConfig | ConvertTo-Json | Set-Content -LiteralPath $financeReviewConfigPath -Encoding utf8
     }
     if($financeReviewConfig.database -ne 'java_finance_review' -or $financeReviewConfig.dbUser -ne 'review_owner'){throw 'Unexpected local database configuration.'}
+    $financeReviewPreviousModel=$financeReviewConfig.model
+    if($PSBoundParameters.ContainsKey('Llm')) {
+        $financeReviewConfig.model=if($Llm -eq 'off'){''}else{$Llm}
+        $financeReviewConfig | ConvertTo-Json | Set-Content -LiteralPath $financeReviewConfigPath -Encoding utf8
+        $RestartAi=$true
+    }
+    if($financeReviewConfig.model -and $financeReviewConfig.model -ne 'qwen2.5:1.5b'){throw 'Unsupported local review model.'}
     $financeExistingContainer=& docker ps -a --filter ('name=^/'+$financeReviewContainer+'$') --format '{{.ID}}'
     if(!$financeExistingContainer) {
         $env:POSTGRES_PASSWORD=$financeReviewConfig.dbPassword
@@ -51,7 +58,19 @@ try {
         Push-Location backend
         try {./mvnw.cmd -o -B -ntp '-Dfinance.build.directory=target/local-review' -Pintegrated -DskipTests package *> ../.tools/local-review/backend-build.log;if($LASTEXITCODE -ne 0){throw 'Local backend build failed.'}} finally {Pop-Location}
     }
+    if($financeReviewConfig.model){& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'start-review-ollama.ps1') -Model $financeReviewConfig.model;if($LASTEXITCODE -ne 0){throw 'Local model startup failed.'}}
+    elseif($financeReviewPreviousModel -and $PSBoundParameters.ContainsKey('Llm')){& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'start-review-ollama.ps1') -Unload;if($LASTEXITCODE -ne 0){throw 'Local model unload failed.'}}
+    if($RestartAi -and $financeReviewState.pythonPid) {
+        $financeOldAi=Get-CimInstance Win32_Process -Filter ('ProcessId='+$financeReviewState.pythonPid) -ErrorAction SilentlyContinue
+        if($financeOldAi -and $financeOldAi.CommandLine -like '*category-ai-venv* -m uvicorn finance_ai.app:app *') {
+            # Stop only this venv's worker and its direct child, preserving other Python apps.
+            Get-CimInstance Win32_Process -Filter ('ParentProcessId='+$financeReviewState.pythonPid) | Where-Object CommandLine -Like '*category-ai-venv* -m uvicorn finance_ai.app:app *' | ForEach-Object {Stop-Process -Id $_.ProcessId}
+            Stop-Process -Id $financeReviewState.pythonPid -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 1
+        }
+    }
     $env:CATEGORY_AI_TOKEN=$financeReviewConfig.aiToken
+    if($financeReviewConfig.model){$env:CATEGORY_AI_MODEL=$financeReviewConfig.model}
     $financePython=Join-Path $financeReviewRoot '.tools/category-ai-venv/Scripts/python.exe'
     if(!(Test-Path -LiteralPath $financePython)){throw 'The category-ai virtual environment is not installed.'}
     $financeAiListener=Get-NetTCPConnection -LocalPort 8123 -State Listen -ErrorAction SilentlyContinue
@@ -89,5 +108,7 @@ try {
         } catch {Start-Sleep -Seconds 1}
     }
     if(!$financeReviewReady){throw 'Local services did not become ready. Check .tools/local-review logs; no production services were contacted.'}
+    $financeReviewHealth=Invoke-RestMethod 'http://127.0.0.1:8123/health' -TimeoutSec 2
+    if([bool]$financeReviewHealth.modelEnabled -ne [bool]$financeReviewConfig.model){throw 'Python is running with a different model configuration; use -RestartAi.'}
     Write-Output 'Local app: http://127.0.0.1:8082 — database 127.0.0.1:55434 — Python 127.0.0.1:8123. No production or Pluggy credentials loaded.'
 } finally {Pop-Location}

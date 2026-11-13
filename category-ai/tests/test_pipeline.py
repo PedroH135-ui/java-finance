@@ -74,3 +74,32 @@ def test_model_context_limits_categories_and_retrieved_examples():
     assert result.category_id is None
     assert len(seen[0]["categories"]) == 20 and len(seen[0]["examples"]) == 5
     assert seen[0]["categories"][0]["id"] == "c99"
+
+
+def test_generic_descriptions_do_not_call_model_but_user_history_still_wins():
+    model = lambda _: pytest.fail("Generic description must not invoke LLM")
+    assert build_pipeline(model).invoke(request("PIX desconhecido")).category_id is None
+    history = [{"description": "Loja desconhecida", "categoryId": "food"}]
+    assert build_pipeline(model).invoke(request("Loja desconhecida", history)).method == "HISTORY"
+
+
+def test_ollama_adapter_uses_short_keys_schema_and_maps_back_to_real_ids(monkeypatch):
+    from finance_ai.pipeline import local_model
+    import langchain_ollama
+    seen = {}
+    class FakeOllama:
+        def __init__(self, **kwargs): seen["config"] = kwargs
+        def with_structured_output(self, schema, method):
+            seen["schema"], seen["method"] = schema, method
+            return self
+        def invoke(self, messages):
+            seen["messages"] = messages
+            return {"category_id": "transporte"}
+    monkeypatch.setattr(langchain_ollama, "ChatOllama", FakeOllama)
+    result = local_model("qwen2.5:1.5b")({"description": "posto avenida", "categories": [{"id": "private-food-uuid", "name": "Alimentação"}, {"id": "private-transport-uuid", "name": "Transporte"}], "examples": [{"description": "posto anterior", "categoryId": "private-transport-uuid", "score": 0.5}]})
+    assert result.category_id == "private-transport-uuid"
+    assert "private-" not in str(seen["messages"])
+    assert seen["schema"]["properties"]["category_id"]["enum"] == ["alimentacao", "transporte", None]
+    assert seen["method"] == "json_schema"
+    assert seen["config"]["base_url"] == "http://127.0.0.1:11434"
+    assert seen["config"]["num_predict"] == 64 and seen["config"]["num_gpu"] == 0

@@ -44,7 +44,7 @@ Em Movimentações, abra os detalhes da transferência e confirme o par da outra
 
 Para testar categorias, abra o registro Mercado Alfa de R$ 75,00: Alimentação deve ser sugerida a partir do exemplo de R$ 250,00 já classificado. Farmácia Beta deve sugerir Saúde por regra. PIX desconhecido deve ficar sem sugestão. Aplicar uma categoria modifica relatórios e orçamento, sem modificar saldos. Há dois registros ocultos e uma compra pendente para testar os filtros; aluguel de R$ 150,00 está planejado e não afeta o saldo realizado.
 
-Java mantém a validação financeira e o acesso ao banco. Python recebe descrições e exemplos limitados do perfil; LangChain organiza recuperação de histórico e decisão. Neste estágio, histórico e regras funcionam sem baixar modelo ou consumir um LLM. Não há provedor externo de IA habilitado.
+Java mantém a validação financeira e o acesso ao banco. Python recebe descrições e exemplos limitados do perfil; LangChain organiza recuperação de histórico e decisão. Histórico e regras funcionam sem consumir um LLM. O laboratório também pode habilitar um [LLM gratuito executado localmente](llm-local.md), com exemplos adicionais de efeito líquido zero. Não há provedor externo de IA habilitado.
 
 Esses testes validam o comportamento local; não provam acesso real ao Nubank nem um deploy na Vercel. A publicação continuará sendo uma etapa posterior, após revisão.
 
