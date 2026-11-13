@@ -19,6 +19,7 @@ for (const fails of [false,true]) {
       else if(path==='/api/auth/csrf')body={headerName:'X-CSRF-TOKEN',token:'synthetic-csrf'};
       else if(path==='/api/accounts')body=[{id:'account-test',name:'Nubank fictício',kind:'CHECKING',balance:'950.25',balanceSource:'BANK'}];
       else if(path==='/api/categories')body=[];
+      else if(path==='/api/banking/entries/entry-test/assistance')body={entryVersion:version,currentCategoryId:null,canCategorize:false,unavailableReason:'Nenhuma categoria configurada.',categorySuggestion:{categoryId:null,confidence:'NONE',method:'NONE',reason:'Sem evidência.',evidenceCount:0,modelUsed:false},transferCandidates:[],transfer:null};
       else if(path==='/api/movements/feed') {
         const visible=url.searchParams.get('hidden')===String(hidden);
         body={items:visible?[{id:'entry-test',description:'Mercado fictício',amount:'50.25',kind:'EXPENSE',status:'CONFIRMED',source:'BANK',

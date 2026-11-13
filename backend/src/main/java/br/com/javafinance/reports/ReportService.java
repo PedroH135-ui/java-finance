@@ -50,7 +50,7 @@ public class ReportService {
             """,(rs,n)->new Upcoming(rs.getObject("id",UUID.class),rs.getString("description"),rs.getObject("due_date",LocalDate.class),rs.getBigDecimal("amount"),rs.getString("kind")),owner);
         long accounts=jdbc.queryForObject("SELECT count(*) FROM account WHERE owner_id=?",Long.class,owner);
         long records=jdbc.queryForObject("SELECT count(*) FROM financial_record WHERE owner_id=? AND NOT hidden AND kind IN ('INCOME','EXPENSE') AND status='CONFIRMED' AND competence=?",Long.class,owner,month.atDay(1));
-        long unclassified=jdbc.queryForObject("SELECT count(*) FROM financial_record WHERE owner_id=? AND NOT hidden AND source='BANK' AND status='CONFIRMED' AND competence=?",Long.class,owner,month.atDay(1));
+        long unclassified=jdbc.queryForObject("SELECT count(*) FROM financial_record WHERE owner_id=? AND NOT hidden AND source='BANK' AND category_id IS NULL AND kind IN ('INCOME','EXPENSE') AND status='CONFIRMED' AND competence=?",Long.class,owner,month.atDay(1));
         return new Summary(month.toString(),today,balance,totals,cash,categories,evolution,upcoming,accounts,records,complete,unclassified);
     }
     private Totals totals(UUID owner,YearMonth month) {

@@ -165,6 +165,7 @@ public class BankService {
             jdbc.update("UPDATE bank_entry SET state='IGNORED',hidden=true,version=version+1 WHERE id=? AND owner_id=?",id,owner);
             audit.record(owner,id,"BANK_IGNORED","Ignorado na revisão, sem movimentação financeira."); return;
         }
+        if(entry.get("transfer_id")!=null) throw ApiException.bad("Desfaça a identificação de transferência antes de vincular ou classificar este registro.");
         if(entry.get("movement_id")!=null || !"POSTED".equals(entry.get("provider_status")))
             throw ApiException.bad("Revise alterações no provedor ou aguarde a efetivação. Não será criado outro lançamento.");
         UUID account=(UUID)link.get("account_id"); BigDecimal amount=(BigDecimal)entry.get("amount");

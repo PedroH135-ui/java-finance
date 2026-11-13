@@ -36,6 +36,10 @@ server:
         secure: ${COOKIE_SECURE:false}
         same-site: strict
 app:
+  category-ai:
+    enabled: ${CATEGORY_AI_ENABLED:false}
+    url: ${CATEGORY_AI_URL:http://127.0.0.1:8123}
+    token: ${CATEGORY_AI_TOKEN:}
   banking:
     client-id: ${PLUGGY_CLIENT_ID:}
     client-secret: ${PLUGGY_CLIENT_SECRET:}

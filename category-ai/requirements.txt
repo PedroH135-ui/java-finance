@@ -1,0 +1,5 @@
+langchain-core==1.8.0
+langchain-ollama==1.1.0
+fastapi==0.162.6
+uvicorn==0.54.0
+pydantic==2.14.3

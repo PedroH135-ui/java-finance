@@ -25,3 +25,8 @@ artifacts/
 .cloud/
 .test-db/
 .tools/
+
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/
+**/pytest-cache-files-*/
