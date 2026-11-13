@@ -3,6 +3,8 @@ Aplicação de finanças pessoais, com execução local e publicação web/PWA. 
 
 **Entrega incremental:** fundação da V1. Não é a V1 inteira. Consulte [roadmap](docs/roadmap.md).
 
+**Retomada da integração de IA:** o Python está publicado, mas Java/V9 aguardam acesso ao banco correto e confirmação do backup. Leia [como retomar em outro computador](docs/contexto/retomada-outro-computador.md) e [como LangChain e RAG funcionam hoje](docs/langchain-rag-atual.md). Estado conferido em 13/11/2026; consulte também o [handoff](docs/contexto/handoff.md) antes de publicar.
+
 ## Iniciar no Windows
 
 Para configurar o terminal com Java 21 e ferramentas locais, consulte [ambiente Windows](docs/ambiente-windows.md).

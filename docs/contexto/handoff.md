@@ -24,6 +24,8 @@ Atualizado em 13/11/2026.
 
 ## Próximos passos
 
+O usuário informou que está sem acesso ao banco e pediu para deixar a conclusão documentada para outro computador. A V9 e o deploy Java devem continuar adiados. Começar por `docs/contexto/retomada-outro-computador.md`; não é necessário implementar a V9 novamente. `docs/langchain-rag-atual.md` explica o fluxo existente e diferencia o que foi desenvolvido do que já está em produção.
+
 1. Identificar a conta/projeto Neon que possui o endpoint confirmado nos logs, sem publicar segredos. O host ficou apenas na evidência operacional local, fora deste contexto público.
 2. Confirmar que o endpoint pertence ao projeto/branch selecionado. Criar um ponto de recuperação da branch correta, com metadados verificáveis; não fazer backup de `comunia-db` por engano.
 3. Preferir cópia de recuperação sem compute, usando `neon branches create --no-compute --no-secrets` com projeto e parent explícitos. Ler a ajuda atual antes de executar; não presumir plano/cota ou prontidão.
