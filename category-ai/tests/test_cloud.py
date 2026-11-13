@@ -20,7 +20,7 @@ def fake_cloud(monkeypatch):
             seen["messages"] = messages
             if seen.get("fail"):
                 raise seen["fail"]
-            return {"category_id": "alimentacao"}
+            return {"category_id": seen.get("category", "alimentacao")}
     monkeypatch.setenv("GROQ_API_KEY", "synthetic-not-a-real-key")
     monkeypatch.setattr(langchain_groq, "ChatGroq", FakeGroq)
     return seen
@@ -63,3 +63,57 @@ def test_cloud_failure_abstains_without_logging_payload_or_credentials(fake_clou
     assert result.category_id is None and result.provider == "groq"
     assert "status=429" in caplog.text
     assert "private-prompt" not in caplog.text and "synthetic-not-a-real-key" not in caplog.text
+
+
+def test_release_accepts_custom_categories_and_only_sends_normalized_context(fake_cloud):
+    fake_cloud["category"] = "moradia_aluguel"
+    choose = groq_model("candidate")
+    payload = {"description": "IMOBILIARIA FICTICIA 123 email@example.test", "categories": [{"id": "private-home-id", "name": "Moradia Aluguel"}], "examples": []}
+    assert choose(payload).category_id == "private-home-id"
+    messages = str(fake_cloud["messages"])
+    assert "private-home-id" not in messages and "@" not in messages and "123" not in messages
+    assert "imobiliaria ficticia" in messages
+
+
+def test_release_cache_expires_and_category_ids_partition_profiles(fake_cloud):
+    clock = [0.0]
+    choose = groq_model("production", clock=lambda: clock[0])
+    assert choose(PAYLOAD).category_id == "private-uuid"
+    assert choose(PAYLOAD).category_id == "private-uuid"
+    assert fake_cloud["calls"] == 1
+    other = copy.deepcopy(PAYLOAD)
+    other["categories"][0]["id"] = "another-profile-category"
+    assert choose(other).category_id == "another-profile-category"
+    assert fake_cloud["calls"] == 2
+    clock[0] = 301
+    choose(PAYLOAD)
+    assert fake_cloud["calls"] == 3
+
+
+def test_release_window_recovers_without_restarting_worker(fake_cloud):
+    clock = [0.0]
+    choose = groq_model("production", clock=lambda: clock[0])
+    for index in range(12):
+        choose({**PAYLOAD, "description": "restaurante ficticio " + chr(97 + index)})
+    with pytest.raises(RuntimeError):
+        choose({**PAYLOAD, "description": "restaurante ficticio novo"})
+    assert fake_cloud["calls"] == 12
+    clock[0] = 61
+    choose({**PAYLOAD, "description": "restaurante ficticio novo"})
+    assert fake_cloud["calls"] == 13
+
+
+def test_provider_error_cooldown_avoids_repeated_requests(fake_cloud):
+    class Unauthorized(Exception):
+        status_code = 401
+    fake_cloud["fail"] = Unauthorized("sensitive response")
+    clock = [0.0]
+    choose = groq_model("production", clock=lambda: clock[0])
+    for _ in range(2):
+        with pytest.raises(RuntimeError):
+            choose(PAYLOAD)
+    assert fake_cloud["calls"] == 1
+    clock[0] = 31
+    fake_cloud.pop("fail")
+    assert choose(PAYLOAD).category_id == "private-uuid"
+    assert fake_cloud["calls"] == 2

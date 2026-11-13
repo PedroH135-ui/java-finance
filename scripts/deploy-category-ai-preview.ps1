@@ -1,5 +1,6 @@
-param([string]$VercelCli,[switch]$WithoutModel)
+param([string]$VercelCli,[switch]$WithoutModel,[switch]$ReleaseCandidate)
 $ErrorActionPreference='Stop'
+if($ReleaseCandidate -and $WithoutModel){throw 'The release candidate requires the configured model; use the lab for a model-free preview.'}
 $financePreviewRoot=Split-Path $PSScriptRoot -Parent
 $financePreviewPrivate=Join-Path $financePreviewRoot '.tools/category-ai-cloud-preview'
 $financePreviewConfigPath=Join-Path $financePreviewPrivate 'config.json'
@@ -39,6 +40,7 @@ try {
         @{key='CATEGORY_AI_PROVIDER';value=$(if($WithoutModel){'none'}else{'groq'});type='plain'},
         @{key='CATEGORY_AI_MODEL';value=$(if($WithoutModel){''}else{'openai/gpt-oss-20b'});type='plain'},
         @{key='CATEGORY_AI_LAB_EXPIRES_AT';value=$financePreviewExpires;type='plain'}
+        @{key='CATEGORY_AI_MODE';value=$(if($ReleaseCandidate){'candidate'}else{'lab'});type='plain'}
     )
     if(!$WithoutModel){$financePreviewVariables+=@{key='GROQ_API_KEY';value=[Net.NetworkCredential]::new('',$financePreviewGroq).Password;type='sensitive'}}
     foreach($financePreviewVariable in $financePreviewVariables){

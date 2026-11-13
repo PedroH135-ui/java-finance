@@ -35,3 +35,24 @@ def test_expired_remote_laboratory_denies_classification(monkeypatch):
     result = TestClient(app).post("/suggest", json=PAYLOAD, headers={"Authorization": "Bearer " + TOKEN})
     assert result.status_code == 503
     assert "expirado" in result.text
+
+
+def test_correlation_id_is_validated_and_does_not_echo_arbitrary_text():
+    import uuid
+    client = TestClient(app)
+    correlation = str(uuid.uuid4())
+    assert client.get("/health", headers={"X-Correlation-ID": correlation}).headers["X-Correlation-ID"] == correlation
+    response = client.get("/health", headers={"X-Correlation-ID": "private-value-not-an-id"})
+    assert str(uuid.UUID(response.headers["X-Correlation-ID"])) == response.headers["X-Correlation-ID"]
+
+
+def test_non_ascii_or_oversized_credentials_fail_as_unauthorized(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+    from finance_ai.app import authorize
+    monkeypatch.setenv("CATEGORY_AI_TOKEN", TOKEN)
+    for value in ["é" * 32, "x" * 1000]:
+        with pytest.raises(HTTPException) as result:
+            authorize(HTTPAuthorizationCredentials(scheme="Bearer", credentials=value))
+        assert result.value.status_code == 401

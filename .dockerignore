@@ -2,6 +2,7 @@
 **/target
 **/target-cloud
 .cloud
+.tools
 .test-db
 .vercel
 frontend/dist

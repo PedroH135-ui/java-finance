@@ -23,7 +23,7 @@ async function setup(page:Page,method='HISTORY',conflict=false) {
     else if(path==='/api/movements/feed')body={items:[{id:'entry-a',description:'Mercado Alfa fictício',amount:'50.00',kind:paired?'TRANSFER':'EXPENSE',status:'CONFIRMED',source:'BANK',accountId:'account-a',categoryId,
       operationDate:'2026-11-11',competence:'2026-11-01',bankEntryId:'entry-a',bankLinkId:'link-a',bankEntryVersion:version,bankProviderStatus:'POSTED',bankState:'REVIEW',hidden:false}],total:1,pages:1,page:0,size:20};
     else if(path==='/api/banking/entries/entry-a/assistance')body={entryVersion:version,currentCategoryId:categoryId,canCategorize:!paired,unavailableReason:paired?'Identificado como transferência.':'',
-      categorySuggestion:{categoryId:'food',method:method==='CLOUD'?'LLM':method,provider:method==='CLOUD'?'groq':'ollama',confidence:method==='HISTORY'?'HIGH':'LOW',reason:'Sugestão baseada em classificações anteriores semelhantes deste perfil.',evidenceCount:3,modelUsed:method!=='HISTORY'},
+      categorySuggestion:{categoryId:method==='UNAVAILABLE'?null:'food',method:method==='UNAVAILABLE'?'NONE':method==='CLOUD'?'LLM':method,provider:method==='CLOUD'?'groq':'ollama',confidence:method==='HISTORY'?'HIGH':'LOW',reason:'Sugestão baseada em classificações anteriores semelhantes deste perfil.',evidenceCount:3,modelUsed:method!=='HISTORY'},
       transferCandidates:paired?[]:[{id:'peer-b',accountName:'Banco B fictício',description:'Entrada em outra conta',amount:'50.00',date:'2026-11-12',version:0},{id:'peer-c',accountName:'Banco C fictício',description:'Outro par possível',amount:'50.00',date:'2026-11-11',version:0}],
       transfer:paired?{id:'transfer-test',peerId:'peer-b',version:0,valid:true}:null};
     else throw new Error('Unexpected endpoint: '+path);
@@ -76,4 +76,17 @@ test('versão desatualizada preserva a escolha sem aplicar silenciosamente',asyn
   const dialog=page.getByRole('dialog',{name:'Registro bancário',exact:true});
   await dialog.getByRole('button',{name:'Aplicar categoria escolhida',exact:true}).click();
   await expect(dialog.getByText(/O registro mudou/)).toBeVisible();expect(state().categoryId).toBeNull();expect(writes).toHaveLength(1);
+});
+
+test('sem IA a categoria continua manual e nenhuma gravação acontece ao abrir',async({page})=>{
+  const {writes,state}=await setup(page,'UNAVAILABLE');
+  const dialog=page.getByRole('dialog',{name:'Registro bancário',exact:true});
+  expect(writes).toHaveLength(0);expect(state().categoryId).toBeNull();
+  await expect(dialog.getByRole('button',{name:'Aplicar categoria escolhida',exact:true})).toBeDisabled();
+  await dialog.getByRole('combobox',{name:/Categoria para este registro/}).click();
+  await page.getByRole('option',{name:'Outros gastos',exact:true}).click();
+  await dialog.getByRole('button',{name:'Aplicar categoria escolhida',exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  expect(state().categoryId).toBe('other');
+  expect(writes).toEqual(['/api/banking/entries/entry-a/category']);
 });

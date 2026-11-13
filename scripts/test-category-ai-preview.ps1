@@ -1,3 +1,4 @@
+param([switch]$HealthOnly)
 $ErrorActionPreference='Stop'
 $financeRemoteRoot=Split-Path $PSScriptRoot -Parent
 $financeRemotePrivate=Join-Path $financeRemoteRoot '.tools/category-ai-cloud-preview'
@@ -9,6 +10,7 @@ $financeRemoteHeaders=@{'x-vercel-trusted-oidc-idp-token'=$env:VERCEL_OIDC_TOKEN
 $financeRemoteWatch=[Diagnostics.Stopwatch]::StartNew()
 $financeRemoteHealth=Invoke-RestMethod ($financeRemoteConfig.url+'/health') -Headers $financeRemoteHeaders -MaximumRedirection 0 -TimeoutSec 40
 $financeRemoteWatch.Stop()
+if($HealthOnly){$financeRemoteHealth|ConvertTo-Json;return}
 $financeRemotePayload=@{description='Mercado Alfa';categories=@(@{id='food';name='Alimentação'});history=@()}|ConvertTo-Json -Depth 5
 $financeRemoteUnauthorized=Invoke-WebRequest ($financeRemoteConfig.url+'/suggest') -Headers $financeRemoteHeaders -Method Post -ContentType 'application/json' -Body $financeRemotePayload -MaximumRedirection 0 -TimeoutSec 20 -SkipHttpErrorCheck
 if($financeRemoteUnauthorized.StatusCode -ne 401){throw 'Classification without the service token was not denied.'}
@@ -25,7 +27,7 @@ try {
     $financeRemoteLarge='{"description":"'+('x'*70000)+'"}'
     $financeRemoteTooLarge=Invoke-WebRequest ($financeRemoteConfig.url+'/suggest') -Headers $financeRemoteHeaders -Method Post -ContentType 'application/json' -Body $financeRemoteLarge -MaximumRedirection 0 -TimeoutSec 20 -SkipHttpErrorCheck
     if($financeRemoteTooLarge.StatusCode -ne 413){throw 'Remote payload limit failed.'}
-    $financeRemoteResult=@{url=$financeRemoteConfig.url;target='preview';status='UP';provider=$financeRemoteHealth.provider;modelEnabled=$financeRemoteHealth.modelEnabled;healthElapsedMs=$financeRemoteWatch.ElapsedMilliseconds;withoutServiceToken=401;rule='Alimentação';restaurantCategory=$financeRemoteChoice.categoryId;largePayload=413;databaseAccess=$false}
+    $financeRemoteResult=@{url=$financeRemoteConfig.url;target='preview';status='UP';provider=$financeRemoteHealth.provider;mode=$financeRemoteHealth.mode;modelEnabled=$financeRemoteHealth.modelEnabled;healthElapsedMs=$financeRemoteWatch.ElapsedMilliseconds;withoutServiceToken=401;rule='Alimentação';restaurantCategory=$financeRemoteChoice.categoryId;largePayload=413;databaseAccess=$false}
     $financeRemoteResult|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $financeRemotePrivate 'test-result.json') -Encoding utf8
     $financeRemoteResult|ConvertTo-Json
 } finally {

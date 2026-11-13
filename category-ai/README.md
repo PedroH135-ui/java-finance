@@ -6,6 +6,8 @@ O laboratório também oferece [Groq na nuvem com cota gratuita](../docs/llm-nuv
 
 O próprio [Python já pode executar em um Preview Vercel isolado](../docs/python-cloud-preview.md), sem banco ou credenciais bancárias. O guia registra o teste remoto, a autenticação, a expiração e a distinção entre Neon (banco) e hospedagem do serviço Python.
 
+A [revisão para produção](../docs/revisao-ia-producao.md) descreve a candidata, o token de serviço sem OIDC de desenvolvimento, a minimização de contexto, a V9 e o rollback. O modo de produção ainda não foi habilitado nos projetos de produção.
+
 ## 1. Identificar transferências no Java
 
 `BankAssistanceService` procura registros do mesmo perfil, em contas vinculadas diferentes, com direções opostas, mesmo valor decimal, status efetivado e até dois dias de diferença. Uma descrição de PIX, isoladamente, não comprova transferência própria. Com apenas uma conta vinculada pode não haver par disponível.
