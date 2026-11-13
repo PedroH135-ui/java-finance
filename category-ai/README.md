@@ -2,6 +2,8 @@
 
 Esta etapa mantém Java como responsável pelos dados financeiros. Python/LangChain só propõe categorias. Nada é publicado, categorizado ou identificado automaticamente por uma resposta do modelo.
 
+O laboratório também oferece [Groq na nuvem com cota gratuita](../docs/llm-nuvem.md), restrita a exemplos fictícios. O guia explica a chave protegida, os testes reais e o que falta hospedar para desligar o computador. Ollama permanece como alternativa local.
+
 ## 1. Identificar transferências no Java
 
 `BankAssistanceService` procura registros do mesmo perfil, em contas vinculadas diferentes, com direções opostas, mesmo valor decimal, status efetivado e até dois dias de diferença. Uma descrição de PIX, isoladamente, não comprova transferência própria. Com apenas uma conta vinculada pode não haver par disponível.
@@ -86,6 +88,6 @@ O endpoint exige token, limita corpo/contexto e aceita no máximo duas execuçõ
 
 As regras Java e a API Python são executadas nos testes. A chamada HTTP da demonstração usa a cadeia LangChain real e dados fictícios. Os testes de contrato usam um substituto controlado; o avaliador `finance_ai.evaluate_local` chama um modelo real instalado localmente. Os cenários de navegador também usam dados fictícios.
 
-O processo Python é local e opcional. Ainda não integra o Dockerfile/deploy de produção. Antes de habilitá-lo em produção, é preciso decidir a hospedagem e a comunicação privada entre Java e Python, além do modelo local e seus recursos. A configuração Java vem desativada por padrão. Nenhum provedor externo, envio de histórico real, mudança em produção ou push ao GitHub faz parte desta etapa.
+O processo Python é local e opcional. Ainda não integra o Dockerfile/deploy de produção. Antes de habilitá-lo em produção, é preciso decidir a hospedagem e a comunicação privada entre Java e Python. O laboratório Groq permite chamadas externas somente com textos fictícios explicitamente permitidos; não libera histórico real. A configuração Java vem desativada por padrão. Nenhuma mudança em produção ou push ao GitHub faz parte desta etapa.
 
 Limitações: pares com tarifa, moedas distintas ou datas mais distantes não são confirmados por esta regra. Pares ambíguos precisam de escolha. A busca de histórico está limitada às 100 escolhas mais recentes; textos genéricos podem não gerar sugestão. Os recursos de ocultar e de vincular lançamentos existentes continuam disponíveis.

@@ -45,4 +45,12 @@ class CategoryAdvisorTest {
     @Test void remoteUrlsAreRejectedBeforeAnyRequest() {
         assertThatThrownBy(()->new CategoryAdvisor(true,"https://example.test","",new ObjectMapper())).isInstanceOf(IllegalArgumentException.class);
     }
+    @Test void cloudProviderIsPreservedAndUnknownProvidersFallBack() {
+        response="{\"categoryId\":\"food\",\"confidence\":\"LOW\",\"method\":\"LLM\",\"reason\":\"untrusted\",\"evidenceCount\":0,\"modelUsed\":true,\"provider\":\"groq\"}";
+        var result=advisor(true).suggest(request("Restaurante Sabor da Vila",List.of()));
+        assertThat(result.provider()).isEqualTo("groq");
+        assertThat(result.reason()).contains("IA").doesNotContain("modelo local","untrusted");
+        response=response.replace("groq","unknown-provider");
+        assertThat(advisor(true).suggest(request("Loja",List.of())).categoryId()).isNull();
+    }
 }

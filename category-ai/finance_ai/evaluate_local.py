@@ -21,9 +21,21 @@ CASES = [
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", default="qwen2.5:1.5b", choices=["qwen2.5:1.5b"])
+    parser.add_argument("--provider", default="ollama", choices=["ollama", "groq"])
+    parser.add_argument("--model", choices=["qwen2.5:1.5b", "openai/gpt-oss-20b"])
     args = parser.parse_args()
-    chain = build_pipeline(local_model(args.model))
+    if args.provider == "groq":
+        from .cloud import MODEL, groq_model
+        model_name = MODEL
+        if args.model and args.model != MODEL:
+            parser.error("Modelo incompatível com o provedor Groq.")
+        classifier = groq_model()
+    else:
+        model_name = args.model or "qwen2.5:1.5b"
+        if model_name != "qwen2.5:1.5b":
+            parser.error("Modelo incompatível com Ollama.")
+        classifier = local_model(model_name)
+    chain = build_pipeline(classifier, provider=args.provider)
     rows = []
     for description, history, category, method in CASES:
         start = time.perf_counter()
@@ -32,7 +44,7 @@ def main():
                      "expectedMethod": method, "method": result.method, "modelUsed": result.model_used,
                      "examples": result.evidence_count, "elapsedMs": round((time.perf_counter()-start)*1000),
                      "passed": result.category_id == category and result.method == method})
-    print(json.dumps({"model": args.model, "passed": sum(r["passed"] for r in rows), "total": len(rows), "cases": rows}, ensure_ascii=False, indent=2))
+    print(json.dumps({"provider": args.provider, "model": model_name, "passed": sum(r["passed"] for r in rows), "total": len(rows), "cases": rows}, ensure_ascii=False, indent=2))
     return 0 if all(r["passed"] for r in rows) else 1
 
 

@@ -23,7 +23,7 @@ async function setup(page:Page,method='HISTORY',conflict=false) {
     else if(path==='/api/movements/feed')body={items:[{id:'entry-a',description:'Mercado Alfa fictício',amount:'50.00',kind:paired?'TRANSFER':'EXPENSE',status:'CONFIRMED',source:'BANK',accountId:'account-a',categoryId,
       operationDate:'2026-11-11',competence:'2026-11-01',bankEntryId:'entry-a',bankLinkId:'link-a',bankEntryVersion:version,bankProviderStatus:'POSTED',bankState:'REVIEW',hidden:false}],total:1,pages:1,page:0,size:20};
     else if(path==='/api/banking/entries/entry-a/assistance')body={entryVersion:version,currentCategoryId:categoryId,canCategorize:!paired,unavailableReason:paired?'Identificado como transferência.':'',
-      categorySuggestion:{categoryId:'food',method,confidence:method==='LLM'?'LOW':'HIGH',reason:'Sugestão baseada em classificações anteriores semelhantes deste perfil.',evidenceCount:3,modelUsed:method==='LLM'},
+      categorySuggestion:{categoryId:'food',method:method==='CLOUD'?'LLM':method,provider:method==='CLOUD'?'groq':'ollama',confidence:method==='HISTORY'?'HIGH':'LOW',reason:'Sugestão baseada em classificações anteriores semelhantes deste perfil.',evidenceCount:3,modelUsed:method!=='HISTORY'},
       transferCandidates:paired?[]:[{id:'peer-b',accountName:'Banco B fictício',description:'Entrada em outra conta',amount:'50.00',date:'2026-11-12',version:0},{id:'peer-c',accountName:'Banco C fictício',description:'Outro par possível',amount:'50.00',date:'2026-11-11',version:0}],
       transfer:paired?{id:'transfer-test',peerId:'peer-b',version:0,valid:true}:null};
     else throw new Error('Unexpected endpoint: '+path);
@@ -34,11 +34,11 @@ async function setup(page:Page,method='HISTORY',conflict=false) {
   return {writes,state:()=>({categoryId,paired,version})};
 }
 
-for(const method of ['HISTORY','LLM']) {
+for(const method of ['HISTORY','LLM','CLOUD']) {
   test(`categoria ${method}: proposta explicável pode ser corrigida antes de aplicar`,async({page},info)=>{
     const {writes,state}=await setup(page,method);
     const dialog=page.getByRole('dialog',{name:'Registro bancário',exact:true});
-    await expect(dialog.getByText(method==='HISTORY'?'Seu histórico':'Modelo local',{exact:true})).toBeVisible();
+    await expect(dialog.getByText(method==='HISTORY'?'Seu histórico':method==='CLOUD'?'Modelo na nuvem':'Modelo local',{exact:true})).toBeVisible();
     await expect(dialog.getByLabel('Categoria para este registro')).toContainText('Alimentação');
     expect(writes).toHaveLength(0);expect(state().categoryId).toBeNull();
     await page.setViewportSize({width:390,height:1000});

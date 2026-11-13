@@ -15,7 +15,11 @@ public class CategoryAdvisor {
     public record Category(String id,String name) {}
     public record Example(String description,String categoryId) {}
     public record Request(String description,List<Category> categories,List<Example> history) {}
-    public record Suggestion(String categoryId,String confidence,String method,String reason,int evidenceCount,boolean modelUsed) {}
+    public record Suggestion(String categoryId,String confidence,String method,String reason,int evidenceCount,boolean modelUsed,String provider) {
+        public Suggestion(String categoryId,String confidence,String method,String reason,int evidenceCount,boolean modelUsed) {
+            this(categoryId,confidence,method,reason,evidenceCount,modelUsed,"none");
+        }
+    }
     private final boolean enabled; private final URI endpoint; private final String token; private final ObjectMapper mapper;
     private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(1)).followRedirects(HttpClient.Redirect.NEVER).proxy(new java.net.ProxySelector() {
         public java.util.List<java.net.Proxy> select(URI uri) { return List.of(java.net.Proxy.NO_PROXY); }
@@ -44,9 +48,10 @@ public class CategoryAdvisor {
                     byte[] bytes=stream.readNBytes(8193);
                     if(response.statusCode()==200 && bytes.length<=8192) {
                         var result=mapper.readValue(bytes,Suggestion.class);
+                        String provider=result.provider()==null?"none":result.provider();
                         if((result.categoryId()==null || allowed.contains(result.categoryId())) && Set.of("HIGH","MEDIUM","LOW","NONE").contains(result.confidence())
-                            && Set.of("HISTORY","RULE","LLM","NONE").contains(result.method()) && result.evidenceCount()>=0 && result.evidenceCount()<=100)
-                            return new Suggestion(result.categoryId(),result.confidence(),result.method(),reason(result.method()),result.evidenceCount(),result.modelUsed());
+                            && Set.of("HISTORY","RULE","LLM","NONE").contains(result.method()) && Set.of("none","ollama","groq").contains(provider) && result.evidenceCount()>=0 && result.evidenceCount()<=100)
+                            return new Suggestion(result.categoryId(),result.confidence(),result.method(),reason(result.method()),result.evidenceCount(),result.modelUsed(),provider);
                     }
                 }
             } catch(InterruptedException e) { Thread.currentThread().interrupt(); }
@@ -64,7 +69,7 @@ public class CategoryAdvisor {
         return switch(method) {
             case "HISTORY" -> "Sugestão baseada em classificações anteriores semelhantes deste perfil.";
             case "RULE" -> "Sugestão por descrição do estabelecimento; confirme se faz sentido.";
-            case "LLM" -> "Sugestão do modelo local com contexto limitado; confirme antes de aplicar.";
+            case "LLM" -> "Sugestão de IA com contexto limitado; confirme antes de aplicar.";
             default -> "Sem evidência suficiente para sugerir uma categoria.";
         };
     }

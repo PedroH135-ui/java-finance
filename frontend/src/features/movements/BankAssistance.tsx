@@ -8,7 +8,7 @@ import { Failure, Loading } from '../../components/Shared';
 
 interface Assistance {
   entryVersion:number; currentCategoryId:string|null; canCategorize:boolean; unavailableReason:string;
-  categorySuggestion:{categoryId:string|null;confidence:string;method:string;reason:string;evidenceCount:number;modelUsed:boolean};
+  categorySuggestion:{categoryId:string|null;confidence:string;method:string;reason:string;evidenceCount:number;modelUsed:boolean;provider?:string};
   transferCandidates:{id:string;accountName:string;description:string;amount:string;date:string;version:number}[];
   transfer:{id:string;peerId:string;version:number;valid:boolean}|null;
 }
@@ -51,7 +51,7 @@ export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChan
       {!data.currentCategoryId&&<Box>
         <Typography variant="body2">{suggestion.reason}</Typography>
         {suggestion.categoryId&&<Stack direction="row" gap={1} flexWrap="wrap" mt={1}>
-          <Chip size="small" label={suggestion.method==='HISTORY'?'Seu histórico':suggestion.method==='RULE'?'Regra de descrição':'Modelo local'}/>
+          <Chip size="small" label={suggestion.method==='HISTORY'?'Seu histórico':suggestion.method==='RULE'?'Regra de descrição':suggestion.provider==='groq'?'Modelo na nuvem':'Modelo local'}/>
           <Chip size="small" label={'Consistência '+(suggestion.confidence==='HIGH'?'alta':suggestion.confidence==='MEDIUM'?'moderada':'baixa')}/>
           {suggestion.evidenceCount>0&&<Chip size="small" label={suggestion.evidenceCount+' exemplo(s) relevante(s)'}/>}
         </Stack>}
