@@ -24,6 +24,8 @@ Atualizado em 13/11/2026.
 
 ## Próximos passos
 
+Laboratório vetorial local posterior, branch `codex/rag-vetorial-local`: implementado em `vector-lab`, separado da aplicação publicada. MiniLM multilíngue ONNX local, 384 dimensões, PostgreSQL/pgvector exclusivo em 127.0.0.1:55435, 18 documentos fictícios. Sete testes de integração passaram. Em oito consultas positivas, contexto aceito da categoria esperada em 1/8 lexical e 4/8 vetorial com corte experimental 0,60. Geração comparada em três casos, cinco chamadas Groq, mesmas categorias nos dois lados; não demonstrou ganho de acurácia final. Ler `docs/rag-vetorial-local.md` antes de retomar. Nenhum deploy, banco real ou dependência do serviço publicado foi alterado; Java/V9 continuam pendentes.
+
 Teste local posterior: `scripts/demo-rag-local.ps1 -UseGroq` executou oito cenários fictícios da cadeia LangChain, com duas chamadas reais à Groq e comprovação de cache na repetição. Nenhum banco ou serviço Vercel foi acessado. Relatórios ficam em `.tools/local-review/rag-demo-groq`; código de demonstração e detalhes estão em `docs/demo-langchain-rag.md`. A demonstração é isolada e não foi publicada. Mantêm-se as pendências de Java/V9 descritas abaixo.
 
 Suíte local ampliada: `scripts/demo-rag-local.ps1 -Suite nubank -UseGroq` passou em 14 casos fictícios de mercado, delivery, assinaturas e PIX, com três chamadas Groq e cache comprovado. PIX só com nome de pessoa acionou o LLM e retornou sem sugestão; falta avaliar filtro prévio para economizar essa chamada. Nenhuma regra de classificação foi alterada. Relatórios em `.tools/local-review/rag-demo-groq/nubank`; nada publicado ou gravado em banco.

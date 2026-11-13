@@ -7,6 +7,7 @@
 .codex
 .agents
 skills-lock.json
+vector-lab
 .test-db
 .vercel
 **/node_modules

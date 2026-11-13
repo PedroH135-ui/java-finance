@@ -4,6 +4,8 @@ Conferido no código em 13/11/2026. Este documento descreve a implementação ex
 
 Para ver as etapas e o contexto real em exemplos fictícios, execute a [demonstração local reproduzível](demo-langchain-rag.md).
 
+**Experimento posterior:** existe agora um [laboratório local com embeddings e pgvector](rag-vetorial-local.md), separado em `vector-lab`. A descrição abaixo continua válida para o classificador principal; o laboratório não foi integrado ou publicado na aplicação.
+
 ## O que está publicado
 
 | Parte | Situação |
@@ -48,7 +50,7 @@ O código também conserva um adaptador Ollama para testes locais. A publicaçã
 
 RAG significa recuperar contexto relevante antes de pedir uma resposta ao modelo. Aqui existe uma recuperação lexical simples: procurar descrições parecidas no histórico categorizado do próprio usuário e levar exemplos relevantes ao classificador.
 
-Não há embeddings, índice vetorial, vector store, pgvector, busca semântica ou treinamento do modelo com seus dados. O Python não consulta o Neon: recebe o contexto previamente selecionado pelo Java.
+No classificador principal descrito aqui, não há embeddings, índice vetorial, vector store, pgvector, busca semântica ou treinamento do modelo com seus dados. O Python desse serviço não consulta o Neon: recebe o contexto previamente selecionado pelo Java. O laboratório vetorial separado consulta apenas seu banco fictício local.
 
 A semelhança usa palavras em comum após normalização e remoção de palavras genéricas:
 

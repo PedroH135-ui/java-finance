@@ -6,6 +6,7 @@
 .codex
 .agents
 skills-lock.json
+vector-lab
 .test-db
 .vercel
 frontend/dist
