@@ -28,7 +28,7 @@ Cada caso mostra histórico disponível, exemplos recuperados e descartados, pon
 
 Um observador temporário de `httpx.Client.send`, apenas neste processo, conta as requisições reais ao endpoint de classificação Groq e registra contexto fictício/status. Não registra cabeçalhos ou chave. A observação termina junto com o teste; não altera o servidor publicado.
 
-O adaptador usa a política `candidate` para testar o mesmo cache/limites por instância utilizados em produção. O programa aceita somente os oito casos fixados em `finance_ai/explain_demo.py`; não recebe dados financeiros reais como entrada.
+O adaptador usa a política `candidate` para testar o mesmo cache/limites por instância utilizados em produção. O programa aceita somente os casos fixados em `finance_ai/explain_demo.py`: oito na suíte `classic` e 14 na suíte `nubank`; não recebe dados financeiros reais como entrada.
 
 `modelUsed=true` não comprova nova chamada de rede: o adaptador pode responder pelo cache ou falhar. Confira o contador HTTP e o resultado. A repetição da cantina demonstra isso.
 
@@ -54,3 +54,39 @@ O contexto real dessa chamada continha `cantina bela almoco`, as categorias Alim
 ## Limites
 
 Sinônimos ou descrições muito diferentes podem não recuperar exemplos úteis. Embeddings e busca vetorial continuam fora da implementação. O teste valida a cadeia Python isolada com um corpus pequeno; não demonstra acurácia geral sobre transações reais.
+
+## Mercado, delivery, assinaturas e PIX fictícios
+
+Para executar os cenários inspirados em movimentações comuns, sem copiar extrato ou presumir o formato exato do Nubank:
+
+```powershell
+pwsh -NoProfile -File scripts/demo-rag-local.ps1 -Suite nubank
+pwsh -NoProfile -File scripts/demo-rag-local.ps1 -Suite nubank -UseGroq
+```
+
+Os relatórios ficam no subdiretório `nubank` de cada relatório do provedor. A lista de categorias é fictícia e inclui Alimentação, Delivery, Assinaturas, Transporte, Saúde e Outros gastos. Delivery só existe como opção desse corpus; nada foi criado no cadastro de categorias do usuário.
+
+Resultado observado em 13/11/2026: 14 cenários aprovados, três requisições HTTP à Groq. O classificador, suas regras e a configuração de produção não foram alterados para obter esses resultados.
+
+| Descrição fictícia | Exemplo recuperado | Origem da sugestão | Categoria | HTTP Groq |
+|---|---|---|---|---:|
+| COMPRA CARTAO SUPERMERCADO PRACA 1234 | Nenhum | Regra | Alimentação | 0 |
+| SUPERMERCADO PRACA LOJA NORTE | SUPERMERCADO PRACA LOJA CENTRO, 0,60 | Regra ainda suficiente | Alimentação | 0 |
+| IFOOD LANCHONETE VILA | IFOOD LANCHONETE CENTRO, 0,50 | RAG + LLM | Delivery | 1 |
+| Mesmo iFood, repetido | Mesmo exemplo | Cache | Delivery | 0 |
+| IFOOD PIZZARIA ALAMEDA | Três classificações iguais, 1,00 | Histórico | Delivery | 0 |
+| NETFLIX.COM 123456 | Nenhum | Regra | Assinaturas | 0 |
+| SPOTIFY P123456 | Nenhum | Regra | Assinaturas | 0 |
+| STREAMPLAY PLANO MENSAL | STREAMPLAY PLANO ANUAL, 0,50 | RAG + LLM | Assinaturas | 1 |
+| PIX ENVIADO MERCADO PRACA | Nenhum | Regra do estabelecimento | Alimentação | 0 |
+| PIX ENVIADO MARMITARIA SOL | Três classificações iguais, 1,00 | Histórico | Alimentação | 0 |
+| PIX ENVIADO JOAO SILVA | Nenhum | LLM consultado e se absteve | Nenhuma | 1 |
+| PIX DESCONHECIDO | Nenhum | Informação insuficiente | Nenhuma | 0 |
+| PIX TRANSFERENCIA ENTRE MINHAS CONTAS | Nenhum | Natureza financeira ambígua | Nenhuma | 0 |
+| iFood com histórico Alimentação/Delivery conflitante | Duas categorias para descrição igual | Abstenção por conflito | Nenhuma | 0 |
+
+O iFood novo levou 767 ms e a repetição em cache 3 ms nesta execução. A assinatura fictícia levou 284 ms e o PIX só com nome 367 ms. Tempos e respostas são observações, não garantia para casos futuros.
+
+O PIX só com pessoa revela um limite: não há hoje um filtro determinístico específico para distinguir nome de pessoa antes do modelo. O código consultou o LLM, que retornou `null` neste caso. Isso não garante que todo PIX pessoal será reconhecido corretamente. Uma possível melhoria é avaliar esse filtro com exemplos autorizados; não foi implementada neste teste.
+
+PIX é um meio de pagamento, não uma categoria financeira. Um estabelecimento conhecido pode sugerir uma categoria; um nome de pessoa sozinho não permite saber se foi compra, presente, reembolso ou transferência. Nenhum desses exemplos confirma transferência própria automaticamente.

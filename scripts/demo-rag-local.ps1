@@ -1,4 +1,4 @@
-param([switch]$UseGroq)
+param([switch]$UseGroq,[ValidateSet('classic','nubank')][string]$Suite='classic')
 $ErrorActionPreference='Stop'
 $financeDemoRoot=Split-Path $PSScriptRoot -Parent
 $financeDemoPython=Join-Path $financeDemoRoot '.tools/category-ai-venv/Scripts/python.exe'
@@ -14,7 +14,8 @@ try {
         $financeDemoProvider='groq'
     }
     $financeDemoOutput=Join-Path $financeDemoRoot ('.tools/local-review/rag-demo-'+$financeDemoProvider)
-    & $financeDemoPython -X utf8 -m finance_ai.explain_demo --provider $financeDemoProvider --output $financeDemoOutput
+    if($Suite -ne 'classic'){$financeDemoOutput=Join-Path $financeDemoOutput $Suite}
+    & $financeDemoPython -X utf8 -m finance_ai.explain_demo --provider $financeDemoProvider --suite $Suite --output $financeDemoOutput
     if($LASTEXITCODE -ne 0){throw 'The fictitious demonstration had a divergence; inspect its local result.json.'}
     Write-Output ('Report: '+(Join-Path $financeDemoOutput 'index.html'))
 } finally {
