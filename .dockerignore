@@ -3,6 +3,9 @@
 **/target-cloud
 .cloud
 .tools
+.codex
+.agents
+skills-lock.json
 .test-db
 .vercel
 frontend/dist

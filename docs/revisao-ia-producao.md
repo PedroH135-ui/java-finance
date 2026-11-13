@@ -2,7 +2,9 @@
 
 ## Estado da entrega
 
-Preparada e testada em Preview e no ambiente local. **Não publicada no Java Finance de produção.** Nenhuma variável Production foi criada ou alterada, nenhuma consulta bancária foi iniciada e o Neon não foi acessado nesta etapa.
+**Atualização:** Python publicado e testado em Production; Java/V9 continuam aguardando confirmação do backup. Consulte o [estado operacional atual](contexto/handoff.md). O restante deste documento preserva a revisão feita antes dessa publicação parcial.
+
+Na revisão original, a entrega estava preparada e testada em Preview e no ambiente local, sem publicação no Java Finance de produção. Nenhuma variável Production havia sido criada ou alterada naquela etapa, e nenhuma consulta bancária havia sido iniciada.
 
 Base confirmada por metadados da Vercel em 13/11/2026:
 

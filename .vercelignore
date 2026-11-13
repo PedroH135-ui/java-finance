@@ -4,6 +4,9 @@
 !.env.example
 .cloud
 .tools
+.codex
+.agents
+skills-lock.json
 .test-db
 .vercel
 **/node_modules

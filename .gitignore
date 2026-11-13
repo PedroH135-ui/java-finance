@@ -25,6 +25,9 @@ artifacts/
 .cloud/
 .test-db/
 .tools/
+/.codex/
+/.agents/
+/skills-lock.json
 
 **/__pycache__/
 **/.pytest_cache/
