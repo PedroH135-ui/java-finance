@@ -45,6 +45,13 @@ class CategoryAdvisorTest {
     @Test void remoteUrlsAreRejectedBeforeAnyRequest() {
         assertThatThrownBy(()->new CategoryAdvisor(true,"https://example.test","",new ObjectMapper())).isInstanceOf(IllegalArgumentException.class);
     }
+    @Test void remoteHostRequiresHttpsAndAnExactExplicitAllowlist() {
+        String host="isolated-preview.vercel.app";
+        assertThatCode(()->new CategoryAdvisor(true,"https://"+host,"synthetic-token-at-least-32-characters",new ObjectMapper(),host,"synthetic-oidc")).doesNotThrowAnyException();
+        for(String url:List.of("http://"+host,"https://other.vercel.app","https://"+host+":8443","https://"+host+"/other","https://user@"+host,"https://"+host+"?token=bad","https://"+host+"#bad")) {
+            assertThatThrownBy(()->new CategoryAdvisor(true,url,"synthetic-token-at-least-32-characters",new ObjectMapper(),host,"synthetic-oidc")).isInstanceOf(IllegalArgumentException.class);
+        }
+    }
     @Test void cloudProviderIsPreservedAndUnknownProvidersFallBack() {
         response="{\"categoryId\":\"food\",\"confidence\":\"LOW\",\"method\":\"LLM\",\"reason\":\"untrusted\",\"evidenceCount\":0,\"modelUsed\":true,\"provider\":\"groq\"}";
         var result=advisor(true).suggest(request("Restaurante Sabor da Vila",List.of()));

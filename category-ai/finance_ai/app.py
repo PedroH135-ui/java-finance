@@ -1,6 +1,7 @@
 import os
 import secrets
 import threading
+import time
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -43,6 +44,9 @@ app.add_middleware(BodyLimit)
 
 
 def authorize(credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))):
+    expires_at = os.environ.get("CATEGORY_AI_LAB_EXPIRES_AT", "")
+    if expires_at and (not expires_at.isdecimal() or time.time() >= int(expires_at)):
+        raise HTTPException(503, "Laboratório expirado; renove a configuração para continuar os testes.")
     expected = os.environ.get("CATEGORY_AI_TOKEN", "")
     if len(expected) < 32:
         raise HTTPException(503, "Serviço local não configurado.")

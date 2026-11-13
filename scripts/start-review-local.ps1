@@ -1,4 +1,4 @@
-param([switch]$Build,[switch]$Restart,[switch]$RestartAi,[ValidateSet('off','qwen2.5:1.5b','groq')][string]$Llm)
+param([switch]$Build,[switch]$Restart,[switch]$RestartAi,[switch]$RemoteAi,[ValidateSet('off','qwen2.5:1.5b','groq')][string]$Llm)
 $ErrorActionPreference='Stop'
 $financeReviewRoot=Split-Path $PSScriptRoot -Parent
 $financeReviewPrivate=Join-Path $financeReviewRoot '.tools/local-review'
@@ -32,6 +32,11 @@ try {
     $financeReviewProvider=if($financeReviewConfig.provider){$financeReviewConfig.provider}else{$financeReviewPreviousProvider}
     if($financeReviewProvider -notin @('none','ollama','groq') -or ($financeReviewProvider -eq 'ollama' -and $financeReviewConfig.model -ne 'qwen2.5:1.5b') -or ($financeReviewProvider -eq 'groq' -and $financeReviewConfig.model -ne 'openai/gpt-oss-20b')){throw 'Unsupported review provider/model.'}
     if($financeReviewProvider -eq 'groq' -and !$financeReviewConfig.demoSeeded){throw 'Cloud tests require the fictitious demo.'}
+    if($RemoteAi){
+        $financeReviewRemoteConfig=Get-Content -LiteralPath (Join-Path $financeReviewRoot '.tools/category-ai-cloud-preview/config.json') -Raw|ConvertFrom-Json
+        $financeReviewRemoteUri=[uri]$financeReviewRemoteConfig.url
+        if(!$env:VERCEL_OIDC_TOKEN -or $financeReviewRemoteConfig.projectName -ne 'java-finance-category-ai-lab' -or $financeReviewRemoteUri.Scheme -ne 'https' -or !$financeReviewRemoteUri.Host.EndsWith('.vercel.app') -or $financeReviewRemoteUri.UserInfo){throw 'Start the isolated remote advisor through start-review-cloud-ai.ps1 with Vercel development authentication.'}
+    }
     $financeExistingContainer=& docker ps -a --filter ('name=^/'+$financeReviewContainer+'$') --format '{{.ID}}'
     if(!$financeExistingContainer) {
         $env:POSTGRES_PASSWORD=$financeReviewConfig.dbPassword
@@ -63,6 +68,7 @@ try {
         Push-Location backend
         try {./mvnw.cmd -o -B -ntp '-Dfinance.build.directory=target/local-review' -Pintegrated -DskipTests package *> ../.tools/local-review/backend-build.log;if($LASTEXITCODE -ne 0){throw 'Local backend build failed.'}} finally {Pop-Location}
     }
+    if(!$RemoteAi){
     if($financeReviewProvider -eq 'ollama'){& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'start-review-ollama.ps1') -Model $financeReviewConfig.model;if($LASTEXITCODE -ne 0){throw 'Local model startup failed.'}}
     elseif($financeReviewPreviousProvider -eq 'ollama' -and $PSBoundParameters.ContainsKey('Llm')){& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'start-review-ollama.ps1') -Unload;if($LASTEXITCODE -ne 0){throw 'Local model unload failed.'}}
     if($RestartAi -and $financeReviewState.pythonPid) {
@@ -101,12 +107,20 @@ try {
             throw 'Port 8123 is occupied by another process.'
         }
     }
+    }
     $env:DB_URL='jdbc:postgresql://127.0.0.1:55434/java_finance_review'
     $env:DB_USER='review_owner';$env:DB_PASSWORD=$financeReviewConfig.dbPassword
     $env:SERVER_ADDRESS='127.0.0.1';$env:PORT='8082';$env:COOKIE_SECURE='false'
     $env:REGISTRATION_ENABLED=if($financeReviewConfig.ownerId){'false'}else{'true'}
     $env:APP_HOSTING='local';$env:FRONTEND_ORIGIN='http://127.0.0.1:8082'
     $env:CATEGORY_AI_ENABLED='true';$env:CATEGORY_AI_URL='http://127.0.0.1:8123'
+    if($RemoteAi){
+        $financeReviewRemoteSecret=Import-Clixml -LiteralPath (Join-Path $financeReviewRoot '.tools/category-ai-cloud-preview/service-token.clixml')
+        try {$env:CATEGORY_AI_TOKEN=[Net.NetworkCredential]::new('',$financeReviewRemoteSecret).Password} finally {$financeReviewRemoteSecret.Dispose()}
+        $env:CATEGORY_AI_URL=$financeReviewRemoteConfig.url
+        $env:CATEGORY_AI_ALLOWED_HOST=$financeReviewRemoteUri.Host
+        $env:CATEGORY_AI_PREVIEW_OIDC=$env:VERCEL_OIDC_TOKEN
+    }
     if($financeReviewConfig.ownerId){$env:PLUGGY_OWNER_ID=$financeReviewConfig.ownerId}
     $financeAppListener=Get-NetTCPConnection -LocalPort 8082 -State Listen -ErrorAction SilentlyContinue
     if(!$financeAppListener) {
@@ -118,12 +132,14 @@ try {
     for($financeAttempt=0;$financeAttempt -lt 45;$financeAttempt++) {
         try {
             $null=Invoke-RestMethod 'http://127.0.0.1:8082/api/auth/config' -TimeoutSec 2
-            $null=Invoke-RestMethod 'http://127.0.0.1:8123/health' -TimeoutSec 2
+            if(!$RemoteAi){$null=Invoke-RestMethod 'http://127.0.0.1:8123/health' -TimeoutSec 2}
             $financeReviewReady=$true;break
         } catch {Start-Sleep -Seconds 1}
     }
     if(!$financeReviewReady){throw 'Local services did not become ready. Check .tools/local-review logs; no production services were contacted.'}
-    $financeReviewHealth=Invoke-RestMethod 'http://127.0.0.1:8123/health' -TimeoutSec 2
-    if([bool]$financeReviewHealth.modelEnabled -ne [bool]$financeReviewConfig.model -or ($financeReviewHealth.provider -and $financeReviewHealth.provider -ne $financeReviewProvider)){throw 'Python is running with a different model configuration; use -RestartAi.'}
-    Write-Output 'Local app: http://127.0.0.1:8082 — database 127.0.0.1:55434 — Python 127.0.0.1:8123. No production or Pluggy credentials loaded.'
+    if(!$RemoteAi){
+        $financeReviewHealth=Invoke-RestMethod 'http://127.0.0.1:8123/health' -TimeoutSec 2
+        if([bool]$financeReviewHealth.modelEnabled -ne [bool]$financeReviewConfig.model -or ($financeReviewHealth.provider -and $financeReviewHealth.provider -ne $financeReviewProvider)){throw 'Python is running with a different model configuration; use -RestartAi.'}
+        Write-Output 'Local app: http://127.0.0.1:8082 — database 127.0.0.1:55434 — Python 127.0.0.1:8123. No production or Pluggy credentials loaded.'
+    }else{Write-Output ('Local app: http://127.0.0.1:8082 — fictitious local database — remote Python: '+$financeReviewRemoteConfig.url)}
 } finally {Pop-Location}

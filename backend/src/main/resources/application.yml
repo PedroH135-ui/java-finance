@@ -40,6 +40,8 @@ app:
     enabled: ${CATEGORY_AI_ENABLED:false}
     url: ${CATEGORY_AI_URL:http://127.0.0.1:8123}
     token: ${CATEGORY_AI_TOKEN:}
+    allowed-host: ${CATEGORY_AI_ALLOWED_HOST:}
+    preview-oidc: ${CATEGORY_AI_PREVIEW_OIDC:}
   banking:
     client-id: ${PLUGGY_CLIENT_ID:}
     client-secret: ${PLUGGY_CLIENT_SECRET:}

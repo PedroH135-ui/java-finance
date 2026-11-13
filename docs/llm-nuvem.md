@@ -93,6 +93,6 @@ Também passaram 22 testes Python, cinco testes Java do contrato de assistência
 
 **O modelo agora é executado na nuvem.** Ollama e os pesos locais não são necessários para o modo Groq.
 
-Nesta validação, Java, React, PostgreSQL e Python ainda executam no computador. A versão de teste em `127.0.0.1:8082` continua dependendo dele ligado. Para o sistema completo funcionar com o computador desligado, precisaremos hospedar o Python e conectar o backend de produção a ele com autenticação e transporte adequados. O Java hoje só aceita loopback para esse serviço, portanto essa etapa exige implementação e testes próprios.
+O laboratório agora também pode usar [Python hospedado em Preview na Vercel](python-cloud-preview.md). O cliente Java aceita loopback ou HTTPS com um host Vercel explicitamente permitido, sem redirecionamentos. A versão de teste em `127.0.0.1:8082` ainda precisa do computador para React, Java e os dados fictícios, mas Python/LLM já não dependem dele. A integração na produção do Java Finance continua pendente de autorização e testes próprios.
 
 Nenhum deploy, push, configuração de produção, dado financeiro real ou consulta bancária fez parte desta etapa. A chave DPAPI não pode ser copiada como solução de segredo de produção; a hospedagem escolhida deverá receber um segredo próprio.

@@ -27,3 +27,11 @@ def test_oversized_payload_is_rejected(monkeypatch):
     monkeypatch.setenv("CATEGORY_AI_TOKEN", TOKEN)
     result = TestClient(app).post("/suggest", content='{"description":"' + "x" * 70000 + '"}', headers={"Content-Type": "application/json", "Authorization": "Bearer " + TOKEN})
     assert result.status_code == 413
+
+
+def test_expired_remote_laboratory_denies_classification(monkeypatch):
+    monkeypatch.setenv("CATEGORY_AI_TOKEN", TOKEN)
+    monkeypatch.setenv("CATEGORY_AI_LAB_EXPIRES_AT", "1")
+    result = TestClient(app).post("/suggest", json=PAYLOAD, headers={"Authorization": "Bearer " + TOKEN})
+    assert result.status_code == 503
+    assert "expirado" in result.text

@@ -7,9 +7,10 @@ import java.text.Normalizer;
 import java.time.Duration;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-/** Optional loopback-only Python advisor. No amounts, dates, account IDs or raw descriptions leave Java. */
+/** Optional Python advisor on loopback or an explicitly allowed HTTPS Vercel host. */
 @Component
 public class CategoryAdvisor {
     public record Category(String id,String name) {}
@@ -21,16 +22,26 @@ public class CategoryAdvisor {
         }
     }
     private final boolean enabled; private final URI endpoint; private final String token; private final ObjectMapper mapper;
+    private final String previewOidc;
     private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(1)).followRedirects(HttpClient.Redirect.NEVER).proxy(new java.net.ProxySelector() {
         public java.util.List<java.net.Proxy> select(URI uri) { return List.of(java.net.Proxy.NO_PROXY); }
         public void connectFailed(URI uri,java.net.SocketAddress sa,java.io.IOException ioe) {}
     }).build();
+    public CategoryAdvisor(boolean enabled,String url,String token,ObjectMapper mapper) {
+        this(enabled,url,token,mapper,"","");
+    }
+    @Autowired
     public CategoryAdvisor(@Value("${app.category-ai.enabled:false}") boolean enabled,
-        @Value("${app.category-ai.url:http://127.0.0.1:8123}") String url,@Value("${app.category-ai.token:}") String token,ObjectMapper mapper) {
+        @Value("${app.category-ai.url:http://127.0.0.1:8123}") String url,@Value("${app.category-ai.token:}") String token,ObjectMapper mapper,
+        @Value("${app.category-ai.allowed-host:}") String allowedHost,@Value("${app.category-ai.preview-oidc:}") String previewOidc) {
         this.enabled=enabled; this.token=token; this.mapper=mapper;
         URI base=URI.create(url);
-        if(!base.getScheme().equals("http") || !"127.0.0.1".equals(base.getHost()) || base.getUserInfo()!=null || base.getQuery()!=null || base.getFragment()!=null
-            || !(base.getPath().isEmpty() || base.getPath().equals("/"))) throw new IllegalArgumentException("Category advisor must use loopback HTTP.");
+        boolean local="http".equals(base.getScheme()) && "127.0.0.1".equals(base.getHost());
+        boolean remote="https".equals(base.getScheme()) && base.getHost()!=null && base.getHost().equals(allowedHost)
+            && allowedHost.endsWith(".vercel.app") && (base.getPort()==-1 || base.getPort()==443);
+        if(!(local || remote) || base.getUserInfo()!=null || base.getQuery()!=null || base.getFragment()!=null
+            || !(base.getPath().isEmpty() || base.getPath().equals("/"))) throw new IllegalArgumentException("Category advisor requires loopback HTTP or the explicitly allowed HTTPS Vercel host.");
+        this.previewOidc=remote?previewOidc:"";
         endpoint=base.resolve("/suggest");
     }
     public static String sanitize(String value) {
@@ -42,8 +53,9 @@ public class CategoryAdvisor {
         var allowed=new HashSet<>(request.categories().stream().map(Category::id).toList());
         if(enabled && token.length()>=32) {
             try {
-                var response=http.send(HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(10)).header("Content-Type","application/json")
-                    .header("Authorization","Bearer "+token).POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(request))).build(),HttpResponse.BodyHandlers.ofInputStream());
+                var builder=HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(10)).header("Content-Type","application/json").header("Authorization","Bearer "+token);
+                if(!previewOidc.isBlank())builder.header("x-vercel-trusted-oidc-idp-token",previewOidc);
+                var response=http.send(builder.POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(request))).build(),HttpResponse.BodyHandlers.ofInputStream());
                 try(var stream=response.body()) {
                     byte[] bytes=stream.readNBytes(8193);
                     if(response.statusCode()==200 && bytes.length<=8192) {

@@ -4,6 +4,8 @@ Esta etapa mantém Java como responsável pelos dados financeiros. Python/LangCh
 
 O laboratório também oferece [Groq na nuvem com cota gratuita](../docs/llm-nuvem.md), restrita a exemplos fictícios. O guia explica a chave protegida, os testes reais e o que falta hospedar para desligar o computador. Ollama permanece como alternativa local.
 
+O próprio [Python já pode executar em um Preview Vercel isolado](../docs/python-cloud-preview.md), sem banco ou credenciais bancárias. O guia registra o teste remoto, a autenticação, a expiração e a distinção entre Neon (banco) e hospedagem do serviço Python.
+
 ## 1. Identificar transferências no Java
 
 `BankAssistanceService` procura registros do mesmo perfil, em contas vinculadas diferentes, com direções opostas, mesmo valor decimal, status efetivado e até dois dias de diferença. Uma descrição de PIX, isoladamente, não comprova transferência própria. Com apenas uma conta vinculada pode não haver par disponível.
