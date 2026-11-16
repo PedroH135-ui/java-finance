@@ -2,6 +2,8 @@
 
 Publicação autorizada pelo usuário após os testes em Preview. Java e Python estão READY nos domínios estáveis. Código funcional base `37334ad`; correção do pool e helper de rotação `ce2401f`, na branch local `codex/publica-rag-cloud`. Nenhum push, PR novo ou merge foi feito nesta etapa.
 
+**Atualização posterior:** envio ao GitHub autorizado e concluído na branch `codex/publica-rag-cloud`, [PR #15](https://github.com/PedroH135-ui/java-finance/pull/15), sem merge ou novo deploy. Lint/três testes/build frontend e três testes da proteção do provisionamento repetidos com sucesso; Gitleaks de fontes/histórico e comparação de doze segredos em memória sem achados. O aviso de bundle grande foi registrado na PR. Consulte os checks da PR para o resultado do CI remoto.
+
 | Serviço | Deployment ativo | Endereço |
 |---|---|---|
 | Java 21 / Spring Boot / React, container | `dpl_FpjV78wBJF4PWoUWWDL4N1nir23e` | [Java Finance](https://java-finance.vercel.app) |

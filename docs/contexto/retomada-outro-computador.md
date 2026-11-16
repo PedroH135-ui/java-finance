@@ -2,7 +2,7 @@
 
 Atualizado em 16/11/2026. **Java e Python publicados em Production, V13**, com RAG/pgvector, fila cloud, opt-in individual e prioridade humana. Recuperação confirmada, saldos preservados e chave Groq rotacionada. Ler [publicação e rollback](../publicacao-rag-producao-2026-11-16.md) e o handoff antes de qualquer ação; as validações antigas descrevem etapas anteriores.
 
-O código mais recente está localmente em `codex/publica-rag-cloud`; esta publicação não fez push nem merge. A PR #14 não contém todas as alterações publicadas. Antes de trocar de computador, enviar essa branch mediante autorização ou transferir um pacote de fontes revisado; não copiar `.tools`, DPAPI, sessões, dumps ou `.env`.
+O código mais recente está no GitHub em `codex/publica-rag-cloud`, [PR #15](https://github.com/PedroH135-ui/java-finance/pull/15), enviada com autorização após a publicação, sem merge. A PR #14 não contém todas as alterações publicadas. Não copiar `.tools`, DPAPI, sessões, dumps ou `.env`.
 
 ## Leia primeiro
 
@@ -13,7 +13,7 @@ O código mais recente está localmente em `codex/publica-rag-cloud`; esta publi
 
 ## Recuperar o código
 
-O trabalho local mais recente está na branch `codex/publica-rag-cloud`, não na branch padrão. Somente após confirmar que a branch foi enviada ao remoto, use:
+O trabalho mais recente está na branch remota `codex/publica-rag-cloud`, não na branch padrão. Use:
 
 ```powershell
 git clone --branch codex/publica-rag-cloud https://github.com/PedroH135-ui/java-finance.git

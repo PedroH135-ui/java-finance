@@ -4,7 +4,7 @@ Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL 
 
 **Produção publicada em 16/11/2026**, com autorização explícita: Java/React e Python RAG/pgvector/fila na nuvem, schema **V13**, ativação individual desligada por padrão e correções humanas prioritárias. Recuperação recente confirmada e hashes financeiros preservados. Chave Groq rotacionada; antiga revogada. Ler [publicação, verificações e rollback](../publicacao-rag-producao-2026-11-16.md).
 
-Branch local atual `codex/publica-rag-cloud`, base funcional `37334ad`, correção pooled `ce2401f`. Sem push/PR novo/merge desta publicação; PR #14 anterior não representa a versão cloud publicada. Documentos de Preview/local e validações anteriores são históricos; o handoff mais recente prevalece.
+Branch atual `codex/publica-rag-cloud`, base funcional `37334ad`, correção pooled `ce2401f`. Enviada ao GitHub com autorização em 16/11/2026: [PR #15](https://github.com/PedroH135-ui/java-finance/pull/15), destino `feat/fundacao-financeira`, sem merge. A PR #14 anterior não representa a versão cloud publicada. Documentos de Preview/local e validações anteriores são históricos; o handoff mais recente prevalece.
 
 - [Publicação Production, banco definitivo e rotação](../publicacao-rag-producao-2026-11-16.md)
 - [Retomada e pendências](handoff.md)

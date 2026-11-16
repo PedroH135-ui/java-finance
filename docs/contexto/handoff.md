@@ -2,6 +2,12 @@
 
 Atualizado em 16/11/2026.
 
+## GitHub — envio autorizado após a publicação
+
+- Branch `codex/publica-rag-cloud` enviada; [PR #15](https://github.com/PedroH135-ui/java-finance/pull/15) aberta contra `feat/fundacao-financeira`, com contexto completo, testes anteriores e repetidos, publicação e rollback. Sem merge ou novo deploy nesta etapa. As afirmações de "sem push" abaixo registram o momento anterior ao pedido de envio.
+- Repetidos: lint/três testes/build frontend e três testes da proteção do provisionamento, todos aprovados. Build avisa bundle principal ~1,07 MB antes de gzip; divisão de código é melhoria futura. Gitleaks fontes/histórico sem achados; doze segredos comparados somente em memória com 409 arquivos/recursos públicos/JAR, zero correspondências. Checagem de arquivos privados aprovada.
+- Consulte o CI na PR para o resultado remoto atual; testes locais não equivalem a Actions. Não fechar/mesclar PRs anteriores ou ativar usuários automaticamente.
+
 ## Estado atual — publicação Production posterior em 16/11
 
 - Usuário autorizou banco vetorial definitivo, rotação Groq e publicação Python/Java. **Concluído em Production**, schema V13. Relatório definitivo `docs/publicacao-rag-producao-2026-11-16.md`; o histórico abaixo é anterior.
