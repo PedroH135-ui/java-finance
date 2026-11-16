@@ -2,6 +2,8 @@
 
 O usuário autorizou publicar esta alteração e depois enviar a branch/abrir PR, mantendo opt-in individual, prioridade humana e saldos. Código funcional **`e9137ce`**, branch `codex/categorias-padrao`, baseada no merge `647dbc4` da PR #15. Documentação posterior não muda o pacote funcional publicado. Não houve novo merge nesta etapa.
 
+Após a publicação, branch enviada e [PR #16](https://github.com/PedroH135-ui/java-finance/pull/16) aberta contra `feat/fundacao-financeira`, com contexto, evidências e rollback. Conferir o CI na PR para o resultado remoto atual; não há autorização de merge por este relatório.
+
 ## Publicação e escopo
 
 | Item | Resultado |

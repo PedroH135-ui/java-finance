@@ -4,6 +4,8 @@ Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL 
 
 **Última publicação autorizada:** categorias padrão do commit `e9137ce` em Production, Java `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`. Python e V13 preservados, nenhum usuário ativado ou categoria real adicionada por este rollout. Ler [publicação e rollback das categorias padrão](../publicacao-categorias-padrao-2026-11-16.md). As referências abaixo à etapa local registram o momento anterior.
 
+Código enviado em `codex/categorias-padrao`, [PR #16](https://github.com/PedroH135-ui/java-finance/pull/16) aberta contra `feat/fundacao-financeira`, sem merge. Esta é a branch mais recente para retomar em outro computador. Conferir os checks remotos na PR.
+
 **Trabalho local posterior:** categorias padrão no cadastro e botão idempotente para perfis existentes, branch `codex/categorias-padrao`, baseada na PR #15 já integrada (`647dbc4`). PR #14 fechada como substituída. Esta alteração ainda não foi publicada nem enviada ao GitHub. Ler [implementação, testes e rollback](../categorias-padrao.md). As referências abaixo à PR aberta são o registro da etapa anterior.
 
 **Produção publicada em 16/11/2026**, com autorização explícita: Java/React e Python RAG/pgvector/fila na nuvem, schema **V13**, ativação individual desligada por padrão e correções humanas prioritárias. Recuperação recente confirmada e hashes financeiros preservados. Chave Groq rotacionada; antiga revogada. Ler [publicação, verificações e rollback](../publicacao-rag-producao-2026-11-16.md).
