@@ -118,7 +118,10 @@ public class PluggyReadClient implements BankProvider {
                     if (date.isBefore(from) || date.isAfter(to)) continue;
                     String direction = entry.path("type").asText(), status = entry.path("status").asText();
                     if (!Set.of("DEBIT","CREDIT").contains(direction) || !Set.of("POSTED","PENDING").contains(status)) throw invalidValue(BankReadException.Field.STATUS);
-                    all.add(new RemoteEntry(text(entry,"id",200), text(entry,"description",200), decimal(entry,"amount",true), date, direction, status));
+                    String documentType=entry.path("paymentData").path("DEBIT".equals(direction)?"receiver":"payer").path("documentNumber").path("type").asText();
+                    String party="CPF".equals(documentType)?"PERSON":"CNPJ".equals(documentType)?"BUSINESS":!entry.path("merchant").path("businessName").asText().isBlank()?"BUSINESS":"UNKNOWN";
+                    // Persist only the type: never CPF/CNPJ values, account numbers or raw payment data.
+                    all.add(new RemoteEntry(text(entry,"id",200), text(entry,"description",200), decimal(entry,"amount",true), date, direction, status,party));
                 }
                 JsonNode next = result.path("next");
                 if (next.isNull()) return List.copyOf(all);

@@ -31,6 +31,17 @@ class PluggyReadClientTest {
         });
         client=new PluggyReadClient(config,new ObjectMapper().findAndRegisterModules(),http);
     }
+    @Test void counterpartyUsesOnlyDocumentTypeAndNeverGuessesFromPersonName(CapturedOutput output) {
+        responses.add("{\"apiKey\":\"synthetic-token\"}");
+        String base="{\"id\":\"%s\",\"accountId\":\""+account+"\",\"description\":\"PIX nome fictício\",\"amount\":10,\"date\":\"2026-10-12\",\"type\":\"%s\",\"status\":\"POSTED\",\"currencyCode\":\"BRL\",\"paymentData\":%s}";
+        String person="{\"receiver\":{\"documentNumber\":{\"type\":\"CPF\",\"value\":\"synthetic-document-not-for-output\"}}}";
+        String business="{\"payer\":{\"documentNumber\":{\"type\":\"CNPJ\",\"value\":\"synthetic-document-not-for-output\"}}}";
+        responses.add("{\"next\":null,\"results\":["+base.formatted("person","DEBIT",person)+","+base.formatted("business","CREDIT",business)+","+base.formatted("unknown","DEBIT","{}")+"]}");
+        var entries=client.transactions(account,LocalDate.of(2026,10,1),LocalDate.of(2026,10,14));
+        assertThat(entries).extracting(BankProvider.RemoteEntry::counterpartyType).containsExactly("PERSON","BUSINESS","UNKNOWN");
+        assertThat(entries.toString()).doesNotContain("synthetic-document-not-for-output");
+        assertThat(output.getAll()).doesNotContain("synthetic-document-not-for-output");
+    }
     @Test void onlyAuthenticationPostAndReadOnlyFinancialGetsAreUsed() {
         responses.add("{\"apiKey\":\"synthetic-token\"}");
         responses.add("{\"id\":\""+item+"\",\"status\":\"UPDATED\",\"lastUpdatedAt\":\"2026-10-14T12:00:00Z\"}");

@@ -44,6 +44,18 @@ class CategoryAutomationMigrationIT {
             assertThat(reuse.migrationsExecuted).isEqualTo(1);
             assertThat(jdbc.queryForObject("SELECT jsonb_agg(to_jsonb(f) ORDER BY id)::text FROM financial_record f",String.class)).isEqualTo(before);
             jdbc.update("UPDATE bank_entry SET category_auto_method='MEMORY' WHERE id=?",untouched);
+            Flyway.configure().dataSource(db.getJdbcUrl(),db.getUsername(),db.getPassword()).target("13").load().migrate();
+            jdbc.update("INSERT INTO category_automation_preference(owner_id,enabled) VALUES (?,false)",owner);
+            String choices=jdbc.queryForObject("SELECT jsonb_agg(jsonb_build_array(id,category_id,category_source,category_auto_blocked,category_auto_method,version) ORDER BY id)::text FROM bank_entry",String.class);
+            var organization=Flyway.configure().dataSource(db.getJdbcUrl(),db.getUsername(),db.getPassword()).target("15").load().migrate();
+            assertThat(organization.migrationsExecuted).isEqualTo(2);
+            assertThat(jdbc.queryForObject("SELECT jsonb_agg(to_jsonb(f) ORDER BY id)::text FROM financial_record f",String.class)).isEqualTo(before);
+            assertThat(jdbc.queryForObject("SELECT jsonb_agg(jsonb_build_array(id,category_id,category_source,category_auto_blocked,category_auto_method,version) ORDER BY id)::text FROM bank_entry",String.class)).isEqualTo(choices);
+            assertThat(jdbc.queryForObject("SELECT enabled FROM category_automation_preference WHERE owner_id=?",Boolean.class,owner)).isFalse();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM consumption_record",Long.class)).isEqualTo(3);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM financial_knowledge",Long.class)).isEqualTo(5);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM bank_financial_nature",Long.class)).isZero();
+            assertThat(jdbc.queryForObject("SELECT reported_balance FROM bank_link WHERE id=?",BigDecimal.class,link)).isEqualByComparingTo("123.45");
         }
     }
 }

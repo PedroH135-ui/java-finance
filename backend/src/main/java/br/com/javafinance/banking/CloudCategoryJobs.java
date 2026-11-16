@@ -20,6 +20,8 @@ public class CloudCategoryJobs {
         owner_id=? AND provider_status='POSTED' AND NOT hidden AND state<>'IGNORED'
         AND movement_id IS NULL AND transfer_id IS NULL AND NOT category_auto_blocked
         AND category_source IS DISTINCT FROM 'MANUAL'
+        AND NOT EXISTS(SELECT 1 FROM valid_financial_nature n WHERE n.entry_id=bank_entry.id AND n.owner_id=bank_entry.owner_id AND n.nature<>'ORDINARY')
+        AND category_auto_resolution IS DISTINCT FROM 'NO_CATEGORY'
         AND (category_id IS NULL OR category_description IS DISTINCT FROM description OR category_direction IS DISTINCT FROM direction)
         AND (category_auto_attempted_at IS NULL OR category_auto_attempted_at<now()-interval '15 minutes')
         """;
@@ -30,6 +32,13 @@ public class CloudCategoryJobs {
     private final URI queue;
     private final String token;
     private final ObjectMapper mapper;
+    private AutomaticCategoryScope local;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void localScope(AutomaticCategoryScope local){this.local=local;}
+    public void prepareForLink(UUID owner){
+        if(policy.enabled() || local!=null && local.availableFor(owner))
+            jdbc.update("INSERT INTO category_automation_preference(owner_id,enabled) VALUES (?,true) ON CONFLICT DO NOTHING",owner);
+    }
     private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).followRedirects(HttpClient.Redirect.NEVER).build();
     public CloudCategoryJobs(CloudCategoryPolicy policy,BankAssistanceService assistance,JdbcTemplate jdbc,
         PlatformTransactionManager manager,ObjectMapper mapper,
@@ -46,7 +55,7 @@ public class CloudCategoryJobs {
         return rows.isEmpty()?new Preference(false,0):rows.getFirst();
     }
     public void preference(UUID owner,boolean enabled,long expected){
-        if(!policy.enabled())throw ApiException.bad("A classificação automática não está disponível neste ambiente.");
+        if(!policy.enabled() && !(local!=null && local.availableFor(owner)))throw ApiException.bad("A classificação automática não está disponível neste ambiente.");
         tx.executeWithoutResult(s->{
             jdbc.update("INSERT INTO category_automation_preference(owner_id) VALUES (?) ON CONFLICT DO NOTHING",owner);
             int changed=jdbc.update("UPDATE category_automation_preference SET enabled=?,version=version+1,updated_at=now() WHERE owner_id=? AND version=?",enabled,owner,expected);

@@ -47,6 +47,9 @@ class BankingIT {
     }
     BankService.Link bind() {
         bank.bind(owner,new BankService.Bind(item,external,account.id(),today.minusDays(9),true));
+        // bind now performs the first bounded read; these tests explicitly exercise subsequent deliveries.
+        allowSync(bank.links(owner).getFirst().id());
+        clearInvocations(provider);
         return bank.links(owner).getFirst();
     }
     BankProvider.RemoteEntry remote(String id,String amount,String status) {
@@ -184,7 +187,7 @@ class BankingIT {
         assertThatThrownBy(()->bank.sync(owner,link.id(),new BankService.Sync(link.importFrom(),today)))
             .isInstanceOf(org.springframework.dao.DataAccessException.class);
         assertThat(bank.entries(owner,link.id(),0)).isEmpty();
-        assertThat(bank.links(owner).getFirst().lastCheckedAt()).isNull();
+        assertThat(bank.links(owner).getFirst().lastCheckedAt()).isEqualTo(link.lastCheckedAt());
         assertThat(accounts.list(owner).getFirst().balance()).isEqualByComparingTo("950");
     }
     @Test void ownTransferCanMatchBothAccountsWithoutBecomingIncomeOrExpense() {
@@ -201,7 +204,7 @@ class BankingIT {
             boolean debit=link.accountId().equals(account.id());
             when(provider.transactions(link.externalAccountId(),link.importFrom(),today)).thenReturn(List.of(
                 new BankProvider.RemoteEntry(debit?"debit-transfer":"credit-transfer","Transferência própria",new BigDecimal("50"),date,debit?"DEBIT":"CREDIT","POSTED")));
-            bank.sync(owner,link.id(),new BankService.Sync(link.importFrom(),today));
+            allowSync(link.id());bank.sync(owner,link.id(),new BankService.Sync(link.importFrom(),today));
             var entry=bank.entries(owner,link.id(),0).getFirst();
             assertThat(entry.candidates()).extracting(BankService.Candidate::id).contains(transfer.id());
             bank.review(owner,entry.id(),"match",new BankService.Review(entry.version(),null,transfer.id(),false,false));
@@ -420,6 +423,7 @@ class BankingIT {
         var historical=accounts.create(owner,new AccountService.Create("Historical","",Account.Kind.CHECKING,"1000",today.minusDays(181)));
         bank.bind(owner,new BankService.Bind(item,external,historical.id(),today.minusDays(180),true));
         var link=bank.links(owner).getFirst();
+        allowSync(link.id());clearInvocations(provider);
         when(provider.transactions(eq(external),any(LocalDate.class),any(LocalDate.class))).thenReturn(List.of());
         automatic.enqueue(item,"history"); assertThat(automatic.process(item)).isFalse();
         LocalDate firstTo=link.importFrom().plusDays(92);
@@ -454,6 +458,7 @@ class BankingIT {
         bank.bind(owner,new BankService.Bind(item,external,historical.id(),today.minusDays(180),true));
         var link=bank.links(owner).getFirst();
         jdbc.update("UPDATE bank_link SET auto_checked_through=? WHERE id=?",today.minusDays(1),link.id());
+        allowSync(link.id());clearInvocations(provider);
         when(provider.transactions(external,today.minusDays(92),today)).thenReturn(List.of());
         automatic.enqueue(item,"new-day"); assertThat(automatic.process(item)).isTrue();
         verify(provider).transactions(external,today.minusDays(92),today);

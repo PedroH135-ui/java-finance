@@ -77,6 +77,9 @@ def authorize(credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBea
     if credentials is None or not credentials.credentials.isascii() or len(credentials.credentials)>256 or not secrets.compare_digest(credentials.credentials, expected):
         raise HTTPException(401, "Acesso não autorizado.")
 
+from .planning import install_planning
+install_planning(app,authorize)
+
 
 @app.exception_handler(RequestValidationError)
 async def invalid_request(request: Request, exc: RequestValidationError):

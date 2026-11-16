@@ -16,7 +16,10 @@ import org.slf4j.LoggerFactory;
 public class CategoryAdvisor {
     public record Category(String id,String name) {}
     public record Example(String description,String categoryId) {}
-    public record Request(String description,List<Category> categories,List<Example> history) {}
+    public record Request(String description,List<Category> categories,List<Example> history,String counterpartyType) {
+        public Request {counterpartyType=counterpartyType!=null&&Set.of("PERSON","BUSINESS","UNKNOWN").contains(counterpartyType)?counterpartyType:"UNKNOWN";}
+        public Request(String description,List<Category> categories,List<Example> history){this(description,categories,history,"UNKNOWN");}
+    }
     public record RetrievedExample(String description,String categoryId,double similarity) {}
     public record Retrieval(String method,String model,int dimensions,List<RetrievedExample> examples) {}
     public record Suggestion(String categoryId,String confidence,String method,String reason,int evidenceCount,boolean modelUsed,String provider,Retrieval retrieval) {
@@ -39,6 +42,24 @@ public class CategoryAdvisor {
     }
     public static class TemporarilyUnavailable extends RuntimeException {
         public TemporarilyUnavailable(){super("Category service temporarily unavailable.");}
+    }
+    public record GoalIntent(String target,String saved,Integer months,String title,String action,boolean modelUsed,String method) {}
+    public GoalIntent interpretGoal(UUID owner,Map<String,Object> payload){
+        if(!enabled || token.length()<32)throw new TemporarilyUnavailable();
+        try{
+            var b=HttpRequest.newBuilder(endpoint.resolve("/planning/interpret")).timeout(Duration.ofSeconds(8))
+                .header("Content-Type","application/json").header("Authorization","Bearer "+token)
+                .header("X-Correlation-ID",UUID.randomUUID().toString()).header("X-Category-Owner",owner.toString());
+            String oidc=VercelRuntimeIdentity.token();if(!oidc.isBlank())b.header("x-vercel-trusted-oidc-idp-token",oidc);
+            var response=http.send(b.POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload))).build(),HttpResponse.BodyHandlers.ofInputStream());
+            try(var stream=response.body()){
+                byte[] bytes=stream.readNBytes(4097);if(response.statusCode()!=200||bytes.length>4096)throw new TemporarilyUnavailable();
+                var intent=mapper.readValue(bytes,GoalIntent.class);
+                if(intent==null||intent.modelUsed()||!"LANGCHAIN_RULES".equals(intent.method())||!Set.of("GOAL","PURCHASE","SUMMARY").contains(intent.action())||intent.title()==null||intent.title().length()>100)throw new TemporarilyUnavailable();
+                return intent;
+            }
+        }catch(InterruptedException ex){Thread.currentThread().interrupt();throw new TemporarilyUnavailable();}
+        catch(Exception ex){throw new TemporarilyUnavailable();}
     }
     private volatile long retryAfterNanos;
     private static final Set<String> STOP=Set.of("compra","pagamento","cartao","credito","debito","pix","recebido","enviado","para","de","do","da","via");
@@ -104,7 +125,7 @@ public class CategoryAdvisor {
         var categories=request.categories().stream().sorted(Comparator.<Category,Boolean>comparing(c->!relevant.contains(c.id()))
             .thenComparing(c->-terms(c.name()).stream().filter(target::contains).count()).thenComparing(Category::id)).limit(20).toList();
         var allowed=categories.stream().map(Category::id).collect(java.util.stream.Collectors.toSet());
-        return new Request(request.description(),categories,selected.stream().filter(e->allowed.contains(e.categoryId())).toList());
+        return new Request(request.description(),categories,selected.stream().filter(e->allowed.contains(e.categoryId())).toList(),request.counterpartyType());
     }
     public Suggestion suggest(Request raw) {
         return suggest(null,null,raw);
@@ -116,21 +137,25 @@ public class CategoryAdvisor {
     public Suggestion suggest(UUID owner,String kind,Request raw,List<Example> modelDecisions) {
         if((localVectorDemo || cloudRag) && (owner==null || kind==null || !Set.of("EXPENSE","INCOME").contains(kind)))
             throw new IllegalArgumentException("The local vector demonstration requires the authenticated owner and direction.");
-        var request=new Request(sanitize(raw.description()),raw.categories().stream().map(c->new Category(c.id(),sanitize(c.name()))).filter(c->!c.name().isBlank()).toList(),raw.history().stream().map(h->new Example(sanitize(h.description()),h.categoryId())).toList());
+        var request=new Request(sanitize(raw.description()),raw.categories().stream().map(c->new Category(c.id(),sanitize(c.name()))).filter(c->!c.name().isBlank()).toList(),raw.history().stream().map(h->new Example(sanitize(h.description()),h.categoryId())).toList(),raw.counterpartyType());
         var allowed=new HashSet<>(request.categories().stream().map(Category::id).toList());
         var words=terms(request.description());
-        if(words.stream().anyMatch(t->Set.of("emprestimo","aplicacao","resgate","investimento","transferencia","estorno","fatura").contains(t)) || request.description().contains("mercado pago"))
+        if(words.stream().anyMatch(t->Set.of("emprestimo","aplicacao","resgate","investimento","estorno","fatura").contains(t)) || request.description().contains("mercado pago") || words.contains("transferencia") && !(words.contains("pix")&&Set.of("PERSON","BUSINESS").contains(request.counterpartyType())))
             return new Suggestion(null,"NONE","NONE","Confira a natureza financeira antes de escolher uma categoria.",0,false);
         var exact=request.history().stream().filter(e->e.description().equals(request.description()) && allowed.contains(e.categoryId())).toList();
         var ids=exact.stream().map(Example::categoryId).distinct().toList();
         if(!request.description().isBlank() && ids.size()==1)return new Suggestion(ids.getFirst(),exact.size()>=3?"HIGH":"MEDIUM","HISTORY",reason("HISTORY"),Math.min(100,exact.size()),false);
         if(ids.size()>1)return new Suggestion(null,"NONE","NONE","Seu histórico contém classificações conflitantes; escolha uma categoria.",0,false);
+        if(words.contains("pix") && "PERSON".equals(request.counterpartyType())){
+            var pix=request.categories().stream().filter(c->c.name().equals("pix")).toList();
+            return pix.size()==1?new Suggestion(pix.getFirst().id(),"HIGH","RULE","PIX com pessoa identificada pelo provedor, sem LLM.",0,false):new Suggestion(null,"NONE","NONE","Categoria PIX não disponível.",0,false);
+        }
         var remembered=modelDecisions.stream().filter(e->allowed.contains(e.categoryId()) && memoryKey(raw.description()).equals(memoryKey(e.description()))).toList();
         var rememberedIds=remembered.stream().map(Example::categoryId).distinct().toList();
         if(rememberedIds.size()>1)return new Suggestion(null,"NONE","NONE","As decisões anteriores da IA são conflitantes; escolha uma categoria.",0,false);
         if(rememberedIds.size()==1)return new Suggestion(rememberedIds.getFirst(),"LOW","MEMORY","Reutilizou uma decisão anterior da IA para a mesma descrição; sem nova chamada ao LLM.",Math.min(100,remembered.size()),false);
         // Only the opt-in, loopback-only synthetic demo sends the bounded history for semantic indexing.
-        var outgoing=(localVectorDemo || cloudRag)?new Request(request.description(),request.categories().stream().limit(100).toList(),request.history().stream().limit(100).toList()):minimize(request);
+        var outgoing=(localVectorDemo || cloudRag)?new Request(request.description(),request.categories().stream().limit(100).toList(),request.history().stream().limit(100).toList(),request.counterpartyType()):minimize(request);
         var sentIds=new HashSet<>(outgoing.categories().stream().map(Category::id).toList());
         if(enabled && token.length()>=32 && (retryAfterNanos==0 || System.nanoTime()-retryAfterNanos>=0)) {
             String correlation=UUID.randomUUID().toString();long start=System.nanoTime();int status=0;
@@ -150,7 +175,7 @@ public class CategoryAdvisor {
                         var result=mapper.readValue(bytes,Suggestion.class);
                         String provider=result.provider()==null?"none":result.provider();
                         if((result.categoryId()==null || sentIds.contains(result.categoryId())) && Set.of("HIGH","MEDIUM","LOW","NONE").contains(result.confidence())
-                            && Set.of("HISTORY","RULE","LLM","NONE").contains(result.method()) && Set.of("none","ollama","groq").contains(provider) && result.evidenceCount()>=0 && result.evidenceCount()<=100)
+                            && Set.of("HISTORY","RULE","RAG","LLM","NONE").contains(result.method()) && Set.of("none","ollama","groq").contains(provider) && result.evidenceCount()>=0 && result.evidenceCount()<=100)
                             return new Suggestion(result.categoryId(),result.confidence(),result.method(),reason(result.method()),result.evidenceCount(),result.modelUsed(),provider,safeRetrieval(result.retrieval(),sentIds));
                     }
                 }
@@ -173,6 +198,7 @@ public class CategoryAdvisor {
         return switch(method) {
             case "HISTORY" -> "Sugestão baseada em classificações anteriores semelhantes deste perfil.";
             case "RULE" -> "Sugestão por descrição do estabelecimento; confirme se faz sentido.";
+            case "RAG" -> "Exemplos semelhantes e consistentes deste perfil, sem chamar o LLM.";
             case "LLM" -> "Sugestão de IA com contexto limitado; confirme antes de aplicar.";
             default -> "Sem evidência suficiente para sugerir uma categoria.";
         };

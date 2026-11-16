@@ -13,8 +13,10 @@ import { Movements } from './features/movements/Movements';
 import { Settings } from './features/settings/Settings';
 import { Budgets } from './features/budgets/Budgets';
 import { Banking } from './features/banking/Banking';
+import { Investments } from './features/investments/Investments';
+import { Goals } from './features/goals/Goals';
 import { Failure, Loading } from './components/Shared';
-const links=[{path:'/',label:'Visão geral',icon:<DashboardOutlined/>},{path:'/movements',label:'Movimentações',icon:<SwapHoriz/>},{path:'/accounts',label:'Contas',icon:<AccountBalanceOutlined/>},{path:'/categories',label:'Categorias',icon:<CategoryOutlined/>},{path:'/budgets',label:'Orçamentos',icon:<PieChartOutlined/>},{path:'/banking',label:'Conexões bancárias',icon:<LinkOutlined/>},{path:'/settings',label:'Configurações',icon:<SettingsOutlined/>}];
+const links=[{path:'/',label:'Visão geral',icon:<DashboardOutlined/>},{path:'/movements',label:'Movimentações',icon:<SwapHoriz/>},{path:'/accounts',label:'Contas',icon:<AccountBalanceOutlined/>},{path:'/categories',label:'Categorias',icon:<CategoryOutlined/>},{path:'/budgets',label:'Orçamentos',icon:<PieChartOutlined/>},{path:'/banking',label:'Conexões bancárias',icon:<LinkOutlined/>},{path:'/investments',label:'Investimentos',icon:<AccountBalanceWalletOutlined/>},{path:'/goals',label:'Metas e planejamento',icon:<PieChartOutlined/>},{path:'/settings',label:'Configurações',icon:<SettingsOutlined/>}];
 export function App() {
   const me=useQuery({queryKey:['me'],queryFn:()=>api<Profile>('/auth/me'),staleTime:0});
   const client=useQueryClient(),location=useLocation(),navigate=useNavigate();
@@ -48,7 +50,7 @@ export function App() {
       <Box component="main" id="main-content" tabIndex={-1} sx={{maxWidth:1440,mx:'auto',p:{xs:2,sm:3,md:4}}}>
         {import.meta.env.VITE_LOCAL_REVIEW==='true'&&<Alert severity="warning" sx={{mb:3}}>Ambiente local de demonstração com dados fictícios. Alterações independentes da produção. Conexão com o Nubank desativada.</Alert>}
         {logoutError&&<Failure error={logoutError}/>}
-        {location.pathname==='/'?<Dashboard/>:location.pathname==='/accounts'?<Accounts/>:location.pathname==='/categories'?<Categories/>:location.pathname==='/movements'?<Movements/>:location.pathname==='/budgets'?<Budgets/>:location.pathname==='/banking'?<Banking/>:location.pathname==='/settings'?<Settings profile={profile}/>:<Box>Página não encontrada. <RouterLink to="/">Voltar à visão geral</RouterLink></Box>}
+        {location.pathname==='/'?<Dashboard/>:location.pathname==='/accounts'?<Accounts/>:location.pathname==='/categories'?<Categories/>:location.pathname==='/movements'?<Movements/>:location.pathname==='/budgets'?<Budgets/>:location.pathname==='/banking'?<Banking/>:location.pathname==='/investments'?<Investments/>:location.pathname==='/goals'?<Goals/>:location.pathname==='/settings'?<Settings profile={profile}/>:<Box>Página não encontrada. <RouterLink to="/">Voltar à visão geral</RouterLink></Box>}
       </Box>
     </Box>
   </Box>;

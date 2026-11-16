@@ -27,11 +27,11 @@ public class AutomaticCategoryScope {
     public boolean enabled() {return enabled;}
     public UUID owner() {return owner;}
     public boolean cloudEnabled(){return cloud!=null && cloud.enabled();}
-    public boolean availableFor(UUID user){return cloudEnabled() || activeFor(user);}
+    public boolean availableFor(UUID user){return cloudEnabled() || enabled && owner.equals(user);}
     public boolean lockActive(UUID user){return cloudEnabled()?cloud.lockActive(user):activeFor(user);}
     public boolean activeFor(UUID user) {
         if(cloudEnabled())return cloud.activeFor(user);
-        return enabled && owner.equals(user) && Boolean.TRUE.equals(jdbc.queryForObject(
+        return enabled && owner.equals(user) && !Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM category_automation_preference WHERE owner_id=? AND NOT enabled)",Boolean.class,user)) && Boolean.TRUE.equals(jdbc.queryForObject(
             "SELECT EXISTS(SELECT 1 FROM app_user WHERE id=? AND email='demo@javafinance.local')",Boolean.class,user));
     }
 }

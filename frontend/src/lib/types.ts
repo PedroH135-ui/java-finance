@@ -15,6 +15,7 @@ export interface Movement {
 }
 export interface Summary {
   month: string; today: string; balance: string | null; balanceComplete?: boolean; unclassifiedBankRecords?: number;
+  excludedBankRecords?:number;
   competence: { income: string; expenses: string; result: string; savingsRate: string | null };
   cashFlow: string; categories: { id: string | null; name: string; total: string }[];
   evolution: { month: string; income: string; expenses: string; records: number }[];
@@ -28,5 +29,6 @@ export interface FinancialRecord extends Omit<Movement, 'externalReference' | 'b
   bankEntryId: string | null; bankLinkId: string | null; bankEntryVersion: number | null;
   bankProviderStatus: string | null; bankState: string | null; hidden: boolean;
     categorySource?: 'AUTO' | 'MANUAL' | null;
+    financialNature?:string|null;categoryResolution?:string|null;
 }
 export interface FinancialRecordPage { items: FinancialRecord[]; total: number; page: number; size: number; pages: number }

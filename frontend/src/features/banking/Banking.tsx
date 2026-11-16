@@ -136,6 +136,7 @@ function LinkForm({ config, onClose, onUpdated }: { config: Config; onClose: () 
           {accounts.data?.filter(a => !a.archived && ['CHECKING', 'SAVINGS', 'WALLET', 'OTHER'].includes(a.kind)).map(account => <MenuItem key={account.id} value={account.id}>{account.name}</MenuItem>)}</TextField>}/>
       </>}
       <Button component={RouterLink} to="/accounts">Consultar ou cadastrar conta local</Button>
+      <Alert severity="info">Ao vincular, criamos categorias padrão e consultamos os registros automaticamente. Descrições são organizadas pela IA na nuvem, sem valores nem documentos. Gerencie em Configurações; uma desativação salva é respeitada. Naturezas financeiras exigem confirmação.</Alert>
       <TextField type="date" label="Data inicial dos registros" required {...form.register('importFrom', { required: true })} slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: shift(today(), 1) } }}/>
       <Controller name="confirmedBaseline" control={form.control} rules={{ validate: value => value || 'Confira a data e os registros existentes antes de continuar.' }} render={({ field, fieldState }) => <Box><FormControlLabel control={<Checkbox checked={field.value} onChange={event => field.onChange(event.target.checked)}/>} label="Conferi a data e os registros existentes para evitar duplicidade nos relatórios."/>{fieldState.error && <Typography color="error">{fieldState.error.message}</Typography>}</Box>}/>
     </Stack></form>

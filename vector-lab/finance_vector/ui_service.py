@@ -85,6 +85,9 @@ def create_app(settings=None,embeddings=None,resources=None,model=None):
         if credentials is None or not credentials.credentials.isascii() or len(credentials.credentials)>256 or not secrets.compare_digest(credentials.credentials,settings.token):
             raise HTTPException(401,'Acesso não autorizado.')
 
+    from finance_ai.planning import install_planning
+    install_planning(app,auth)
+
     @app.get('/health')
     def health(): return {'status':'UP','mode':'local-vector-demo','retrieval':'PGVECTOR','dimensions':DIMENSIONS,'provider':settings.provider,'modelEnabled':model is not None}
 

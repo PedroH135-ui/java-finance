@@ -101,7 +101,7 @@ class BankAssistanceIT {
         assistance.undoTransfer(owner,debit,new BankAssistanceService.UndoTransfer(0));balancesUnchanged();
     }
     @Test void categoriesAreOptionalCorrectableAndHistoryLearnsOnlyUserChoices() {
-        UUID food=category("Alimentação",Category.Kind.EXPENSE),other=category("Outros gastos",Category.Kind.EXPENSE);
+        UUID food=category("Alimentação",Category.Kind.EXPENSE),other=categories.list(owner).stream().filter(c->c.kind()==Category.Kind.EXPENSE&&c.name().equals("Outros gastos")).findFirst().orElseThrow().id();
         assertThat(assistance.assistance(owner,debit).currentCategoryId()).isNull();
         assistance.category(owner,debit,new BankAssistanceService.CategoryChange(0,food));
         assistance.category(owner,debit,new BankAssistanceService.CategoryChange(1,other));

@@ -77,7 +77,7 @@ export function Budgets() {
           {row.percent !== null && <><LinearProgress variant="determinate" value={Math.min(100, Number(row.percent))} color={row.remaining?.startsWith('-') ? 'error' : 'primary'} aria-label={`Uso do limite de ${row.name}`} aria-valuetext={`${row.percent}% utilizado`}/>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>{row.percent.replace('.', ',')}% utilizado · previstos não descontados do restante</Typography></>}
           {row.limit === '0.00' && <Typography variant="caption" color="text.secondary">Limite zero: nenhum gasto permitido neste planejamento.</Typography>}
-          <Button component={Link} to={`/movements?kind=EXPENSE&basis=competence&month=${month}&category=${row.categoryId}`} size="small" sx={{ mt: 1 }}>Ver movimentações</Button>
+          <Button component={Link} to={`/movements?kind=EXPENSE&consumption=true&basis=competence&month=${month}&category=${row.categoryId}`} size="small" sx={{ mt: 1 }}>Ver movimentações</Button>
         </Paper>)}
       </Stack>}
     </>}

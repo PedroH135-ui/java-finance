@@ -30,8 +30,8 @@ class DefaultCategoriesIT {
     @Test void registrationSeedsPrivateCategoriesWithoutMoneyOrAiConsent(){
         UUID owner=register(),other=register();
         var list=categories.list(owner);
-        assertThat(list).hasSize(14);
-        assertThat(list.stream().filter(c->c.kind()==Category.Kind.INCOME)).hasSize(4);
+        assertThat(list).hasSize(16);
+        assertThat(list.stream().filter(c->c.kind()==Category.Kind.INCOME)).hasSize(5);
         assertThat(list).allMatch(c->!c.essential()&&!c.archived());
         assertThat(list.stream().map(CategoryService.View::id)).doesNotContainAnyElementsOf(categories.list(other).stream().map(CategoryService.View::id).toList());
         assertThat(categories.addDefaults(owner).added()).isZero();
@@ -50,8 +50,8 @@ class DefaultCategoriesIT {
         var money=accounts.list(owner);
         var tables=List.of("movement","posting","category_automation_preference","category_automation_job");
         var counts=tables.stream().map(table->jdbc.queryForObject("SELECT count(*) FROM "+table+" WHERE owner_id=?",Long.class,owner)).toList();
-        assertThat(categories.addDefaults(owner)).isEqualTo(new CategoryService.Defaults(11,3));
-        assertThat(categories.list(owner)).containsAll(before).hasSize(15);
+        assertThat(categories.addDefaults(owner)).isEqualTo(new CategoryService.Defaults(13,3));
+        assertThat(categories.list(owner)).containsAll(before).hasSize(17);
         assertThat(categories.addDefaults(owner).added()).isZero();
         assertThat(accounts.list(owner)).isEqualTo(money);
         assertThat(tables.stream().map(table->jdbc.queryForObject("SELECT count(*) FROM "+table+" WHERE owner_id=?",Long.class,owner)).toList()).isEqualTo(counts);
@@ -62,16 +62,16 @@ class DefaultCategoriesIT {
             var gate=new CountDownLatch(1);
             Callable<Integer> task=()->{gate.await();return categories.addDefaults(owner).added();};
             var first=pool.submit(task);var second=pool.submit(task);gate.countDown();
-            assertThat(first.get(20,TimeUnit.SECONDS)+second.get(20,TimeUnit.SECONDS)).isEqualTo(14);
+            assertThat(first.get(20,TimeUnit.SECONDS)+second.get(20,TimeUnit.SECONDS)).isEqualTo(16);
         }
-        assertThat(categories.list(owner)).hasSize(14);
+        assertThat(categories.list(owner)).hasSize(16);
     }
     @Test void endpointRequiresSessionAndCsrfAndUsesOnlyCurrentOwner() throws Exception {
         UUID owner=legacy(),other=legacy();var principal=new UserPrincipal(owner,"",0);
         mvc.perform(post("/api/categories/defaults")).andExpect(status().isForbidden());
         mvc.perform(post("/api/categories/defaults").with(csrf())).andExpect(status().isUnauthorized());
         mvc.perform(post("/api/categories/defaults").with(user(principal))).andExpect(status().isForbidden());
-        mvc.perform(post("/api/categories/defaults").with(user(principal)).with(csrf())).andExpect(status().isOk()).andExpect(jsonPath("$.added").value(14));
+        mvc.perform(post("/api/categories/defaults").with(user(principal)).with(csrf())).andExpect(status().isOk()).andExpect(jsonPath("$.added").value(16));
         mvc.perform(post("/api/categories/defaults").with(user(principal)).with(csrf())).andExpect(status().isOk()).andExpect(jsonPath("$.added").value(0));
         assertThat(categories.list(other)).isEmpty();
     }
