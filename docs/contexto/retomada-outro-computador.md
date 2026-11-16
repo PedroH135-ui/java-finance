@@ -1,5 +1,7 @@
 # Retomar em outro computador
 
+**Mais recente: organização publicada em Production**, V15, Java `dpl_HzvgiTtJqCrbY2RRmZg2iNa9ys58` e Python `dpl_CQ2R7PSbVpFA2219vPnntCRZi6JW`. Recuperação V13 restaurada, migrações isoladas e testes aprovados; IA default-on para novos cadastros/vínculo, com opt-out e correções preservados. Ler `../publicacao-organizacao-2026-11-16.md` e o topo do handoff. Código funcional `c4135e9` **somente na branch local** `codex/organizacao-financeira-local`, ainda sem push/PR/merge. Pedir autorização de envio para disponibilizar em outro computador; não copiar `.tools`, DPAPI, dumps ou segredos. Entradas abaixo registram etapas antigas.
+
 **Trabalho local mais recente:** `codex/organizacao-financeira-local`, ainda sem push/PR/deploy. Inclui organização financeira, PIX/RAG de até uma chamada, Investimentos, metas e V14/V15 **somente locais**. Ler o topo de `handoff.md` e `../organizacao-financeira-local.md`. Não está disponível em outro computador pelo GitHub enquanto o envio não for autorizado. Não copiar `.tools` ou segredos para recuperar o ambiente. As referências a branches/PRs mais recentes abaixo registram etapas antigas; PR16 já foi integrada.
 
 Atualizado em 16/11/2026. **Java e Python publicados em Production, V13**, com RAG/pgvector, fila cloud, opt-in individual e prioridade humana. Recuperação confirmada, saldos preservados e chave Groq rotacionada. Ler [publicação e rollback](../publicacao-rag-producao-2026-11-16.md) e o handoff antes de qualquer ação; as validações antigas descrevem etapas anteriores.

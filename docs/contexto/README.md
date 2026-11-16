@@ -1,5 +1,7 @@
 # Contexto do Java Finance
 
+**Publicação mais recente concluída:** Java/Python e V14/V15 em Production, commit funcional `c4135e9`, recuperação restaurada e teste isolado aprovados, hashes financeiros/preferências preservados. IA **ativada por padrão nos novos cadastros/primeiro vínculo**, opt-out anterior e correções preservados; cadastro real continua desabilitado. [Relatório e rollback](../publicacao-organizacao-2026-11-16.md). Sem push/PR/merge nesta etapa. Entradas abaixo são históricas.
+
 **Etapa local mais recente (16/11):** branch `codex/organizacao-financeira-local`: natureza financeira confirmada separa consumo, PIX por tipo de contraparte, até três etapas/uma chamada LLM, padrões+organização ao vincular com opt-out respeitado, controle em Configurações, Investimentos e planejador de metas. Apenas dados fictícios e bancos Docker locais; sem push, PR, merge ou deploy. Ler [implementação e limites](../organizacao-financeira-local.md) e o topo do handoff. Produção continua V13 conforme última publicação registrada; esta etapa não a revalidou. As entradas abaixo são históricas.
 
 Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL no Neon. Java/React usam container na Vercel; o serviço Python FastAPI/LangChain é separado e usa Groq. Preserve essa arquitetura.

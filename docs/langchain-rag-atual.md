@@ -1,5 +1,7 @@
 # Como LangChain e RAG funcionam hoje
 
+**Produção mais recente, 16/11:** [organização publicada](publicacao-organizacao-2026-11-16.md), V15, Java/Python novos e verificados. IA default-on em novos cadastros/primeiro vínculo sem preferência anterior; opt-out e correções preservados. Regra PIX, histórico, RAG com dois exemplos fortes e até uma chamada LLM foram testados na nuvem com dados fictícios. Planejador guiado usa LangChain e cálculo Java sem LLM. Contexto público de RDB/CDB/fatura é tabela de regras, não vetores privados compartilhados. As seções locais/opt-in desligado abaixo são históricas.
+
 **Versão local posterior, ainda não publicada:** [organização financeira](organizacao-financeira-local.md). PIX identificado por tipo do provedor, prioridade humana, RAG forte sem modelo e até uma chamada LLM, abstenção terminal para controlar custo. Planejador de metas usa LangChain RunnableLambda para interpretar comandos e Java para cálculo decimal, **zero LLM**. Contexto público RDB/CDB/fatura fica em tabela de regras versionadas, não vetorizada; exemplos privados de categorias continuam com embeddings384/pgvector e isolamento por usuário. As descrições publicadas abaixo são históricas em relação a esta implementação local.
 
 Atualizado em 16/11/2026. Este documento distingue a implementação principal da integração vetorial local, sem prometer funcionalidades futuras.

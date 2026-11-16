@@ -1,5 +1,16 @@
 # Retomada da publicação da IA
 
+## Mais recente — organização publicada e testada em Production
+
+Usuário confirmou publicação e testes Production, backup e migrações isoladas antes. Última preferência: **ativada por padrão para novos usuários**, controle individual/opt-out e correções preservados. Commit funcional `c4135e9`. Ler `docs/publicacao-organizacao-2026-11-16.md`: recuperação V13 restaurada e sem expiração em branch isolada existente; V14/V15 aprovadas no PostgreSQL18.7; Java/Python publicados e testados, hashes financeiros e preferências preservados. Sem push, PR ou merge.
+
+- Java ativo `dpl_HzvgiTtJqCrbY2RRmZg2iNa9ys58`; Python ativo `dpl_CQ2R7PSbVpFA2219vPnntCRZi6JW`; domínios estáveis promovidos e UP. V15, constraints válidas. Nenhuma alteração de saldo, lançamento, categoria real ou preferência pelo smoke.
+- Neon recusou outra branch por limite Free. Não apagamos branches: backup DPAPI privado + restauração V13 em `organization_recovery_20261116`, e teste V15 em `organization_verify_20261116`, ambos na branch existente `br-round-hall-b668ttqy`. Recuperação read-only por padrão e branch sem expiração. **Não excluir como teste antigo**. Outras recuperações preservadas.
+- Testes novos: Java124 aprovados, frontend lint/três testes/build. Cloud real com textos fictícios provou RULE/HISTORY/RAG sem LLM, UNKNOWN→NONE e uma tentativa Groq em empresa sem contexto; vetores fictícios removidos. Navegador autenticado comprovou preferência ativa preservada, controle em Configurações, aviso de Movimentações ajustado e confirmação de RDB obrigatória. Planejador retornou400/mês para meta fictícia3000/reserva600/6meses, sem salvar; conversa limpa. Metas ficou aberta.
+- Metadados de segredos/configuração dos dois projetos preservados. `vercel curl`65.15.0 criou bypass persistente inesperado no Python; exclusivamente essa chave foi revogada e a proteção preservada. Não repetir sem considerar esse efeito. Usar navegador com autenticação existente ou testar após promoção autorizada.
+- Consultas CLI error/fatal de15min retornaram zero registros em ambos deployments; não configura monitoramento contínuo. Cadastro real continua desabilitado; default-on no cadastro provado localmente. Tipo PERSON/BUSINESS de registros antigos depende de próxima leitura normal, que não foi acionada pelo smoke.
+- Rollback Java `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`, Python `dpl_5mmPrfrZkJmuKDXTnUbC3nebHGUV` (chave atual). Manter schema aditivo, sem downgrade/apagamento. Não promover Python antigo com chave revogada. Código/documentação ainda apenas na branch local para futuro envio autorizado.
+
 ## Etapa atual — organização financeira local
 
 - Branch `codex/organizacao-financeira-local`, base `1976c2f`, implementação registrada no commit local `1fc9179`. Herda também a melhoria local de sessão expirada e o relatório de auditoria; não presumir que estejam em produção.
