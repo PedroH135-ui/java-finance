@@ -34,6 +34,8 @@ class BankAssistanceIT {
     UUID debit,credit; LocalDate today,date; UserPrincipal principal;
     @BeforeEach void setup() {
         owner=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Perfil fictício","UmaSenhaSegura123!")).id();
+        // These advisor scenarios deliberately control their own candidate catalogue.
+        jdbc.update("DELETE FROM category WHERE owner_id=?",owner);
         principal=new UserPrincipal(owner,"",0);item=UUID.randomUUID();remoteA=UUID.randomUUID();remoteB=UUID.randomUUID();today=LocalDate.now(clock);date=today.minusDays(2);
         config.setOwnerId(owner);config.setClientId("synthetic-client");config.setClientSecret("synthetic-secret");config.setItemIds(Set.of(item));
         accountA=accounts.create(owner,new AccountService.Create("Banco A fictício","",Account.Kind.CHECKING,"1000",today.minusDays(10)));

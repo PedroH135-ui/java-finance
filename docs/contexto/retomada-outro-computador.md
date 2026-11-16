@@ -2,6 +2,8 @@
 
 Atualizado em 16/11/2026. **Java e Python publicados em Production, V13**, com RAG/pgvector, fila cloud, opt-in individual e prioridade humana. Recuperação confirmada, saldos preservados e chave Groq rotacionada. Ler [publicação e rollback](../publicacao-rag-producao-2026-11-16.md) e o handoff antes de qualquer ação; as validações antigas descrevem etapas anteriores.
 
+**Atualização mais recente:** categorias padrão publicadas somente no Java, deployment `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`; Python/V13/configurações/saldos preservados. Ler [resultado e rollback das categorias padrão](../publicacao-categorias-padrao-2026-11-16.md). Código mais recente enviado na branch `codex/categorias-padrao`, [PR #16](https://github.com/PedroH135-ui/java-finance/pull/16), sem merge. A PR #15 foi integrada e a #14 foi fechada como substituída; referências abaixo são históricas.
+
 O código mais recente está no GitHub em `codex/publica-rag-cloud`, [PR #15](https://github.com/PedroH135-ui/java-finance/pull/15), enviada com autorização após a publicação, sem merge. A PR #14 não contém todas as alterações publicadas. Não copiar `.tools`, DPAPI, sessões, dumps ou `.env`.
 
 ## Leia primeiro
@@ -16,7 +18,7 @@ O código mais recente está no GitHub em `codex/publica-rag-cloud`, [PR #15](ht
 O trabalho mais recente está na branch remota `codex/publica-rag-cloud`, não na branch padrão. Use:
 
 ```powershell
-git clone --branch codex/publica-rag-cloud https://github.com/PedroH135-ui/java-finance.git
+git clone --branch codex/categorias-padrao https://github.com/PedroH135-ui/java-finance.git
 Set-Location java-finance
 git status --short
 ```

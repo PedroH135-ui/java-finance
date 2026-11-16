@@ -2,6 +2,20 @@
 
 Atualizado em 16/11/2026.
 
+## Última etapa — categorias padrão publicadas, envio ao GitHub autorizado
+
+- Usuário autorizou publicar e depois abrir PR. Java/React `e9137ce` publicados no deployment `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`, domínio principal promovido após saúde e hashes conferidos. Python permanece `dpl_5mmPrfrZkJmuKDXTnUbC3nebHGUV`; sem mudanças em configurações/segredos/vínculo Git. Relatório: `docs/publicacao-categorias-padrao-2026-11-16.md`.
+- V13 e hashes financeiros, categorias, opt-in, correções e transferências preservados. Botão visível na sessão real; não foi clicado. Nenhum usuário real ativado, categoria real criada ou saldo alterado por esta publicação. Novos cadastros recebem padrões, mas o cadastro continua desabilitado em Production.
+- Saúde UP; API protegida 401/403; bundle e tela confirmados. Runtime error/fatal do deployment novo retornou zero no intervalo observado. Guardar só contagens/hashes, não logs brutos ou linhas financeiras. Base de testes: Java 117, frontend três/lint/build, quatro E2E locais, todos aprovados; Gitleaks sem achados.
+- Branch `codex/categorias-padrao` enviada com autorização; [PR #16](https://github.com/PedroH135-ui/java-finance/pull/16) aberta contra `feat/fundacao-financeira`, sem merge. Contexto, resultados de testes locais/produção e rollback na descrição; verificar o CI remoto na PR. Varredura final comparou doze segredos com 433 arquivos/recursos, zero correspondências; Gitleaks fontes/histórico sem achados. Nenhum documento autoriza novos deploys ou ativação. Entradas abaixo são históricas.
+
+## Etapa atual — categorias padrão locais
+
+- PR #15 integrada com checks aprovados, merge `647dbc4`; PR #14 fechada com comentário como substituída. Nenhum deploy por essas operações.
+- Branch `codex/categorias-padrao`: 14 categorias privadas no cadastro e botão **Adicionar categorias padrão**, sessão/CSRF, sem duplicar nomes normalizados por natureza nem reativar arquivadas. Sem nova migração; IA/opt-in/correções/saldos preservados. Sem push, nova PR ou deploy desta alteração. Ler `docs/categorias-padrao.md`.
+- Java 117 testes aprovados (40+77), frontend lint/três testes/build, três testes de tela com API fictícia e E2E Java/PostgreSQL locais. Ambiente fictício 8082 atualizado; LLM clássico local desligado. O teste adicionou categorias somente ao perfil fictício; não alterou o usuário real.
+- Antes de publicar, apresentar o resultado ao usuário. Não usar dados/conexão financeira real para repetir testes. Os estados abaixo registram etapas anteriores.
+
 ## GitHub — envio autorizado após a publicação
 
 - Branch `codex/publica-rag-cloud` enviada; [PR #15](https://github.com/PedroH135-ui/java-finance/pull/15) aberta contra `feat/fundacao-financeira`, com contexto completo, testes anteriores e repetidos, publicação e rollback. Sem merge ou novo deploy nesta etapa. As afirmações de "sem push" abaixo registram o momento anterior ao pedido de envio.
