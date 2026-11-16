@@ -2,6 +2,13 @@
 
 Atualizado em 16/11/2026.
 
+## Etapa atual — categorias padrão locais
+
+- PR #15 integrada com checks aprovados, merge `647dbc4`; PR #14 fechada com comentário como substituída. Nenhum deploy por essas operações.
+- Branch `codex/categorias-padrao`: 14 categorias privadas no cadastro e botão **Adicionar categorias padrão**, sessão/CSRF, sem duplicar nomes normalizados por natureza nem reativar arquivadas. Sem nova migração; IA/opt-in/correções/saldos preservados. Sem push, nova PR ou deploy desta alteração. Ler `docs/categorias-padrao.md`.
+- Java 117 testes aprovados (40+77), frontend lint/três testes/build, três testes de tela com API fictícia e E2E Java/PostgreSQL locais. Ambiente fictício 8082 atualizado; LLM clássico local desligado. O teste adicionou categorias somente ao perfil fictício; não alterou o usuário real.
+- Antes de publicar, apresentar o resultado ao usuário. Não usar dados/conexão financeira real para repetir testes. Os estados abaixo registram etapas anteriores.
+
 ## GitHub — envio autorizado após a publicação
 
 - Branch `codex/publica-rag-cloud` enviada; [PR #15](https://github.com/PedroH135-ui/java-finance/pull/15) aberta contra `feat/fundacao-financeira`, com contexto completo, testes anteriores e repetidos, publicação e rollback. Sem merge ou novo deploy nesta etapa. As afirmações de "sem push" abaixo registram o momento anterior ao pedido de envio.

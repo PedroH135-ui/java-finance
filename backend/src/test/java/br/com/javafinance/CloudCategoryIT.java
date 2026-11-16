@@ -34,6 +34,8 @@ class CloudCategoryIT {
     @BeforeEach void setup(){
         doReturn(true).when(jobs).dispatch(any());
         owner=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Cloud fictício","UmaSenhaSegura123!")).id();
+        // These advisor scenarios deliberately control their own candidate catalogue.
+        jdbc.update("DELETE FROM category WHERE owner_id=?",owner);
         peer=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Outro fictício","UmaSenhaSegura123!")).id();
         var account=accounts.create(owner,new AccountService.Create("Banco fictício","",Account.Kind.CHECKING,"1000",date.minusDays(10))).id();
         food=categories.create(owner,new CategoryService.Create("Delivery",Category.Kind.EXPENSE,false)).id();

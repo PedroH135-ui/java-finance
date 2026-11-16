@@ -34,6 +34,8 @@ class AutomaticCategoryIT {
     UUID owner,account,link,entry,food,other; LocalDate date=LocalDate.now().minusDays(2);
     @BeforeEach void setup(){
         owner=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Teste automático","UmaSenhaSegura123!")).id();
+        // These advisor scenarios deliberately control their own candidate catalogue.
+        jdbc.update("DELETE FROM category WHERE owner_id=?",owner);
         account=accounts.create(owner,new AccountService.Create("Banco fictício","",Account.Kind.CHECKING,"1000",date.minusDays(10))).id();
         food=categories.create(owner,new CategoryService.Create("Delivery",Category.Kind.EXPENSE,false)).id();
         other=categories.create(owner,new CategoryService.Create("Outros gastos",Category.Kind.EXPENSE,false)).id();

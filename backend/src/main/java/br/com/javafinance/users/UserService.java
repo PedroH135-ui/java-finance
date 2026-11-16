@@ -19,10 +19,12 @@ public class UserService {
     private final Clock clock;
     private final AuditService audit;
     private final boolean registrationEnabled;
+    private final br.com.javafinance.categories.CategoryService categories;
     public boolean isRegistrationEnabled() { return registrationEnabled; }
     public UserService(UserRepository users, PasswordEncoder encoder, Clock clock, AuditService audit,
-        @Value("${app.registration-enabled}") boolean enabled) {
+        @Value("${app.registration-enabled}") boolean enabled, br.com.javafinance.categories.CategoryService categories) {
         this.users=users; this.encoder=encoder; this.clock=clock; this.audit=audit; registrationEnabled=enabled;
+        this.categories=categories;
     }
     @Transactional
     public Profile register(Registration input) {
@@ -31,6 +33,7 @@ public class UserService {
         AppUser user = users.saveAndFlush(new AppUser(UUID.randomUUID(), input.email().strip().toLowerCase(Locale.ROOT),
             input.name().strip(), encoder.encode(input.password()), clock.instant()));
         audit.record(user.id,user.id,"REGISTER","Conta criada.");
+        categories.addDefaults(user.id);
         return profile(user);
     }
     public Profile me(UUID id) { return profile(get(id)); }

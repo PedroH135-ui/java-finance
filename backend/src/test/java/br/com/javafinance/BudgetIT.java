@@ -103,8 +103,11 @@ class BudgetIT {
         var other = users.register(new UserService.Registration(UUID.randomUUID()+"@example.test", "Outro", "UmaSenhaSegura123!")).id();
         var stranger = new UserPrincipal(other, "", 0);
         mvc.perform(get("/api/budgets").param("month", "2026-10")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/budgets").param("month", "2026-10").with(user(principal))).andExpect(status().isOk()).andExpect(jsonPath("$.categories[0].limit").value("25.00"));
-        mvc.perform(get("/api/budgets").param("month", "2026-10").with(user(stranger))).andExpect(jsonPath("$.categories").isEmpty());
+        mvc.perform(get("/api/budgets").param("month", "2026-10").with(user(principal))).andExpect(status().isOk())
+            .andExpect(jsonPath("$.categories[?(@.categoryId=='"+cat.id()+"')].limit").value(org.hamcrest.Matchers.contains("25.00")));
+        mvc.perform(get("/api/budgets").param("month", "2026-10").with(user(stranger)))
+            .andExpect(jsonPath("$.categories[?(@.categoryId=='"+cat.id()+"')]").isEmpty())
+            .andExpect(jsonPath("$.categories[?(@.limit != null)]").isEmpty());
         var path = "/api/budgets/2026-10/categories/"+cat.id();
         var body = mapper.writeValueAsString(new BudgetService.Save("99", 0L));
         mvc.perform(put(path).with(user(principal)).contentType("application/json").content(body)).andExpect(status().isForbidden());
