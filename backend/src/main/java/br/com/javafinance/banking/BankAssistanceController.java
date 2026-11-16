@@ -13,6 +13,8 @@ public class BankAssistanceController {
     @GetMapping("/assistance") BankAssistanceService.Assistance assistance(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id) {return service.assistance(p.id(),id);}
     @PostMapping("/category") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     void category(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id,@Valid @RequestBody BankAssistanceService.CategoryChange input) {service.category(p.id(),id,input);}
+    @PostMapping("/category/automatic/allow") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    void allowAutomatic(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id,@Valid @RequestBody BankAssistanceService.UndoTransfer input) {service.allowAutomatic(p.id(),id,input.version());}
     @PostMapping("/transfer") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     void transfer(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id,@Valid @RequestBody BankAssistanceService.TransferChange input) {service.confirmTransfer(p.id(),id,input);}
     @PostMapping("/transfer/undo") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)

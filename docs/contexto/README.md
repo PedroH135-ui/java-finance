@@ -2,6 +2,8 @@
 
 Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL no Neon. Java/React usam container na Vercel; o serviço Python FastAPI/LangChain é separado e usa Groq. Preserve essa arquitetura.
 
+Trabalho local mais recente: `codex/categorias-auto-local`. A pedido do usuário, categorias automáticas com correção foram implementadas e testadas apenas no perfil fictício, com V10 local e sem alterar saldos. Sem publicação/push desta etapa; a PR #14 anterior continua na versão revisada anterior. Ler [implementação prática e testes](../categorias-automaticas-local.md).
+
 Estado: Python da IA publicado; recuperação Neon confirmada e V9 validada em branch isolada em 16/11. Produção Java continua na V8, sem alterações de saldos. O usuário pediu ver o resultado antes de publicar.
 
 Flyway local atualizado para **11.20.3**; novo teste V8 → V9 no PostgreSQL 18.7 passou sem aviso de compatibilidade, com invariantes preservados. Essa atualização ainda não foi publicada.

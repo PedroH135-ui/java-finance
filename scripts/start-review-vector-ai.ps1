@@ -1,4 +1,4 @@
-param([switch]$Build,[switch]$UseGroq)
+param([switch]$Build,[switch]$UseGroq,[switch]$AutomaticCategories)
 $ErrorActionPreference='Stop'
 $financeVectorRoot=Split-Path $PSScriptRoot -Parent
 $financeVectorPrivate=Join-Path $financeVectorRoot '.tools/vector-rag'
@@ -51,5 +51,6 @@ for($attempt=0;$attempt -lt 45;$attempt++){
 if(!$financeVectorReady){throw 'The local vector service did not start; inspect .tools/vector-rag/ui.stderr.log.'}
 $financeVectorArgs=@('-NoProfile','-File',(Join-Path $PSScriptRoot 'start-review-local.ps1'),'-VectorAi','-Restart')
 if($Build){$financeVectorArgs+='-Build'}
+if($AutomaticCategories){$financeVectorArgs+='-AutomaticCategories'}
 & pwsh @financeVectorArgs
 if($LASTEXITCODE -ne 0){throw 'The local Java application did not start.'}

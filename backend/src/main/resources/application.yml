@@ -43,6 +43,8 @@ app:
     allowed-host: ${CATEGORY_AI_ALLOWED_HOST:}
     preview-oidc: ${CATEGORY_AI_PREVIEW_OIDC:}
     local-vector-demo: ${CATEGORY_AI_LOCAL_VECTOR_DEMO:false}
+    automatic-demo-enabled: ${CATEGORY_AI_AUTOMATIC_DEMO_ENABLED:false}
+    automatic-demo-owner: ${CATEGORY_AI_AUTOMATIC_DEMO_OWNER:}
   banking:
     client-id: ${PLUGGY_CLIENT_ID:}
     client-secret: ${PLUGGY_CLIENT_SECRET:}

@@ -12,6 +12,7 @@ interface Assistance {
     retrieval?:{method:string;model:string;dimensions:number;examples:{description:string;categoryId:string;similarity:number}[]}|null};
   transferCandidates:{id:string;accountName:string;description:string;amount:string;date:string;version:number}[];
   transfer:{id:string;peerId:string;version:number;valid:boolean}|null;
+  categoryState:{source:string|null;method:string|null;confidence:string|null;automaticBlocked:boolean;automaticEnabled:boolean};
 }
 
 export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChanged:()=>void}) {
@@ -47,9 +48,12 @@ export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChan
       </TextField>
       <Button variant="outlined" disabled={busy||!candidate} onClick={()=>candidate&&void apply('transfer',{version:data.entryVersion,peerId:candidate.id,peerVersion:candidate.version})}>Confirmar transferência entre minhas contas</Button>
     </>:<Typography variant="body2" color="text.secondary">Nenhum par disponível. Para identificar um par, precisamos dos registros das duas contas vinculadas. Uma descrição de PIX sozinha não comprova uma transferência própria.</Typography>}
-    <Divider/><Typography variant="subtitle1" fontWeight={650}>Categoria sugerida</Typography>
+    <Divider/><Typography variant="subtitle1" fontWeight={650}>{data.currentCategoryId?'Categoria do registro':'Categoria sugerida'}</Typography>
     {!data.canCategorize?<Typography variant="body2">{data.unavailableReason}</Typography>:<>
-      {!data.currentCategoryId&&<Box>
+      {data.currentCategoryId&&data.categoryState.source==='AUTO'&&<Alert severity="info">Categoria aplicada automaticamente ({data.categoryState.method==='HISTORY'?'histórico':data.categoryState.method==='RULE'?'regra de descrição':'LLM'}). Você pode corrigir; sua escolha terá prioridade. A classificação pode errar.</Alert>}
+      {data.categoryState.automaticBlocked&&<Alert severity="success">{data.currentCategoryId?'Categoria escolhida por você. A automação não vai sobrescrevê-la.':'Classificação automática pausada neste registro. Sua escolha manual tem prioridade.'}</Alert>}
+      {!data.currentCategoryId&&data.categoryState.automaticEnabled&&!data.categoryState.automaticBlocked&&<Alert severity="info">A classificação automática local roda em segundo plano. Casos sem informação suficiente continuam sem categoria. Você também pode escolher manualmente.</Alert>}
+      {!data.currentCategoryId&&!data.categoryState.automaticEnabled&&<Box>
         <Typography variant="body2">{suggestion.reason}</Typography>
         {suggestion.categoryId&&<Stack direction="row" gap={1} flexWrap="wrap" mt={1}>
           <Chip size="small" label={suggestion.method==='HISTORY'?'Seu histórico':suggestion.method==='RULE'?'Regra de descrição':suggestion.provider==='groq'?'Modelo na nuvem':'Modelo local'}/>
@@ -65,14 +69,15 @@ export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChan
         </Typography>):<Typography variant="body2">Nenhum exemplo atingiu o corte experimental de 0,60. Você pode escolher a categoria manualmente.</Typography>}
         <Typography variant="caption">{suggestion.modelUsed?'O fluxo consultou o adaptador do LLM; ele pode reutilizar cache.':'Esta resposta não precisou do LLM.'} Abrir os detalhes não grava a categoria.</Typography>
       </Alert>}
-      <Typography variant="caption" color="text.secondary">A sugestão não é certeza. Você pode escolher outra categoria; só aplicamos depois do seu clique.</Typography>
+      <Typography variant="caption" color="text.secondary">{data.categoryState.automaticEnabled?'Você pode corrigir ou remover a categoria automática. Isso organiza os relatórios, sem alterar o saldo.':'A sugestão não é certeza. Você pode escolher outra categoria; só aplicamos depois do seu clique.'}</Typography>
       {categories.isPending?<Loading/>:categories.error?<Failure error={categories.error}/>:<>
         <TextField select label="Categoria para este registro" value={choice} onChange={e=>setSelected(e.target.value)} disabled={busy}>
           <MenuItem value="">Escolha uma categoria</MenuItem>
           {categories.data.filter(c=>!c.archived&&c.kind===record.kind).map(c=><MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
         </TextField>
-        <Button variant="outlined" disabled={busy||!choice} onClick={()=>void apply('category',{version:data.entryVersion,categoryId:choice})}>Aplicar categoria escolhida</Button>
+        <Button variant="outlined" disabled={busy||!choice} onClick={()=>void apply('category',{version:data.entryVersion,categoryId:choice})}>{data.categoryState.automaticEnabled?'Salvar minha categoria':'Aplicar categoria escolhida'}</Button>
         {data.currentCategoryId&&<Button disabled={busy} onClick={()=>void apply('category',{version:data.entryVersion,categoryId:null})}>Remover categoria</Button>}
+        {!data.currentCategoryId&&data.categoryState.automaticEnabled&&data.categoryState.automaticBlocked&&<Button disabled={busy} onClick={()=>void apply('category/automatic/allow',{version:data.entryVersion})}>Permitir classificação automática novamente</Button>}
       </>}
     </>}
   </Stack>;

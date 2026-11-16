@@ -13,7 +13,8 @@ TARGETS = [('pizza','Pizza em domicílio'),('music','Pagamento streaming musical
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--root',type=Path,required=True)
-    root=parser.parse_args().root
+    parser.add_argument('--automatic-test-id',type=UUID)
+    args=parser.parse_args();root=args.root
     private=root/'.tools/local-review'
     cfg=json.loads((private/'config.json').read_text(encoding='utf-8-sig'))
     if cfg.get('database')!='java_finance_review' or cfg.get('dbUser')!='review_owner' or not cfg.get('demoSeeded'):
@@ -55,8 +56,16 @@ def main():
         add('history-offset','Recomposição fictícia do histórico vetorial',str(len(EXAMPLES)),'CREDIT','2026-10-15')
         targets={key:add('target-'+key,description,'10.00','DEBIT','2026-11-14') for key,description in TARGETS}
         add('targets-offset','Recomposição fictícia do cenário vetorial',str(10*len(TARGETS)),'CREDIT','2026-11-14')
+        automatic=None
+        if args.automatic_test_id:
+            key=str(args.automatic_test_id)
+            description='Pizza delivery automática fictícia '+key[:8]
+            automatic={'id':add('automatic-'+key,description,'10.00','DEBIT','2026-11-16'),'description':description,
+                'deliveryCategoryId':str(category_ids['delivery']),'otherCategoryId':str(category_ids['food'])}
+            add('automatic-offset-'+key,'Recomposição fictícia do teste automático '+key[:8],'10.00','CREDIT','2026-11-16')
         if invariants()!=before: raise RuntimeError('Financial invariants changed; the fixture transaction will roll back.')
     (private/'vector-ui-fixture.json').write_text(json.dumps({'ownerId':str(owner),'targets':targets,'categories':{key:str(value) for key,value in category_ids.items()}},indent=2),encoding='utf-8')
+    if automatic:(private/'automatic-category-fixture.json').write_text(json.dumps(automatic,indent=2),encoding='utf-8')
     print('Four fictitious records and classified synthetic history are ready; existing classifications preserved. No movements/postings or bank balances changed.')
 
 

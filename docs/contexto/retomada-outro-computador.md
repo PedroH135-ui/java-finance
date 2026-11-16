@@ -2,6 +2,8 @@
 
 Atualizado em 16/11/2026. Recuperação confirmada e V9 validada em branch isolada; leia [resultado e limites](../validacao-v9-neon.md). Produção continua V8 e o usuário pediu revisar o resultado antes de publicar. A alteração do schema já está escrita na V9; foi adiada sua aplicação em produção, não sua implementação.
 
+Após essa validação, o experimento de categorias automáticas foi desenvolvido na branch local `codex/categorias-auto-local`, com V10. Essa nova branch ainda não foi enviada ao GitHub; o clone abaixo recupera a PR anterior, não a automação. Não considerar V10/automação testadas no Neon. Ver `handoff.md` e [explicação prática](../categorias-automaticas-local.md) antes de retomar.
+
 ## Leia primeiro
 
 1. `AGENTS.md`, na raiz.

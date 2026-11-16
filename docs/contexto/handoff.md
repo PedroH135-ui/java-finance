@@ -4,6 +4,16 @@ Atualizado em 16/11/2026.
 
 ## Estado atual — prevalece sobre o histórico de 13/11 abaixo
 
+### Categorias automáticas locais — etapa posterior de 16/11
+
+- Usuário substituiu a confirmação de cada categoria por classificação automática revisável **somente no teste local fictício**. Transferências continuam manuais. Não publicar nem atualizar a PR anterior com este novo escopo sem instrução pertinente.
+- Branch `codex/categorias-auto-local`, baseada em `87c3468`. Sem push/deploy/merge desta etapa. A PR #14 mantém o RAG local e Flyway anteriormente revisados.
+- Worker Java local classifica lotes de três, dez segundos após o lote anterior. Usa o mesmo RAG/LLM; não depende da abertura dos detalhes. Scope exige banco loopback 55434, modo vetorial, hospedagem local, UUID/e-mail fictício e ausência de Vercel.
+- V10 aditiva aplicada somente no banco fictício nesta etapa. Marca origem AUTO/MANUAL, bloqueio, tentativa, método e consistência. Decisões manuais e remoções anteriores protegidas. Correção manual vence corrida por versão; remover bloqueia nova aplicação até reativação explícita. AUTO não confirmado não entra no histórico do RAG. Nenhum movimento/posting/saldo/transferência criado pela automação.
+- Java 100 testes (36+64) passaram, inclusive upgrade V9→V10 com dados existentes e mudança de descrição sem perder prioridade manual; frontend lint/3 testes/build e E2E automático real passaram. E2E comprovou aplicação em segundo plano, correção preservada, remoção preservada e reativação explícita, mantendo saldos/totais/contagens.
+- Ambiente ativo na 8082 com `scripts/start-review-vector-ai.ps1 -Build -UseGroq -AutomaticCategories`. Aba do usuário conectada e filtrada pelo exemplo `Pizza delivery automática fictícia`, com Delivery · Automática.
+- Ler `docs/categorias-automaticas-local.md` para a explicação prática, fontes, contratos, evidências, limites, rollback e o que falta antes de uma proposta de produção. O estado do Neon descrito abaixo é da etapa anterior; nenhum Neon/Vercel foi acessado nesta implementação local.
+
 ### Recuperação e V9 — resultado mais recente de 16/11
 
 - **Atualização posterior autorizada:** `backend/pom.xml` fixa Flyway **11.20.3** (core e PostgreSQL alinhados), preservando Spring Boot/Java/SQL. Build e 88 testes Java passaram. A nova branch `verify-v9-flyway11203-20261116` / `br-hidden-shape-b6545xdr`, filha do backup V8 original, migrou V8 → V9, validou nove migrações e repetiu com zero migrações, **sem o aviso PostgreSQL 18.7**. Invariantes financeiros e campos vazios preservados; produção continua V8, sem V9 e sem mudanças financeiras. Compute `ep-flat-fire-b6jgjozs` suspenso; expiração `2026-11-18T15:00:00Z`. O aviso citado nas entradas anteriores abaixo é histórico e foi corrigido nesta versão local, ainda não publicada.

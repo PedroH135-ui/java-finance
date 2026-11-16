@@ -27,5 +27,6 @@ export interface MovementPage { items: Movement[]; total: number; page: number; 
 export interface FinancialRecord extends Omit<Movement, 'externalReference' | 'batchId' | 'createdAt'> {
   bankEntryId: string | null; bankLinkId: string | null; bankEntryVersion: number | null;
   bankProviderStatus: string | null; bankState: string | null; hidden: boolean;
+    categorySource?: 'AUTO' | 'MANUAL' | null;
 }
 export interface FinancialRecordPage { items: FinancialRecord[]; total: number; page: number; size: number; pages: number }

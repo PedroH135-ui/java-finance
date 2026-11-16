@@ -13,7 +13,7 @@ public class FinancialRecordService {
     public record Record(UUID id,String description,BigDecimal amount,String kind,String status,UUID accountId,
         UUID destinationId,UUID categoryId,LocalDate operationDate,LocalDate competence,LocalDate dueDate,
         LocalDate settledDate,String source,String notes,long version,UUID bankEntryId,UUID bankLinkId,
-        Long bankEntryVersion,String bankProviderStatus,String bankState,boolean hidden) {}
+        Long bankEntryVersion,String bankProviderStatus,String bankState,boolean hidden,String categorySource) {}
     public record Page(List<Record> items,long total,int page,int size,long pages) {}
     private final NamedParameterJdbcTemplate jdbc;
     public FinancialRecordService(NamedParameterJdbcTemplate jdbc) { this.jdbc=jdbc; }
@@ -41,13 +41,13 @@ public class FinancialRecordService {
         if(!text.isBlank()) { where+=" AND position(lower(:text) in lower(description))>0"; args.put("text",text.strip()); }
         long total=jdbc.queryForObject("SELECT count(*) FROM financial_record WHERE "+where,args,Long.class);
         args.put("limit",size); args.put("offset",page*size);
-        var rows=jdbc.query("SELECT * FROM financial_record WHERE "+where+" ORDER BY "+fields.get(sort)+" "+direction+",id LIMIT :limit OFFSET :offset",args,
+        var rows=jdbc.query("SELECT f.*,b.category_source FROM (SELECT * FROM financial_record WHERE "+where+" ORDER BY "+fields.get(sort)+" "+direction+",id LIMIT :limit OFFSET :offset) f LEFT JOIN bank_entry b ON b.id=f.bank_entry_id AND b.owner_id=f.owner_id ORDER BY f."+fields.get(sort)+" "+direction+",f.id",args,
             (rs,n)->new Record(rs.getObject("id",UUID.class),rs.getString("description"),rs.getBigDecimal("amount"),rs.getString("kind"),
                 rs.getString("status"),rs.getObject("account_id",UUID.class),rs.getObject("destination_id",UUID.class),rs.getObject("category_id",UUID.class),
                 rs.getObject("operation_date",LocalDate.class),rs.getObject("competence",LocalDate.class),rs.getObject("due_date",LocalDate.class),
                 rs.getObject("settled_date",LocalDate.class),rs.getString("source"),rs.getString("notes"),rs.getLong("version"),
                 rs.getObject("bank_entry_id",UUID.class),rs.getObject("bank_link_id",UUID.class),rs.getObject("bank_entry_version",Long.class),
-                rs.getString("bank_provider_status"),rs.getString("bank_state"),rs.getBoolean("hidden")));
+                rs.getString("bank_provider_status"),rs.getString("bank_state"),rs.getBoolean("hidden"),rs.getString("category_source")));
         return new Page(rows,total,page,size,(total+size-1)/size);
     }
 }

@@ -1,6 +1,7 @@
-param([switch]$Build,[switch]$Restart,[switch]$RestartAi,[switch]$RemoteAi,[switch]$VectorAi,[ValidateSet('off','qwen2.5:1.5b','groq')][string]$Llm)
+param([switch]$Build,[switch]$Restart,[switch]$RestartAi,[switch]$RemoteAi,[switch]$VectorAi,[switch]$AutomaticCategories,[ValidateSet('off','qwen2.5:1.5b','groq')][string]$Llm)
 $ErrorActionPreference='Stop'
 if($VectorAi -and ($RemoteAi -or $PSBoundParameters.ContainsKey('Llm'))){throw 'The vector demo cannot be combined with the remote or classic model switches.'}
+if($AutomaticCategories -and !$VectorAi){throw 'Automatic categories require the guarded synthetic vector demo.'}
 $financeReviewRoot=Split-Path $PSScriptRoot -Parent
 $financeReviewPrivate=Join-Path $financeReviewRoot '.tools/local-review'
 New-Item -ItemType Directory -Path $financeReviewPrivate -Force | Out-Null
@@ -118,6 +119,7 @@ try {
     $env:CATEGORY_AI_ENABLED='true';$env:CATEGORY_AI_URL='http://127.0.0.1:8123'
     $env:CATEGORY_AI_TOKEN=$financeReviewConfig.aiToken
     if($VectorAi){$env:CATEGORY_AI_URL='http://127.0.0.1:8126';$env:CATEGORY_AI_LOCAL_VECTOR_DEMO='true'}
+    if($AutomaticCategories){$env:CATEGORY_AI_AUTOMATIC_DEMO_ENABLED='true';$env:CATEGORY_AI_AUTOMATIC_DEMO_OWNER=$financeReviewConfig.ownerId}
     if($RemoteAi){
         $financeReviewRemoteSecret=Import-Clixml -LiteralPath (Join-Path $financeReviewRoot '.tools/category-ai-cloud-preview/service-token.clixml')
         try {$env:CATEGORY_AI_TOKEN=[Net.NetworkCredential]::new('',$financeReviewRemoteSecret).Password} finally {$financeReviewRemoteSecret.Dispose()}
