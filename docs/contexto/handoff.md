@@ -2,6 +2,11 @@
 
 Atualizado em 16/11/2026.
 
+## Mais recente — sessão expirada no botão, resolvida sem deploy
+
+- PR #16 integrada com checks aprovados, merge `34c2098`; deployments Java/Python preservados. O POST do botão retornou 401 com sessão inválida; após renovação, uma tentativa adicionou 14 categorias reais. Hashes financeiros/opt-in/correções/transferências antes/depois preservados. Não ativamos IA nem importamos ou alteramos saldos.
+- Branch local `codex/corrige-categorias-padrao`: aviso específico para 401/403, bloqueio de repetição em sessão expirada e ação de reconsulta do perfil. Nenhuma mudança de autenticação/Java/configuração; sem push, PR ou deploy dessa melhoria. Ler `docs/categorias-padrao-sessao-expirada.md`. Entradas abaixo são históricas, inclusive a afirmação de categorias reais ainda vazias.
+
 ## Última etapa — categorias padrão publicadas, envio ao GitHub autorizado
 
 - Usuário autorizou publicar e depois abrir PR. Java/React `e9137ce` publicados no deployment `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`, domínio principal promovido após saúde e hashes conferidos. Python permanece `dpl_5mmPrfrZkJmuKDXTnUbC3nebHGUV`; sem mudanças em configurações/segredos/vínculo Git. Relatório: `docs/publicacao-categorias-padrao-2026-11-16.md`.

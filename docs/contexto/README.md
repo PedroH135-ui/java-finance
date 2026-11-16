@@ -2,6 +2,8 @@
 
 Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL no Neon. Java/React usam container na Vercel; o serviço Python FastAPI/LangChain é separado e usa Groq. Preserve essa arquitetura.
 
+**Diagnóstico posterior:** PR #16 integrada (`34c2098`), sem novo deploy. Falha ao adicionar foi POST 401/sessão expirada; após renovação, uma tentativa adicionou 14 categorias ao perfil real, sem alteração financeira ou de opt-in. Melhoria de mensagem 401/403 em trabalho local na branch `codex/corrige-categorias-padrao`, ainda não publicada/enviada. Ler [diagnóstico e resolução](../categorias-padrao-sessao-expirada.md). As afirmações anteriores de PR aberta/nenhuma categoria real adicionada abaixo são históricas.
+
 **Última publicação autorizada:** categorias padrão do commit `e9137ce` em Production, Java `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`. Python e V13 preservados, nenhum usuário ativado ou categoria real adicionada por este rollout. Ler [publicação e rollback das categorias padrão](../publicacao-categorias-padrao-2026-11-16.md). As referências abaixo à etapa local registram o momento anterior.
 
 Código enviado em `codex/categorias-padrao`, [PR #16](https://github.com/PedroH135-ui/java-finance/pull/16) aberta contra `feat/fundacao-financeira`, sem merge. Esta é a branch mais recente para retomar em outro computador. Conferir os checks remotos na PR.
