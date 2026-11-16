@@ -1,5 +1,7 @@
 # Como LangChain e RAG funcionam hoje
 
+**Versão local posterior, ainda não publicada:** [organização financeira](organizacao-financeira-local.md). PIX identificado por tipo do provedor, prioridade humana, RAG forte sem modelo e até uma chamada LLM, abstenção terminal para controlar custo. Planejador de metas usa LangChain RunnableLambda para interpretar comandos e Java para cálculo decimal, **zero LLM**. Contexto público RDB/CDB/fatura fica em tabela de regras versionadas, não vetorizada; exemplos privados de categorias continuam com embeddings384/pgvector e isolamento por usuário. As descrições publicadas abaixo são históricas em relação a esta implementação local.
+
 Atualizado em 16/11/2026. Este documento distingue a implementação principal da integração vetorial local, sem prometer funcionalidades futuras.
 
 **Etapa mais recente: publicada em Production em 16/11/2026**, após autorização, recuperação e testes. RAG vetorial/LangChain com pgvector Neon, fila cloud, opt-in individual desligado por padrão e correções duráveis. LLM somente quando necessário; sem alteração de saldos. [Estado publicado, testes e rollback](publicacao-rag-producao-2026-11-16.md). As etapas local/Preview descritas abaixo são históricas.

@@ -1,5 +1,7 @@
 # Retomar em outro computador
 
+**Trabalho local mais recente:** `codex/organizacao-financeira-local`, ainda sem push/PR/deploy. Inclui organização financeira, PIX/RAG de até uma chamada, Investimentos, metas e V14/V15 **somente locais**. Ler o topo de `handoff.md` e `../organizacao-financeira-local.md`. Não está disponível em outro computador pelo GitHub enquanto o envio não for autorizado. Não copiar `.tools` ou segredos para recuperar o ambiente. As referências a branches/PRs mais recentes abaixo registram etapas antigas; PR16 já foi integrada.
+
 Atualizado em 16/11/2026. **Java e Python publicados em Production, V13**, com RAG/pgvector, fila cloud, opt-in individual e prioridade humana. Recuperação confirmada, saldos preservados e chave Groq rotacionada. Ler [publicação e rollback](../publicacao-rag-producao-2026-11-16.md) e o handoff antes de qualquer ação; as validações antigas descrevem etapas anteriores.
 
 **Atualização mais recente:** categorias padrão publicadas somente no Java, deployment `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`; Python/V13/configurações/saldos preservados. Ler [resultado e rollback das categorias padrão](../publicacao-categorias-padrao-2026-11-16.md). Código mais recente enviado na branch `codex/categorias-padrao`, [PR #16](https://github.com/PedroH135-ui/java-finance/pull/16), sem merge. A PR #15 foi integrada e a #14 foi fechada como substituída; referências abaixo são históricas.

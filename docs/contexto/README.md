@@ -1,5 +1,7 @@
 # Contexto do Java Finance
 
+**Etapa local mais recente (16/11):** branch `codex/organizacao-financeira-local`: natureza financeira confirmada separa consumo, PIX por tipo de contraparte, até três etapas/uma chamada LLM, padrões+organização ao vincular com opt-out respeitado, controle em Configurações, Investimentos e planejador de metas. Apenas dados fictícios e bancos Docker locais; sem push, PR, merge ou deploy. Ler [implementação e limites](../organizacao-financeira-local.md) e o topo do handoff. Produção continua V13 conforme última publicação registrada; esta etapa não a revalidou. As entradas abaixo são históricas.
+
 Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL no Neon. Java/React usam container na Vercel; o serviço Python FastAPI/LangChain é separado e usa Groq. Preserve essa arquitetura.
 
 **Última validação em produção:** usuário autorizou teste da IA com dados reais; preferência já estava ligada ao abrir a sessão e foi mantida. Retomada controlada da fila concluída e módulos conferidos, saldos preservados. O recurso segue disponível para todos, cada usuário ativa (preferência explicitamente confirmada pelo usuário). Ler [resultado e melhorias pendentes](../validacao-ia-real-e-modulos.md). Dados financeiros reais ficam somente nas evidências privadas, não no Git. Não houve deploy nesta etapa; mensagem de sessão expirada continua somente local.

@@ -1,5 +1,18 @@
 # Retomada da publicação da IA
 
+## Etapa atual — organização financeira local
+
+- Branch `codex/organizacao-financeira-local`, base `1976c2f`, implementação registrada no commit local `1fc9179`. Herda também a melhoria local de sessão expirada e o relatório de auditoria; não presumir que estejam em produção.
+- Implementação completa e limites: `docs/organizacao-financeira-local.md`. V14/V15 somente em bancos descartáveis/fictícios locais, sem conexão Neon. Produção não foi tocada ou revalidada nesta etapa.
+- PIX PERSON usa categoria PIX, BUSINESS usa contexto antes de no máximo uma chamada LLM. UNKNOWN não vira empresa pelo nome. Sem números de documentos persistidos. Correções humanas têm prioridade, inclusive para reanalisar abstenção de descrição idêntica. NO_CATEGORY não volta a consumir modelo por simples polling.
+- Ao vincular banco: padrões idempotentes, primeira janela de leitura limitada, ativação inicial apenas se não existe preferência salva. Desligado continua desligado. Controle em Configurações; aviso superior removido de Movimentações. Contas antigas recebem padrões na próxima leitura bem-sucedida.
+- Natureza financeira requer clique e confirmação; investimentos/faturas/transferências próprias confirmados saem da projeção de consumo. Extrato/fluxo de caixa e saldos preservados. Dados alterados pelo banco invalidam a confirmação. V15 protege contra pareamento/cancelamento posterior sem reescrever V14 local.
+- Investimentos: posições manuais informativas, sugestões de natureza e fluxos confirmados. Metas: Java → Python/LangChain com interpretação determinística, zero LLM, conta decimal e salvamento explícito. Ainda não é chatbot geral nem simulador completo de compromissos.
+- Rodar `scripts/start-review-vector-ai.ps1 -Build -AutomaticCategories` em PowerShell7 no ambiente fictício preparado, abrir localhost8082. Não usar `-UseGroq` para repetir o teste sem consumir API. Banco app55434, Python8126, pgvector55435.
+- Usuário pediu mostrar testes e resultado antes de publicar. Não há autorização nova de push, PR, merge ou deploy. Antes de futura publicação: recuperação correta + migrações isoladas Neon + Python compatível primeiro. Nenhum documento autoriza migrar ao iniciar com conexão real.
+- Validação encerrada: XML Java41unit+83IT sem falhas/erros, últimos35IT afetados repetidos aprovados; Python45+1legado, pgvector real10, frontend lint/três testes/build e E2E completo repetido aprovados. Tela provou PIX, abstenção UNKNOWN, exclusão manual de aplicação300, posição800 informativa e meta3000/reserva600/6meses=400/mês, sem alterar saldo/fluxo/lançamentos. Groq desligado; máximo uma chamada testado com modelo simulado. Gitleaks/fontes e comparação12segredos sem achados; logs/capturas só ignorados. Bundle grande permanece como aviso, não foi tratado nesta entrega.
+
+
 Atualizado em 16/11/2026.
 
 ## Mais recente — IA real ativa e conferência de módulos
