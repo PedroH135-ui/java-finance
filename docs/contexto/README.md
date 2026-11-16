@@ -2,18 +2,11 @@
 
 Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL no Neon. Java/React usam container na Vercel; o serviço Python FastAPI/LangChain é separado e usa Groq. Preserve essa arquitetura.
 
-Etapa mais recente **testada em Preview**: `codex/categorias-cloud-preview`, automação opt-in por usuário, correções prioritárias, RAG vetorial e fila na nuvem com dados fictícios. Ler [candidata cloud](../categorias-cloud-preview.md). V8→V13 passou em cópia da recuperação; Production continua V8. Nenhuma publicação Production autorizada nesta etapa; o histórico abaixo descreve a etapa local anterior.
+**Produção publicada em 16/11/2026**, com autorização explícita: Java/React e Python RAG/pgvector/fila na nuvem, schema **V13**, ativação individual desligada por padrão e correções humanas prioritárias. Recuperação recente confirmada e hashes financeiros preservados. Chave Groq rotacionada; antiga revogada. Ler [publicação, verificações e rollback](../publicacao-rag-producao-2026-11-16.md).
 
-Última validação: [preparação para produção](../validacao-producao-2026-11-16.md). Docker real e V8→V11 passaram em cópia Neon recente; produção permanece V8 e não foi publicada. Reutilização MEMORY evita LLM em descrições repetidas. A automação com RAG vetorial ainda tem bloqueios de hospedagem, ativação e execução na nuvem; não remover guards locais para publicar.
+Branch local atual `codex/publica-rag-cloud`, base funcional `37334ad`, correção pooled `ce2401f`. Sem push/PR novo/merge desta publicação; PR #14 anterior não representa a versão cloud publicada. Documentos de Preview/local e validações anteriores são históricos; o handoff mais recente prevalece.
 
-Trabalho local mais recente: `codex/categorias-auto-local`. A pedido do usuário, categorias automáticas com correção foram implementadas e testadas apenas no perfil fictício, com V10 local e sem alterar saldos. Sem publicação/push desta etapa; a PR #14 anterior continua na versão revisada anterior. Ler [implementação prática e testes](../categorias-automaticas-local.md).
-
-Estado: Python da IA publicado; recuperação Neon confirmada e V9 validada em branch isolada em 16/11. Produção Java continua na V8, sem alterações de saldos. O usuário pediu ver o resultado antes de publicar.
-
-Flyway local atualizado para **11.20.3**; novo teste V8 → V9 no PostgreSQL 18.7 passou sem aviso de compatibilidade, com invariantes preservados. Essa atualização ainda não foi publicada.
-
-O projeto Neon correto está acessível. A branch de recuperação foi preservada sem compute; a cópia de teste migrou com invariantes preservados. Na branch `codex/rag-vetorial-local`, o laboratório pgvector foi integrado à tela local com dados fictícios. Ler o handoff antes de publicar: esta integração não está em produção.
-
+- [Publicação Production, banco definitivo e rotação](../publicacao-rag-producao-2026-11-16.md)
 - [Retomada e pendências](handoff.md)
 - [Recuperação confirmada e resultado da V9 isolada](../validacao-v9-neon.md)
 - [Preparar outro computador e concluir a V9](retomada-outro-computador.md)

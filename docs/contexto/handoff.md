@@ -2,6 +2,18 @@
 
 Atualizado em 16/11/2026.
 
+## Estado atual — publicação Production posterior em 16/11
+
+- Usuário autorizou banco vetorial definitivo, rotação Groq e publicação Python/Java. **Concluído em Production**, schema V13. Relatório definitivo `docs/publicacao-rag-producao-2026-11-16.md`; o histórico abaixo é anterior.
+- Java ativo `dpl_FpjV78wBJF4PWoUWWDL4N1nir23e`, domínio Java Finance. Python ativo `dpl_5mmPrfrZkJmuKDXTnUbC3nebHGUV`, domínio Python lab existente, modo production/PGVECTOR/384/Groq.
+- Ativação opt-in por usuário, desligada por padrão. Conferência final: zero usuários ativados, zero registros reais AUTO, zero transferências criadas; todos os hashes financeiros preservados. Não ativar usuários, importar registros ou alterar saldos apenas por este documento.
+- Banco vetorial duradouro: branch Neon `category-rag-production`, sem expiração; banco `category_vectors`, pgvector 0.8.7, papel restrito com RLS. Python não recebeu conexão financeira. Recovery recente `br-plain-forest-b6qjh804`, criada 17:53:38Z, LSN 0/24389A8, READY sem expiração, lida e comparada com produção; compute de verificação suspenso.
+- Limite Free impediu branches/restores adicionais; nenhuma recuperação foi excluída nem plano pago ativado. Cópia V13 anterior foi revalidada como equivalente aos dados atuais; hashes de SQL das migrações inalterados antes de aplicar V9–V13.
+- Nova chave Groq gerada pelo usuário e salva por entrada oculta/DPAPI. Configurada Production/Preview; antiga Finanças revogada pelo usuário. API confirmou antiga 401/nova 200; Koinonia preservada. Não restaurar snapshots de deployments Python antigos com a chave revogada; redeployar fontes antigas com a chave nova, se necessário.
+- Correção adicional `ce2401f`: PgBouncer rejeitou startup `options` no endpoint pooled. Timeout agora `SET LOCAL` na transação. Dez testes passaram no pooled fictício, conexão definitiva validada, smoke Production passou com dados fictícios e vetores de teste removidos. Houve rollback temporário do Python durante o rebuild; versão corrigida está ativa.
+- Java base validada em 113 testes; Python base 45, dois E2E Preview e prova sem navegador. Depois do rollout: health 200, cadastro desabilitado, APIs privadas 401 e callback real da fila Production 200 para UUID fictício inexistente, sem gravar dados financeiros.
+- Branch local `codex/publica-rag-cloud`. Sem push/PR novo/merge; PR #14 não representa o rollout atual. `scripts/configure-production-groq.ps1` prepara novas rotações por entrada oculta; não é rotina de deploy. `.tools`/DPAPI não vão para Git ou outro computador. Preservar configurações server-side nas próximas atualizações.
+
 ## Estado atual — candidata cloud posterior em 16/11
 
 - Pedido ativo concluído em **Preview**, aguardando avaliação do usuário antes de Production: RAG MiniLM/pgvector + LangChain Python/Groq, Vercel Queue real, ativação individual e correções duráveis. Branch `codex/categorias-cloud-preview`, base `4ca117f`. Sem push/PR novo/merge; PR #14 anterior não foi atualizada com esse escopo. Relatório: `docs/categorias-cloud-preview.md`.

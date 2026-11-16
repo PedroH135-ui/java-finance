@@ -2,7 +2,7 @@
 
 Atualizado em 16/11/2026. Este documento distingue a implementação principal da integração vetorial local, sem prometer funcionalidades futuras.
 
-**Etapa mais recente: candidata cloud testada**, na branch `codex/categorias-cloud-preview`. O RAG vetorial/LangChain agora foi testado em Preview Vercel com pgvector Neon, fila cloud, opt-in individual e prioridade persistida das correções. LLM somente quando necessário; sem alteração de saldos. [Implementação, exemplos recuperados, testes e limites](categorias-cloud-preview.md). O histórico abaixo continua descrevendo a versão Production e o laboratório anteriores; a candidata não foi promovida para Production.
+**Etapa mais recente: publicada em Production em 16/11/2026**, após autorização, recuperação e testes. RAG vetorial/LangChain com pgvector Neon, fila cloud, opt-in individual desligado por padrão e correções duráveis. LLM somente quando necessário; sem alteração de saldos. [Estado publicado, testes e rollback](publicacao-rag-producao-2026-11-16.md). As etapas local/Preview descritas abaixo são históricas.
 
 **Etapa local posterior:** o usuário autorizou categorias automáticas revisáveis no ambiente fictício. O Java agora pode acionar essa mesma cadeia em segundo plano, com origem AUTO/MANUAL e prioridade para correções; leia [a implementação prática](categorias-automaticas-local.md). Isso não foi publicado. O fluxo de sugestão manual abaixo continua válido quando a automação local está desligada e para o serviço remoto existente.
 
@@ -16,14 +16,14 @@ Para ver as etapas e o contexto real em exemplos fictícios, execute a [demonstr
 
 | Parte | Situação |
 |---|---|
-| Python FastAPI + LangChain + Groq na Vercel | Publicado e testado com dados fictícios |
-| Integração Java/React de categorias e transferências desta entrega | Desenvolvida e testada, no GitHub; V9 validada em cópia e recuperação confirmada, aguardando revisão antes da publicação |
-| Banco PostgreSQL de produção | Neon `java-finance` identificado; produção permanece V8, sem alteração nesta validação |
-| Aplicação Java atualmente em uso | Continua na versão anterior; não está usando a nova integração Python |
+| Python FastAPI + LangChain + Groq na Vercel | Publicado, RAG pgvector definitivo, nova chave e testes fictícios bem-sucedidos |
+| Integração Java/React de categorias e transferências | Publicada; categorias automáticas exigem opt-in individual, transferências continuam manuais |
+| Banco PostgreSQL de produção | Neon `java-finance`, V13, recuperação confirmada e hashes financeiros preservados |
+| Aplicação Java atualmente em uso | Integração cloud disponível; nenhum usuário foi ativado automaticamente no rollout |
 
-O Python funciona na nuvem sem o computador ligado. A disponibilidade continua sujeita às cotas e ao funcionamento da Vercel e da Groq; não há garantia de uso gratuito ilimitado. O serviço não possui banco próprio nem credenciais Neon/Pluggy.
+O Python funciona na nuvem sem o computador ligado. A disponibilidade continua sujeita às cotas e ao funcionamento da Vercel, Neon e Groq; não há garantia de uso gratuito ilimitado. Possui somente conexão restrita ao banco vetorial próprio, sem acesso ao banco financeiro ou credenciais Pluggy.
 
-## Mapa mental do uso de LangChain
+## Mapa anterior de sugestões — referência histórica
 
 ```mermaid
 mindmap

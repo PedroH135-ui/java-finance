@@ -1,10 +1,8 @@
 # Retomar em outro computador
 
-Atualizado em 16/11/2026. Recuperação confirmada e V9 validada em branch isolada; leia [resultado e limites](../validacao-v9-neon.md). Produção continua V8 e o usuário pediu revisar o resultado antes de publicar. A alteração do schema já está escrita na V9; foi adiada sua aplicação em produção, não sua implementação.
+Atualizado em 16/11/2026. **Java e Python publicados em Production, V13**, com RAG/pgvector, fila cloud, opt-in individual e prioridade humana. Recuperação confirmada, saldos preservados e chave Groq rotacionada. Ler [publicação e rollback](../publicacao-rag-producao-2026-11-16.md) e o handoff antes de qualquer ação; as validações antigas descrevem etapas anteriores.
 
-Após essa validação, o experimento de categorias automáticas foi desenvolvido na branch local `codex/categorias-auto-local`, com V10. Essa nova branch ainda não foi enviada ao GitHub; o clone abaixo recupera a PR anterior, não a automação. Não considerar V10/automação testadas no Neon. Ver `handoff.md` e [explicação prática](../categorias-automaticas-local.md) antes de retomar.
-
-**Atualização mais recente:** V9/V10/V11 e o JAR do Docker já passaram em uma nova cópia Neon; foi adicionada reutilização MEMORY para evitar LLM em repetições. A automação vetorial cloud ainda não está pronta, conforme [validação de produção](../validacao-producao-2026-11-16.md). A frase anterior sobre V10 não testada refere-se à primeira etapa local; foi superada pelo novo teste. A branch continua sem push.
+O código mais recente está localmente em `codex/publica-rag-cloud`; esta publicação não fez push nem merge. A PR #14 não contém todas as alterações publicadas. Antes de trocar de computador, enviar essa branch mediante autorização ou transferir um pacote de fontes revisado; não copiar `.tools`, DPAPI, sessões, dumps ou `.env`.
 
 ## Leia primeiro
 
@@ -15,10 +13,10 @@ Após essa validação, o experimento de categorias automáticas foi desenvolvid
 
 ## Recuperar o código
 
-O trabalho local mais recente está na branch `codex/rag-vetorial-local`, com PR sobre `codex/ia-pronta-producao`, não na branch padrão do repositório. A base da PR não representa o Java publicado. Para uma cópia nova após o push:
+O trabalho local mais recente está na branch `codex/publica-rag-cloud`, não na branch padrão. Somente após confirmar que a branch foi enviada ao remoto, use:
 
 ```powershell
-git clone --branch codex/rag-vetorial-local https://github.com/PedroH135-ui/java-finance.git
+git clone --branch codex/publica-rag-cloud https://github.com/PedroH135-ui/java-finance.git
 Set-Location java-finance
 git status --short
 ```
