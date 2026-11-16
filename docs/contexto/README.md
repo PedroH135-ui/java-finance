@@ -2,6 +2,8 @@
 
 Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL no Neon. Java/React usam container na Vercel; o serviço Python FastAPI/LangChain é separado e usa Groq. Preserve essa arquitetura.
 
+**Última validação em produção:** usuário autorizou teste da IA com dados reais; preferência já estava ligada ao abrir a sessão e foi mantida. Retomada controlada da fila concluída e módulos conferidos, saldos preservados. O recurso segue disponível para todos, cada usuário ativa (preferência explicitamente confirmada pelo usuário). Ler [resultado e melhorias pendentes](../validacao-ia-real-e-modulos.md). Dados financeiros reais ficam somente nas evidências privadas, não no Git. Não houve deploy nesta etapa; mensagem de sessão expirada continua somente local.
+
 **Diagnóstico posterior:** PR #16 integrada (`34c2098`), sem novo deploy. Falha ao adicionar foi POST 401/sessão expirada; após renovação, uma tentativa adicionou 14 categorias ao perfil real, sem alteração financeira ou de opt-in. Melhoria de mensagem 401/403 em trabalho local na branch `codex/corrige-categorias-padrao`, ainda não publicada/enviada. Ler [diagnóstico e resolução](../categorias-padrao-sessao-expirada.md). As afirmações anteriores de PR aberta/nenhuma categoria real adicionada abaixo são históricas.
 
 **Última publicação autorizada:** categorias padrão do commit `e9137ce` em Production, Java `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`. Python e V13 preservados, nenhum usuário ativado ou categoria real adicionada por este rollout. Ler [publicação e rollback das categorias padrão](../publicacao-categorias-padrao-2026-11-16.md). As referências abaixo à etapa local registram o momento anterior.

@@ -2,6 +2,13 @@
 
 Atualizado em 16/11/2026.
 
+## Mais recente — IA real ativa e conferência de módulos
+
+- Usuário autorizou ativar/testar no próprio perfil; a sessão já mostrou preferência ativa e classificações AUTO. Mantida, sem toggle desnecessário. Uma retomada pela interface concluiu geração da fila; hashes financeiros/saldos/correções/transferências preservados. Não criar escolhas manuais artificiais no perfil real para testar prioridade.
+- Usuário esclareceu: **disponível para todos, cada usuário ativa**. Não alterar para ativação obrigatória/global ou compartilhar exemplos entre perfis.
+- Métodos LLM e MEMORY observados; pendências semânticas separam-se de falha de fila. Movimentações, Visão geral, Contas, Orçamentos e Conexões bancárias conferidos. Ler `docs/validacao-ia-real-e-modulos.md` para limitações: natureza financeira nos relatórios, limites ainda não definidos, período do contador e rótulo Revisar legado em Conexões.
+- Contagens/descrições/valores reais não entram na documentação pública; evidências privadas em `.tools/real-category-validation`. Sem deploy, importação, alterações de saldo ou preferências de outros usuários. Mensagem de sessão expirada `dc91de0` segue local; branch `codex/corrige-categorias-padrao`. As afirmações abaixo de IA desligada são históricas.
+
 ## Mais recente — sessão expirada no botão, resolvida sem deploy
 
 - PR #16 integrada com checks aprovados, merge `34c2098`; deployments Java/Python preservados. O POST do botão retornou 401 com sessão inválida; após renovação, uma tentativa adicionou 14 categorias reais. Hashes financeiros/opt-in/correções/transferências antes/depois preservados. Não ativamos IA nem importamos ou alteramos saldos.
