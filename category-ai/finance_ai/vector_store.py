@@ -29,8 +29,10 @@ def connect():
             # libpq on Windows cannot resolve some Unicode paths; retain full TLS verification.
             directory=stack.enter_context(tempfile.TemporaryDirectory(prefix='finance-ca-'))
             temporary=Path(directory)/'roots.pem';temporary.write_bytes(ca.read_bytes());ca=temporary
-        conn=stack.enter_context(psycopg.connect(dsn,sslmode='verify-full',sslrootcert=str(ca),connect_timeout=10,
-                                               options='-c statement_timeout=15000'))
+        conn=stack.enter_context(psycopg.connect(dsn,sslmode='verify-full',sslrootcert=str(ca),connect_timeout=10))
+        # Neon PgBouncer rejects startup "options". Keep the timeout transaction-local so pooled
+        # connections never retain configuration from a previous request/tenant.
+        conn.execute("SET LOCAL statement_timeout = '15s'")
         yield conn
 
 
