@@ -37,6 +37,7 @@ export function AuthPage() {
         <Typography color="text.secondary" mt={1} mb={4}>{registering?'Sua conta terá dados financeiros separados.':'Entre para acompanhar suas finanças.'}</Typography>
         <form onSubmit={form.handleSubmit(submit)}><Stack spacing={2.5}>
           {error&&<Alert severity="error">{error}</Alert>}{notice&&<Alert severity="success">{notice}</Alert>}
+          {registering&&<Alert severity="info">A categorização com IA vem ativada. Descrições e exemplos do seu perfil poderão ser processados na nuvem pela Groq, sem saldos ou credenciais bancárias. Você pode desligar em Configurações; suas correções têm prioridade.</Alert>}
           {registering&&<TextField label="Seu nome" required autoComplete="name" {...form.register('name',{required:'Informe seu nome.'})} error={!!form.formState.errors.name} helperText={form.formState.errors.name?.message}/>}
           <TextField label="E-mail" type="email" required autoComplete="email" {...form.register('email',{required:'Informe o e-mail.'})} error={!!form.formState.errors.email} helperText={form.formState.errors.email?.message}/>
           <TextField label="Senha" type="password" required autoComplete={registering?'new-password':'current-password'} {...form.register('password',{required:'Informe a senha.',...(registering?{minLength:{value:10,message:'Use pelo menos 10 caracteres.'},maxLength:{value:64,message:'Use até 64 caracteres.'}}:{})})}

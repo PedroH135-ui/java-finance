@@ -37,6 +37,8 @@ class CloudCategoryIT {
         // These advisor scenarios deliberately control their own candidate catalogue.
         jdbc.update("DELETE FROM category WHERE owner_id=?",owner);
         peer=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Outro fictício","UmaSenhaSegura123!")).id();
+        // Explicit opt-out fixture: new registrations now start enabled by user request.
+        jdbc.update("UPDATE category_automation_preference SET enabled=false WHERE owner_id IN (?,?)",owner,peer);
         var account=accounts.create(owner,new AccountService.Create("Banco fictício","",Account.Kind.CHECKING,"1000",date.minusDays(10))).id();
         food=categories.create(owner,new CategoryService.Create("Delivery",Category.Kind.EXPENSE,false)).id();
         other=categories.create(owner,new CategoryService.Create("Outros gastos",Category.Kind.EXPENSE,false)).id();

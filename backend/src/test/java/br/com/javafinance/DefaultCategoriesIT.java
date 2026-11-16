@@ -27,7 +27,7 @@ class DefaultCategoriesIT {
     UUID register(){return users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Categorias fictícias","UmaSenhaSegura123!")).id();}
     UUID legacy(){UUID owner=register();jdbc.update("DELETE FROM category WHERE owner_id=?",owner);return owner;}
 
-    @Test void registrationSeedsPrivateCategoriesWithoutMoneyOrAiConsent(){
+    @Test void registrationSeedsPrivateCategoriesAndEnabledPreferenceWithoutMoneyOrJobs(){
         UUID owner=register(),other=register();
         var list=categories.list(owner);
         assertThat(list).hasSize(16);
@@ -35,7 +35,8 @@ class DefaultCategoriesIT {
         assertThat(list).allMatch(c->!c.essential()&&!c.archived());
         assertThat(list.stream().map(CategoryService.View::id)).doesNotContainAnyElementsOf(categories.list(other).stream().map(CategoryService.View::id).toList());
         assertThat(categories.addDefaults(owner).added()).isZero();
-        for(String table:List.of("account","movement","posting","category_automation_preference","category_automation_job"))
+        assertThat(jdbc.queryForObject("SELECT enabled FROM category_automation_preference WHERE owner_id=?",Boolean.class,owner)).isTrue();
+        for(String table:List.of("account","movement","posting","category_automation_job"))
             assertThat(jdbc.queryForObject("SELECT count(*) FROM "+table+" WHERE owner_id=?",Long.class,owner)).isZero();
     }
     @Test void existingNamesAndArchivedCategoriesArePreservedAndMoneyIsUnchanged(){
