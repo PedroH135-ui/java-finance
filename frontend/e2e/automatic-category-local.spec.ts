@@ -74,7 +74,7 @@ test('classifica em segundo plano e respeita correção e remoção sem alterar 
   await dialog.getByRole('button',{name:'Permitir classificação automática novamente',exact:true}).click();
   await expect(dialog).toHaveCount(0);
   await expect.poll(async()=> (await entry()).categorySource,{timeout:60000,intervals:[2000]}).toBe('AUTO');
-  expect((await entry()).categoryId).toBe(fixture.deliveryCategoryId);
+  expect((await entry()).categoryId).toBe(fixture.otherCategoryId); // Explicit correction wins on re-enabling, too.
   await page.getByRole('button',{name:'Detalhes de '+fixture.description,exact:true}).click();
   dialog=page.getByRole('dialog',{name:'Registro bancário',exact:true});
   const message=dialog.getByRole('alert').filter({hasText:'Categoria aplicada automaticamente'});

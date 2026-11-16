@@ -2,6 +2,8 @@
 
 Atualizado em 16/11/2026. Este documento distingue a implementação principal da integração vetorial local, sem prometer funcionalidades futuras.
 
+**Etapa mais recente: candidata cloud testada**, na branch `codex/categorias-cloud-preview`. O RAG vetorial/LangChain agora foi testado em Preview Vercel com pgvector Neon, fila cloud, opt-in individual e prioridade persistida das correções. LLM somente quando necessário; sem alteração de saldos. [Implementação, exemplos recuperados, testes e limites](categorias-cloud-preview.md). O histórico abaixo continua descrevendo a versão Production e o laboratório anteriores; a candidata não foi promovida para Production.
+
 **Etapa local posterior:** o usuário autorizou categorias automáticas revisáveis no ambiente fictício. O Java agora pode acionar essa mesma cadeia em segundo plano, com origem AUTO/MANUAL e prioridade para correções; leia [a implementação prática](categorias-automaticas-local.md). Isso não foi publicado. O fluxo de sugestão manual abaixo continua válido quando a automação local está desligada e para o serviço remoto existente.
 
 **Economia posterior de LLM:** antes de chamar Python, o modo automático pode reutilizar uma decisão original LLM para a mesma descrição exata, mantendo origem AUTO/LOW e método MEMORY. Não é exemplo humano confirmado nem uma nova chamada ao modelo. Correção humana exata tem prioridade; o RAG continua atendendo os casos semelhantes em que não há memória reutilizável. [Validação, testes e limites](validacao-producao-2026-11-16.md).

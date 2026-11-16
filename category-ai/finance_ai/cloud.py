@@ -14,7 +14,7 @@ EXAMPLES = frozenset({"cantina bela jantar"})
 CATEGORIES = frozenset({"Alimentação", "Saúde", "Transporte", "Assinaturas", "Moradia", "Outros gastos"})
 
 
-def groq_model(mode="lab", *, clock=time.monotonic):
+def groq_model(mode="lab", *, clock=time.monotonic, before_request=None):
     if mode not in {"lab", "candidate", "production"}:
         raise ValueError("Modo de IA inválido.")
     if not os.environ.get("GROQ_API_KEY", "").strip():
@@ -64,6 +64,8 @@ def groq_model(mode="lab", *, clock=time.monotonic):
                     raise RuntimeError("Sugestão temporariamente indisponível.")
                 attempts.append(now)
         try:
+            if before_request is not None:
+                before_request()  # Shared durable quota, only on a cache miss immediately before HTTP.
             result = classify(payload)
             if mode != "lab":
                 with lock:

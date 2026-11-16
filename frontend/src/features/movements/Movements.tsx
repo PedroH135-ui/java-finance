@@ -16,7 +16,7 @@ export function Movements() {
   const hidden=params.get('hidden')==='true';
   return <>
     <PageHeader title="Movimentações" subtitle="Registros do banco e lançamentos manuais, juntos e sem aprovação prévia." action={<Button variant="contained" startIcon={<Add/>} onClick={()=>setParams(previous=>{const next=new URLSearchParams(previous);next.delete('hidden');next.set('new','1');return next;})}>Nova movimentação</Button>}/>
-    {import.meta.env.VITE_LOCAL_REVIEW==='true'&&<CategoryAutomationNotice/>}
+    <CategoryAutomationNotice/>
     <Alert severity="info" sx={{mb:2}}>Registros efetivados do banco entram automaticamente nos relatórios como entradas e saídas. As categorias organizam esses registros. Pendentes não entram nos totais realizados. Você pode ocultar algo incorreto e restaurar depois, sem alterar o saldo bancário.</Alert>
     <Tabs value={hidden?'hidden':'all'} onChange={(_,value:string)=>setParams(previous=>{const next=new URLSearchParams(previous);next.delete('tab');next.delete('detail');next.delete('page');if(value==='hidden')next.set('hidden','true');else next.delete('hidden');return next;})} aria-label="Visibilidade das movimentações" sx={{mb:3}} variant="scrollable" scrollButtons="auto">
       <Tab value="all" label="Todas as movimentações"/>

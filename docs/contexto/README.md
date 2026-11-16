@@ -2,6 +2,8 @@
 
 Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL no Neon. Java/React usam container na Vercel; o serviço Python FastAPI/LangChain é separado e usa Groq. Preserve essa arquitetura.
 
+Etapa mais recente **testada em Preview**: `codex/categorias-cloud-preview`, automação opt-in por usuário, correções prioritárias, RAG vetorial e fila na nuvem com dados fictícios. Ler [candidata cloud](../categorias-cloud-preview.md). V8→V13 passou em cópia da recuperação; Production continua V8. Nenhuma publicação Production autorizada nesta etapa; o histórico abaixo descreve a etapa local anterior.
+
 Última validação: [preparação para produção](../validacao-producao-2026-11-16.md). Docker real e V8→V11 passaram em cópia Neon recente; produção permanece V8 e não foi publicada. Reutilização MEMORY evita LLM em descrições repetidas. A automação com RAG vetorial ainda tem bloqueios de hospedagem, ativação e execução na nuvem; não remover guards locais para publicar.
 
 Trabalho local mais recente: `codex/categorias-auto-local`. A pedido do usuário, categorias automáticas com correção foram implementadas e testadas apenas no perfil fictício, com V10 local e sem alterar saldos. Sem publicação/push desta etapa; a PR #14 anterior continua na versão revisada anterior. Ler [implementação prática e testes](../categorias-automaticas-local.md).

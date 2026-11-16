@@ -30,6 +30,16 @@ public class CategoryAdvisor {
     private final boolean enabled; private final URI endpoint; private final String token; private final ObjectMapper mapper;
     private final String previewOidc;
     private final boolean localVectorDemo;
+    private boolean cloudRag;
+    @Autowired
+    public void cloudRag(@Value("${app.category-ai.cloud-rag:false}") boolean cloudRag) {
+        if(cloudRag && (!enabled || !"https".equals(endpoint.getScheme()) || token.length()<32 || localVectorDemo))
+            throw new IllegalArgumentException("Cloud RAG requires a separate authenticated HTTPS advisor.");
+        this.cloudRag=cloudRag;
+    }
+    public static class TemporarilyUnavailable extends RuntimeException {
+        public TemporarilyUnavailable(){super("Category service temporarily unavailable.");}
+    }
     private volatile long retryAfterNanos;
     private static final Set<String> STOP=Set.of("compra","pagamento","cartao","credito","debito","pix","recebido","enviado","para","de","do","da","via");
     private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(1)).followRedirects(HttpClient.Redirect.NEVER).proxy(new java.net.ProxySelector() {
@@ -104,7 +114,7 @@ public class CategoryAdvisor {
     }
     /** Original AI decisions are a memo, never promoted to confirmed human RAG examples. */
     public Suggestion suggest(UUID owner,String kind,Request raw,List<Example> modelDecisions) {
-        if(localVectorDemo && (owner==null || kind==null || !Set.of("EXPENSE","INCOME").contains(kind)))
+        if((localVectorDemo || cloudRag) && (owner==null || kind==null || !Set.of("EXPENSE","INCOME").contains(kind)))
             throw new IllegalArgumentException("The local vector demonstration requires the authenticated owner and direction.");
         var request=new Request(sanitize(raw.description()),raw.categories().stream().map(c->new Category(c.id(),sanitize(c.name()))).filter(c->!c.name().isBlank()).toList(),raw.history().stream().map(h->new Example(sanitize(h.description()),h.categoryId())).toList());
         var allowed=new HashSet<>(request.categories().stream().map(Category::id).toList());
@@ -120,14 +130,17 @@ public class CategoryAdvisor {
         if(rememberedIds.size()>1)return new Suggestion(null,"NONE","NONE","As decisões anteriores da IA são conflitantes; escolha uma categoria.",0,false);
         if(rememberedIds.size()==1)return new Suggestion(rememberedIds.getFirst(),"LOW","MEMORY","Reutilizou uma decisão anterior da IA para a mesma descrição; sem nova chamada ao LLM.",Math.min(100,remembered.size()),false);
         // Only the opt-in, loopback-only synthetic demo sends the bounded history for semantic indexing.
-        var outgoing=localVectorDemo?new Request(request.description(),request.categories().stream().limit(100).toList(),request.history().stream().limit(100).toList()):minimize(request);
+        var outgoing=(localVectorDemo || cloudRag)?new Request(request.description(),request.categories().stream().limit(100).toList(),request.history().stream().limit(100).toList()):minimize(request);
         var sentIds=new HashSet<>(outgoing.categories().stream().map(Category::id).toList());
         if(enabled && token.length()>=32 && (retryAfterNanos==0 || System.nanoTime()-retryAfterNanos>=0)) {
             String correlation=UUID.randomUUID().toString();long start=System.nanoTime();int status=0;
             try {
                 var builder=HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(10)).header("Content-Type","application/json").header("Authorization","Bearer "+token).header("X-Correlation-ID",correlation);
                 if(!previewOidc.isBlank())builder.header("x-vercel-trusted-oidc-idp-token",previewOidc);
+                else if(cloudRag && !VercelRuntimeIdentity.token().isBlank())
+                    builder.header("x-vercel-trusted-oidc-idp-token",VercelRuntimeIdentity.token());
                 if(localVectorDemo)builder.header("X-Local-Demo-Owner",owner.toString()).header("X-Local-Demo-Direction",kind);
+                if(cloudRag)builder.header("X-Category-Owner",owner.toString()).header("X-Category-Direction",kind);
                 var response=http.send(builder.POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(outgoing))).build(),HttpResponse.BodyHandlers.ofInputStream());
                 status=response.statusCode();
                 if(status!=200)retryAfterNanos=System.nanoTime()+Duration.ofSeconds(30).toNanos();
@@ -145,10 +158,11 @@ public class CategoryAdvisor {
             catch(Exception ignored) {retryAfterNanos=System.nanoTime()+Duration.ofSeconds(30).toNanos();}
             finally {LoggerFactory.getLogger(CategoryAdvisor.class).info("category_ai_request correlation_id={} status={} duration_ms={}",correlation,status,(System.nanoTime()-start)/1_000_000);}
         }
+        if(cloudRag)throw new TemporarilyUnavailable();
         return new Suggestion(null,"NONE","NONE","Sem uma sugestão segura agora. Você pode escolher a categoria manualmente.",0,false);
     }
     private Retrieval safeRetrieval(Retrieval value,Set<String> allowed) {
-        if(!localVectorDemo || value==null || !"PGVECTOR".equals(value.method()) || value.dimensions()!=384 || value.model()==null || value.model().length()>120
+        if(!(localVectorDemo || cloudRag) || value==null || !"PGVECTOR".equals(value.method()) || value.dimensions()!=384 || value.model()==null || value.model().length()>120
             || value.examples()==null || value.examples().size()>5) return null;
         for(var example:value.examples())if(example==null || !allowed.contains(example.categoryId()) || example.description()==null
             || example.description().length()>200 || !example.description().equals(sanitize(example.description()))

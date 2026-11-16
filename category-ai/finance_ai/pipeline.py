@@ -80,7 +80,7 @@ def retrieve(request: Request) -> dict:
     return {"request": request, "examples": hits[:5]}
 
 
-def build_pipeline(model: Callable[[dict], ModelChoice] | None = None, provider: Literal["none", "ollama", "groq"] = "ollama"):
+def build_pipeline(model: Callable[[dict], ModelChoice] | None = None, provider: Literal["none", "ollama", "groq"] = "ollama", *, strict_errors: bool = False):
     def decide(context: dict) -> Suggestion:
         request: Request = context["request"]
         examples = context["examples"]
@@ -96,6 +96,10 @@ def build_pipeline(model: Callable[[dict], ModelChoice] | None = None, provider:
                 return Suggestion(categoryId=strong[0]["categoryId"], confidence="HIGH" if len(strong) >= 3 else "MEDIUM",
                                   method="HISTORY", reason="Histórico semelhante deste perfil.", evidenceCount=len(strong))
             return Suggestion(reason="O histórico contém classificações conflitantes; escolha a categoria.")
+        # A person's PIX name alone provides no evidence of spending purpose. Do not pay a model to guess.
+        merchant_signals=set().union(*(signals for signals,names in RULES)) | {'delivery','pizza','restaurante','lanchonete','clinica','posto','assinatura'}
+        if 'pix' in terms and not terms & merchant_signals:
+            return Suggestion(reason="PIX sem finalidade identificável; escolha a categoria quando souber o motivo.")
         choices = set()
         for signals, names in RULES:
             if terms & signals:
@@ -115,6 +119,8 @@ def build_pipeline(model: Callable[[dict], ModelChoice] | None = None, provider:
                 return Suggestion(categoryId=choice.category_id, confidence="LOW", method="LLM",
                                   reason="Sugestão de IA; confirme antes de aplicar.", evidenceCount=len(examples), modelUsed=True, provider=provider)
         except Exception:
+            if strict_errors:
+                raise RuntimeError("Category model temporarily unavailable.") from None
             pass  # No raw exception, prompt, description or response is logged.
         return Suggestion(modelUsed=True, provider=provider)
 

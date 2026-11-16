@@ -78,7 +78,8 @@ class AutomaticCategoryIT {
         assertThat(assistance.assistance(owner,entry).currentCategoryId()).isNull();
         verify(advisor,times(1)).suggest(eq(owner),eq("EXPENSE"),any(),anyList());
         assistance.allowAutomatic(owner,entry,version());automatic.runPending();
-        assertThat(assistance.assistance(owner,entry).currentCategoryId()).isEqualTo(food);
+        // Re-enabling uses the last explicit correction, rather than the older model decision.
+        assertThat(assistance.assistance(owner,entry).currentCategoryId()).isEqualTo(other);
         assertThat(invariants()).isEqualTo(before);
     }
     @Test void userCorrectionDuringModelCallWinsTheRace(){

@@ -52,7 +52,7 @@ export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChan
     {!data.canCategorize?<Typography variant="body2">{data.unavailableReason}</Typography>:<>
       {data.currentCategoryId&&data.categoryState.source==='AUTO'&&<Alert severity="info">Categoria aplicada automaticamente ({data.categoryState.method==='MEMORY'?'decisão anterior da IA, sem nova chamada ao LLM':data.categoryState.method==='HISTORY'?'histórico':data.categoryState.method==='RULE'?'regra de descrição':'LLM'}). Você pode corrigir; sua escolha terá prioridade. A classificação pode errar.</Alert>}
       {data.categoryState.automaticBlocked&&<Alert severity="success">{data.currentCategoryId?'Categoria escolhida por você. A automação não vai sobrescrevê-la.':'Classificação automática pausada neste registro. Sua escolha manual tem prioridade.'}</Alert>}
-      {!data.currentCategoryId&&data.categoryState.automaticEnabled&&!data.categoryState.automaticBlocked&&<Alert severity="info">A classificação automática local roda em segundo plano. Casos sem informação suficiente continuam sem categoria. Você também pode escolher manualmente.</Alert>}
+      {!data.currentCategoryId&&data.categoryState.automaticEnabled&&!data.categoryState.automaticBlocked&&<Alert severity="info">A classificação automática roda em segundo plano. Casos sem informação suficiente continuam sem categoria. Você também pode escolher manualmente.</Alert>}
       {!data.currentCategoryId&&!data.categoryState.automaticEnabled&&<Box>
         <Typography variant="body2">{suggestion.reason}</Typography>
         {suggestion.categoryId&&<Stack direction="row" gap={1} flexWrap="wrap" mt={1}>

@@ -30,6 +30,10 @@ public class BankService {
                         String direction, String providerStatus, String state, UUID movementId, long version, List<Candidate> candidates) {}
     private final BankProperties config; private final BankProvider provider; private final JdbcTemplate jdbc;
     private final MovementService movements; private final AuditService audit; private final Clock clock; private final TransactionTemplate tx;
+    private org.springframework.context.ApplicationEventPublisher events;
+    public record ReadCompleted(UUID owner) {}
+    @org.springframework.beans.factory.annotation.Autowired
+    public void events(org.springframework.context.ApplicationEventPublisher events){this.events=events;}
     public BankService(BankProperties config, BankProvider provider, JdbcTemplate jdbc, MovementService movements, AuditService audit, Clock clock, PlatformTransactionManager manager) {
         this.config=config; this.provider=provider; this.jdbc=jdbc; this.movements=movements; this.audit=audit; this.clock=clock; tx=new TransactionTemplate(manager);
     }
@@ -81,6 +85,7 @@ public class BankService {
         try {
             int read = read(owner, id, input);
             completed = true;
+            if(events!=null)events.publishEvent(new ReadCompleted(owner));
             return read;
         } catch (BankReadException ex) {
             reference = ex.reference;

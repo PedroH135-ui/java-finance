@@ -28,6 +28,7 @@ artifacts/
 /.codex/
 /.agents/
 /skills-lock.json
+/category-ai/models/
 
 **/__pycache__/
 **/.pytest_cache/

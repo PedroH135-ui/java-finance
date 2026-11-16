@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Service
 @EnableScheduling
 public class AutomaticCategoryService {
-    public record Status(boolean enabled,boolean running,long categorized,long awaiting,Instant lastRun) {}
+    public record Status(boolean enabled,boolean running,long categorized,long awaiting,Instant lastRun,boolean available,long version) {}
     private static final String CANDIDATE="""
         owner_id=? AND provider_status='POSTED' AND NOT hidden AND state<>'IGNORED'
         AND movement_id IS NULL AND transfer_id IS NULL AND NOT category_auto_blocked
@@ -46,9 +46,16 @@ public class AutomaticCategoryService {
         }finally{lastRun=clock.instant();running.set(false);}
     }
     public Status status(UUID owner) {
-        if(!scope.activeFor(owner))return new Status(false,false,0,0,null);
+        boolean available=scope.availableFor(owner),active=scope.activeFor(owner);
+        long preferenceVersion=scope.cloudEnabled()?jdbc.query("SELECT version FROM category_automation_preference WHERE owner_id=?",(rs,n)->rs.getLong(1),owner).stream().findFirst().orElse(0L):0;
+        if(!active)return new Status(false,false,0,0,null,available,preferenceVersion);
         long categorized=jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE owner_id=? AND category_source='AUTO' AND category_id IS NOT NULL",Long.class,owner);
         long awaiting=jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE "+CANDIDATE,Long.class,owner);
-        return new Status(true,running.get(),categorized,awaiting,lastRun);
+        if(scope.cloudEnabled()){
+            var rows=jdbc.queryForList("SELECT last_run,lease_until>now() running FROM category_automation_job WHERE owner_id=?",owner);
+            var row=rows.isEmpty()?Map.<String,Object>of():rows.getFirst();
+            return new Status(true,Boolean.TRUE.equals(row.get("running")),categorized,awaiting,row.get("last_run")==null?null:((java.sql.Timestamp)row.get("last_run")).toInstant(),true,preferenceVersion);
+        }
+        return new Status(true,running.get(),categorized,awaiting,lastRun,true,preferenceVersion);
     }
 }
