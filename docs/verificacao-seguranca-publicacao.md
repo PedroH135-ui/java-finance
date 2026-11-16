@@ -18,6 +18,12 @@ Data: 13/11/2026. Ferramenta: Gitleaks 8.30.1 oficial, download verificado por S
 
 Os relatórios, artefatos locais, DPAPI, credenciais CLI, dumps e ambientes virtuais não fazem parte do pacote exportado. `.gitignore`, `.dockerignore` e `.vercelignore` foram conferidos. O status do envio autorizado ao GitHub é registrado no contexto operacional.
 
+## Revisão da integração vetorial local — 16/11/2026
+
+Gitleaks examinou as fontes do laboratório e o histórico completo acessível (31 commits antes do novo commit), sem achados. A revisão do diff mantém pesos, bancos, credenciais DPAPI, relatórios e screenshots em `.tools`, fora do Git. Os únicos dados novos versionados são exemplos fictícios e código; nenhuma conexão real foi adicionada ao serviço vetorial. A Vercel Java continua sem vínculo Git: push/PR desta branch não aplica V9 nem publica o laboratório.
+
+O teste de tela bloqueou requisições externas do navegador e confirmou que a simples consulta não grava categoria. Somente o Python local pode chamar a Groq, com o contexto fictício. Autenticação, limite de corpo e recusa de configuração de produção também foram testados. A proteção de um único perfil sintético não substitui o desenho de autorização multiusuário necessário para uma futura integração real.
+
 ## Limites e próxima verificação
 
 Uma varredura sem achados não garante ausência absoluta de segredos. Conferir o diff final, arquivos novos, pacote de frontend e alterações futuras antes do push. A chave Groq compartilhada anteriormente no chat deve ser substituída quando possível; seu valor não está no código ou neste relatório.

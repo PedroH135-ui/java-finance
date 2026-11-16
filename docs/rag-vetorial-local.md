@@ -168,6 +168,46 @@ docker stop java-finance-vector-lab
 
 Nada disso aplica V9 ou publica o Java/Python. O rollback do experimento é parar esse laboratório e continuar usando a recuperação lexical da aplicação. A futura integração com dados reais exige autorização, backup, revisão de permissões, atualização/remoção dos vetores quando categorias mudarem, calibração independente, medição de latência e decisão de hospedagem do encoder. Não copiar as credenciais Neon para o Python de produção por rotina.
 
+## Integração pela tela local — 16/11/2026
+
+O laboratório agora pode atender o Java Finance de demonstração. O caminho é navegador → Java em `127.0.0.1:8082` → Python em `127.0.0.1:8126` → pgvector em `127.0.0.1:55435`. A aplicação usa seu PostgreSQL fictício separado, em 55434. Nada se conecta ao Neon ou Pluggy.
+
+Depois de preparar a aplicação fictícia conforme `docs/validacao-local.md`, instalar o laboratório com `scripts/setup-vector-rag-local.ps1` e configurar opcionalmente a chave Groq protegida:
+
+```powershell
+pwsh -NoProfile -File scripts/start-review-vector-ai.ps1 -Build -UseGroq
+```
+
+Abra `http://127.0.0.1:8082/#/movements?month=2026-11`, entre com o perfil público fictício `demo@javafinance.local` / `DemoLocal123!` e abra os detalhes de **Pizza em domicílio**. Outros alvos: **Pagamento streaming musical**, **Medicamentos na drogaria** e **Conta de luz residencial**. Sem `-UseGroq`, a recuperação vetorial e as regras funcionam, mas casos que dependem de geração podem ficar sem sugestão.
+
+### O que o código faz e por quê
+
+1. `seed_ui.py` confirma container, porta, banco e perfil fictício antes de adicionar histórico categorizado e quatro alvos. Reexecução preserva escolhas; não recria movimentos, postings ou saldos bancários. Contrapartidas fictícias equilibram o cenário. Não é um importador bancário.
+2. O modo Java `CATEGORY_AI_LOCAL_VECTOR_DEMO=true` é opt-in, só aceita loopback autenticado e hospedagem local. Somente nesse modo envia até 100 exemplos/categorias e dois headers com proprietário/natureza. O modo normal mantém a minimização anterior e não envia esses headers.
+3. `ui_service.py` aceita um único proprietário fictício, exige Bearer token, limita corpo a 64 KiB e uma sugestão concorrente. Recusa ambiente Vercel e credenciais financeiras. Não recebe conexão do banco da aplicação.
+4. `ui_store.py` usa LangChain `PGVectorStore` e a tabela separada `vector_lab.ui_examples`. Normaliza descrições, cria embeddings e filtra proprietário, natureza, atividade, versão do modelo, categorias e snapshot do contexto atual. Trocar/remover classificações ou categorias invalida o snapshot anterior; vetores antigos deixam de participar e são removidos no escopo correspondente.
+5. O corte cosseno experimental 0,60 seleciona até cinco exemplos. O score lexical original continua sendo usado pela decisão de histórico, evitando transformar semelhança semântica em certeza. A decisão existente tenta histórico/regras antes do LLM e pode abster-se.
+6. O painel local mostra descrições recuperadas, categoria e similaridade. Informa se o adaptador LLM foi usado; `modelUsed` pode envolver cache e não prova uma nova chamada HTTP. O Groq vê somente o contexto fictício reduzido quando necessário. Abrir o painel nunca aplica categoria.
+
+O encoder fica neste computador durante o experimento; a geração opcional ocorre na Groq. O serviço Python de produção continua separado e não recebeu pgvector, pesos ou dependências deste laboratório. O processo local não torna este fluxo disponível com o computador desligado.
+
+### Evidência e rollback
+
+Validação em 16/11: dez testes Python vetoriais (sete anteriores + autenticação/contrato, invalidação de snapshot e barreiras de ambiente), 88 testes Java, lint e três testes frontend, build completo e um E2E de navegador passaram. O E2E recuperou `pedido de pizza entregue em casa → Delivery`, confirmou zero escritas ao abrir, aplicou e removeu por clique, preservou saldos/fluxo/totais e quantidade de movimentos. A categoria do alvo terminou vazia para o teste manual do usuário. Similaridade não é probabilidade de acerto; esses casos não demonstram melhoria geral de acurácia.
+
+Para repetir o E2E, com a aplicação já ativa:
+
+```powershell
+Set-Location frontend
+$env:E2E_URL='http://127.0.0.1:8082'
+$env:VECTOR_REVIEW_E2E='1'
+npx playwright test e2e/vector-local.spec.ts --output ../.tools/vector-ui-e2e
+```
+
+O teste é opt-in e restrito à URL local; fora disso fica ignorado. Usa apenas a fixture privada fictícia e restaura sua própria aplicação de categoria. Evidências e imagens ficam ignoradas em `.tools`.
+
+Rollback local: `pwsh -NoProfile -File scripts/start-review-local.ps1 -Restart` volta ao serviço lexical 8123 e desliga a opção vetorial no Java. Não apagar volumes ou aplicar rollback de Flyway. O serviço 8126 pode ser parado após conferir PID/comando em `.tools/vector-rag/ui-state.json`; não encerrar processos por nome genérico. Antes de migrar este experimento para dados reais: backup, branch de teste, autenticação multiusuário, política de retenção/vetores, calibração e avaliação da hospedagem do encoder continuam pendentes.
+
 ## Referências oficiais consultadas
 
 - [PGVectorStore no LangChain](https://docs.langchain.com/oss/python/integrations/vectorstores/pgvectorstore).

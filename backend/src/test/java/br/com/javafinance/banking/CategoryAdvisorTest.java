@@ -13,11 +13,13 @@ import static org.assertj.core.api.Assertions.*;
 class CategoryAdvisorTest {
     HttpServer server; AtomicReference<String> body=new AtomicReference<>();
     AtomicReference<String> correlation=new AtomicReference<>(); AtomicInteger calls=new AtomicInteger(); int responseStatus=200;
+    AtomicReference<String> ownerHeader=new AtomicReference<>(),directionHeader=new AtomicReference<>();
     String response="{\"categoryId\":\"food\",\"confidence\":\"MEDIUM\",\"method\":\"RULE\",\"reason\":\"untrusted reason\",\"evidenceCount\":0,\"modelUsed\":false}";
     @BeforeEach void start() throws Exception {
         server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         server.createContext("/suggest",exchange->{
             calls.incrementAndGet();correlation.set(exchange.getRequestHeaders().getFirst("X-Correlation-ID"));
+            ownerHeader.set(exchange.getRequestHeaders().getFirst("X-Local-Demo-Owner"));directionHeader.set(exchange.getRequestHeaders().getFirst("X-Local-Demo-Direction"));
             body.set(new String(exchange.getRequestBody().readAllBytes(),StandardCharsets.UTF_8));
             byte[] bytes=response.getBytes(StandardCharsets.UTF_8);exchange.sendResponseHeaders(responseStatus,bytes.length);exchange.getResponseBody().write(bytes);exchange.close();
         });server.start();
@@ -89,5 +91,33 @@ class CategoryAdvisorTest {
         assertThat(UUID.fromString(correlation.get())).isNotNull();
         assertThat(a.suggest(request("Mercado Alfa",List.of(new CategoryAdvisor.Example("Mercado Alfa","food")))).method()).isEqualTo("HISTORY");
         assertThat(calls.get()).isEqualTo(1);
+    }
+    CategoryAdvisor vectorAdvisor() {
+        return new CategoryAdvisor(true,"http://127.0.0.1:"+server.getAddress().getPort(),"synthetic-token-at-least-32-characters",new ObjectMapper(),"","","development",true,"local");
+    }
+    String vectorResponse(String category,double similarity) {
+        return "{\"categoryId\":\"food\",\"confidence\":\"LOW\",\"method\":\"LLM\",\"reason\":\"synthetic\",\"evidenceCount\":1,\"modelUsed\":true,\"retrieval\":{\"method\":\"PGVECTOR\",\"model\":\"synthetic-model\",\"dimensions\":384,\"examples\":[{\"description\":\"pedido de pizza entregue em casa\",\"categoryId\":\""+category+"\",\"similarity\":"+similarity+"}]}}";
+    }
+    @Test void vectorDemoForwardsBoundedHistoryAndAuthenticatedScopeOnlyToLoopback() {
+        response=vectorResponse("food",0.92);UUID owner=UUID.randomUUID();
+        var history=List.of(new CategoryAdvisor.Example("pedido de pizza entregue em casa","food"),new CategoryAdvisor.Example("remedios comprados na farmacia","food"));
+        var result=vectorAdvisor().suggest(owner,"EXPENSE",request("pizza em domicilio",history));
+        assertThat(ownerHeader.get()).isEqualTo(owner.toString());assertThat(directionHeader.get()).isEqualTo("EXPENSE");
+        assertThat(body.get()).contains("remedios comprados na farmacia");
+        assertThat(result.retrieval().dimensions()).isEqualTo(384);assertThat(result.retrieval().examples()).hasSize(1);
+    }
+    @Test void vectorDemoRejectsCloudProductionAndMissingAuthenticatedScope() {
+        String token="synthetic-token-at-least-32-characters";
+        assertThatThrownBy(()->new CategoryAdvisor(true,"http://127.0.0.1:8126",token,new ObjectMapper(),"","","development",true,"cloud")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->new CategoryAdvisor(true,"https://example.vercel.app",token,new ObjectMapper(),"example.vercel.app","","production",true,"local")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->vectorAdvisor().suggest(request("pizza",List.of()))).isInstanceOf(IllegalArgumentException.class);
+        assertThat(calls.get()).isZero();
+    }
+    @Test void normalModeDoesNotSendOwnerOrExposeVectorDetailsAndInvalidTraceIsDiscarded() {
+        response=vectorResponse("food",0.92);
+        assertThat(advisor(true).suggest(UUID.randomUUID(),"EXPENSE",request("pizza",List.of())).retrieval()).isNull();
+        assertThat(ownerHeader.get()).isNull();assertThat(directionHeader.get()).isNull();
+        response=vectorResponse("foreign",0.92);
+        assertThat(vectorAdvisor().suggest(UUID.randomUUID(),"EXPENSE",request("pizza",List.of())).retrieval()).isNull();
     }
 }

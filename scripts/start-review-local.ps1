@@ -1,5 +1,6 @@
-param([switch]$Build,[switch]$Restart,[switch]$RestartAi,[switch]$RemoteAi,[ValidateSet('off','qwen2.5:1.5b','groq')][string]$Llm)
+param([switch]$Build,[switch]$Restart,[switch]$RestartAi,[switch]$RemoteAi,[switch]$VectorAi,[ValidateSet('off','qwen2.5:1.5b','groq')][string]$Llm)
 $ErrorActionPreference='Stop'
+if($VectorAi -and ($RemoteAi -or $PSBoundParameters.ContainsKey('Llm'))){throw 'The vector demo cannot be combined with the remote or classic model switches.'}
 $financeReviewRoot=Split-Path $PSScriptRoot -Parent
 $financeReviewPrivate=Join-Path $financeReviewRoot '.tools/local-review'
 New-Item -ItemType Directory -Path $financeReviewPrivate -Force | Out-Null
@@ -20,6 +21,7 @@ try {
         $financeReviewConfig | ConvertTo-Json | Set-Content -LiteralPath $financeReviewConfigPath -Encoding utf8
     }
     if($financeReviewConfig.database -ne 'java_finance_review' -or $financeReviewConfig.dbUser -ne 'review_owner'){throw 'Unexpected local database configuration.'}
+    if($VectorAi -and (!$financeReviewConfig.demoSeeded -or !$financeReviewConfig.ownerId)){throw 'The vector demo requires the seeded fictitious local profile.'}
     $financeReviewPreviousModel=$financeReviewConfig.model
     $financeReviewPreviousProvider=if($financeReviewConfig.provider){$financeReviewConfig.provider}elseif($financeReviewConfig.model){'ollama'}else{'none'}
     if($PSBoundParameters.ContainsKey('Llm')) {
@@ -68,7 +70,7 @@ try {
         Push-Location backend
         try {./mvnw.cmd -o -B -ntp '-Dfinance.build.directory=target/local-review' -Pintegrated -DskipTests package *> ../.tools/local-review/backend-build.log;if($LASTEXITCODE -ne 0){throw 'Local backend build failed.'}} finally {Pop-Location}
     }
-    if(!$RemoteAi){
+    if(!$RemoteAi -and !$VectorAi){
     if($financeReviewProvider -eq 'ollama'){& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'start-review-ollama.ps1') -Model $financeReviewConfig.model;if($LASTEXITCODE -ne 0){throw 'Local model startup failed.'}}
     elseif($financeReviewPreviousProvider -eq 'ollama' -and $PSBoundParameters.ContainsKey('Llm')){& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'start-review-ollama.ps1') -Unload;if($LASTEXITCODE -ne 0){throw 'Local model unload failed.'}}
     if($RestartAi -and $financeReviewState.pythonPid) {
@@ -114,6 +116,8 @@ try {
     $env:REGISTRATION_ENABLED=if($financeReviewConfig.ownerId){'false'}else{'true'}
     $env:APP_HOSTING='local';$env:FRONTEND_ORIGIN='http://127.0.0.1:8082'
     $env:CATEGORY_AI_ENABLED='true';$env:CATEGORY_AI_URL='http://127.0.0.1:8123'
+    $env:CATEGORY_AI_TOKEN=$financeReviewConfig.aiToken
+    if($VectorAi){$env:CATEGORY_AI_URL='http://127.0.0.1:8126';$env:CATEGORY_AI_LOCAL_VECTOR_DEMO='true'}
     if($RemoteAi){
         $financeReviewRemoteSecret=Import-Clixml -LiteralPath (Join-Path $financeReviewRoot '.tools/category-ai-cloud-preview/service-token.clixml')
         try {$env:CATEGORY_AI_TOKEN=[Net.NetworkCredential]::new('',$financeReviewRemoteSecret).Password} finally {$financeReviewRemoteSecret.Dispose()}
@@ -132,12 +136,16 @@ try {
     for($financeAttempt=0;$financeAttempt -lt 45;$financeAttempt++) {
         try {
             $null=Invoke-RestMethod 'http://127.0.0.1:8082/api/auth/config' -TimeoutSec 2
-            if(!$RemoteAi){$null=Invoke-RestMethod 'http://127.0.0.1:8123/health' -TimeoutSec 2}
+            if(!$RemoteAi){$null=Invoke-RestMethod $(if($VectorAi){'http://127.0.0.1:8126/health'}else{'http://127.0.0.1:8123/health'}) -TimeoutSec 2}
             $financeReviewReady=$true;break
         } catch {Start-Sleep -Seconds 1}
     }
     if(!$financeReviewReady){throw 'Local services did not become ready. Check .tools/local-review logs; no production services were contacted.'}
-    if(!$RemoteAi){
+    if($VectorAi){
+        $financeVectorHealth=Invoke-RestMethod 'http://127.0.0.1:8126/health' -TimeoutSec 2
+        if($financeVectorHealth.mode -ne 'local-vector-demo' -or $financeVectorHealth.retrieval -ne 'PGVECTOR'){throw 'Unexpected local vector service.'}
+        Write-Output 'Local vector UI: http://127.0.0.1:8082 — fictitious app DB 55434 — Python 8126 — pgvector 55435. No production connection.'
+    }elseif(!$RemoteAi){
         $financeReviewHealth=Invoke-RestMethod 'http://127.0.0.1:8123/health' -TimeoutSec 2
         if([bool]$financeReviewHealth.modelEnabled -ne [bool]$financeReviewConfig.model -or ($financeReviewHealth.provider -and $financeReviewHealth.provider -ne $financeReviewProvider)){throw 'Python is running with a different model configuration; use -RestartAi.'}
         Write-Output 'Local app: http://127.0.0.1:8082 — database 127.0.0.1:55434 — Python 127.0.0.1:8123. No production or Pluggy credentials loaded.'

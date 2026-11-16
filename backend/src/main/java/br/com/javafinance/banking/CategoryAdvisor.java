@@ -17,13 +17,19 @@ public class CategoryAdvisor {
     public record Category(String id,String name) {}
     public record Example(String description,String categoryId) {}
     public record Request(String description,List<Category> categories,List<Example> history) {}
-    public record Suggestion(String categoryId,String confidence,String method,String reason,int evidenceCount,boolean modelUsed,String provider) {
+    public record RetrievedExample(String description,String categoryId,double similarity) {}
+    public record Retrieval(String method,String model,int dimensions,List<RetrievedExample> examples) {}
+    public record Suggestion(String categoryId,String confidence,String method,String reason,int evidenceCount,boolean modelUsed,String provider,Retrieval retrieval) {
+        public Suggestion(String categoryId,String confidence,String method,String reason,int evidenceCount,boolean modelUsed,String provider) {
+            this(categoryId,confidence,method,reason,evidenceCount,modelUsed,provider,null);
+        }
         public Suggestion(String categoryId,String confidence,String method,String reason,int evidenceCount,boolean modelUsed) {
             this(categoryId,confidence,method,reason,evidenceCount,modelUsed,"none");
         }
     }
     private final boolean enabled; private final URI endpoint; private final String token; private final ObjectMapper mapper;
     private final String previewOidc;
+    private final boolean localVectorDemo;
     private volatile long retryAfterNanos;
     private static final Set<String> STOP=Set.of("compra","pagamento","cartao","credito","debito","pix","recebido","enviado","para","de","do","da","via");
     private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(1)).followRedirects(HttpClient.Redirect.NEVER).proxy(new java.net.ProxySelector() {
@@ -38,11 +44,16 @@ public class CategoryAdvisor {
         @Value("${app.category-ai.allowed-host:}") String allowedHost,@Value("${app.category-ai.preview-oidc:}") String previewOidc) {
         this(enabled,url,token,mapper,allowedHost,previewOidc,"development");
     }
+    public CategoryAdvisor(boolean enabled,String url,String token,ObjectMapper mapper,String allowedHost,String previewOidc,String runtimeEnvironment) {
+        this(enabled,url,token,mapper,allowedHost,previewOidc,runtimeEnvironment,false,"local");
+    }
     @Autowired
     public CategoryAdvisor(@Value("${app.category-ai.enabled:false}") boolean enabled,
         @Value("${app.category-ai.url:http://127.0.0.1:8123}") String url,@Value("${app.category-ai.token:}") String token,ObjectMapper mapper,
         @Value("${app.category-ai.allowed-host:}") String allowedHost,@Value("${app.category-ai.preview-oidc:}") String previewOidc,
-        @Value("${VERCEL_ENV:development}") String runtimeEnvironment) {
+        @Value("${VERCEL_ENV:development}") String runtimeEnvironment,
+        @Value("${app.category-ai.local-vector-demo:false}") boolean localVectorDemo,
+        @Value("${app.hosting:local}") String hosting) {
         this.enabled=enabled; this.token=token; this.mapper=mapper;
         URI base=URI.create(url);
         boolean local="http".equals(base.getScheme()) && "127.0.0.1".equals(base.getHost());
@@ -52,6 +63,9 @@ public class CategoryAdvisor {
             || !(base.getPath().isEmpty() || base.getPath().equals("/"))) throw new IllegalArgumentException("Category advisor requires loopback HTTP or the explicitly allowed HTTPS Vercel host.");
         if(enabled && "production".equals(runtimeEnvironment) && (!remote || token.length()<32 || !previewOidc.isBlank()))
             throw new IllegalArgumentException("Production AI requires authenticated HTTPS and cannot use a development OIDC token.");
+        if(localVectorDemo && (!local || !"local".equals(hosting) || "production".equals(runtimeEnvironment) || !previewOidc.isBlank() || token.length()<32))
+            throw new IllegalArgumentException("The vector demonstration requires authenticated loopback and local hosting only.");
+        this.localVectorDemo=localVectorDemo;
         this.previewOidc=remote?previewOidc:"";
         endpoint=base.resolve("/suggest");
     }
@@ -79,6 +93,11 @@ public class CategoryAdvisor {
         return new Request(request.description(),categories,selected.stream().filter(e->allowed.contains(e.categoryId())).toList());
     }
     public Suggestion suggest(Request raw) {
+        return suggest(null,null,raw);
+    }
+    public Suggestion suggest(UUID owner,String kind,Request raw) {
+        if(localVectorDemo && (owner==null || kind==null || !Set.of("EXPENSE","INCOME").contains(kind)))
+            throw new IllegalArgumentException("The local vector demonstration requires the authenticated owner and direction.");
         var request=new Request(sanitize(raw.description()),raw.categories().stream().map(c->new Category(c.id(),sanitize(c.name()))).filter(c->!c.name().isBlank()).toList(),raw.history().stream().map(h->new Example(sanitize(h.description()),h.categoryId())).toList());
         var allowed=new HashSet<>(request.categories().stream().map(Category::id).toList());
         var words=terms(request.description());
@@ -88,13 +107,15 @@ public class CategoryAdvisor {
         var ids=exact.stream().map(Example::categoryId).distinct().toList();
         if(!request.description().isBlank() && ids.size()==1)return new Suggestion(ids.getFirst(),exact.size()>=3?"HIGH":"MEDIUM","HISTORY",reason("HISTORY"),Math.min(100,exact.size()),false);
         if(ids.size()>1)return new Suggestion(null,"NONE","NONE","Seu histórico contém classificações conflitantes; escolha uma categoria.",0,false);
-        var outgoing=minimize(request);
+        // Only the opt-in, loopback-only synthetic demo sends the bounded history for semantic indexing.
+        var outgoing=localVectorDemo?new Request(request.description(),request.categories().stream().limit(100).toList(),request.history().stream().limit(100).toList()):minimize(request);
         var sentIds=new HashSet<>(outgoing.categories().stream().map(Category::id).toList());
         if(enabled && token.length()>=32 && (retryAfterNanos==0 || System.nanoTime()-retryAfterNanos>=0)) {
             String correlation=UUID.randomUUID().toString();long start=System.nanoTime();int status=0;
             try {
                 var builder=HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(10)).header("Content-Type","application/json").header("Authorization","Bearer "+token).header("X-Correlation-ID",correlation);
                 if(!previewOidc.isBlank())builder.header("x-vercel-trusted-oidc-idp-token",previewOidc);
+                if(localVectorDemo)builder.header("X-Local-Demo-Owner",owner.toString()).header("X-Local-Demo-Direction",kind);
                 var response=http.send(builder.POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(outgoing))).build(),HttpResponse.BodyHandlers.ofInputStream());
                 status=response.statusCode();
                 if(status!=200)retryAfterNanos=System.nanoTime()+Duration.ofSeconds(30).toNanos();
@@ -105,7 +126,7 @@ public class CategoryAdvisor {
                         String provider=result.provider()==null?"none":result.provider();
                         if((result.categoryId()==null || sentIds.contains(result.categoryId())) && Set.of("HIGH","MEDIUM","LOW","NONE").contains(result.confidence())
                             && Set.of("HISTORY","RULE","LLM","NONE").contains(result.method()) && Set.of("none","ollama","groq").contains(provider) && result.evidenceCount()>=0 && result.evidenceCount()<=100)
-                            return new Suggestion(result.categoryId(),result.confidence(),result.method(),reason(result.method()),result.evidenceCount(),result.modelUsed(),provider);
+                            return new Suggestion(result.categoryId(),result.confidence(),result.method(),reason(result.method()),result.evidenceCount(),result.modelUsed(),provider,safeRetrieval(result.retrieval(),sentIds));
                     }
                 }
             } catch(InterruptedException e) { Thread.currentThread().interrupt(); }
@@ -113,6 +134,14 @@ public class CategoryAdvisor {
             finally {LoggerFactory.getLogger(CategoryAdvisor.class).info("category_ai_request correlation_id={} status={} duration_ms={}",correlation,status,(System.nanoTime()-start)/1_000_000);}
         }
         return new Suggestion(null,"NONE","NONE","Sem uma sugestão segura agora. Você pode escolher a categoria manualmente.",0,false);
+    }
+    private Retrieval safeRetrieval(Retrieval value,Set<String> allowed) {
+        if(!localVectorDemo || value==null || !"PGVECTOR".equals(value.method()) || value.dimensions()!=384 || value.model()==null || value.model().length()>120
+            || value.examples()==null || value.examples().size()>5) return null;
+        for(var example:value.examples())if(example==null || !allowed.contains(example.categoryId()) || example.description()==null
+            || example.description().length()>200 || !example.description().equals(sanitize(example.description()))
+            || !Double.isFinite(example.similarity()) || example.similarity()<0.6 || example.similarity()>1.00001)return null;
+        return value;
     }
     private static String reason(String method) {
         return switch(method) {

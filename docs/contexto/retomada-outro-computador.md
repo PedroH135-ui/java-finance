@@ -1,6 +1,6 @@
 # Retomar em outro computador
 
-Atualizado em 13/11/2026. O acesso administrativo ao banco não está disponível agora. A alteração do schema já está escrita na V9; foi adiada sua aplicação em produção, não sua implementação.
+Atualizado em 16/11/2026. O projeto Neon correto já foi localizado (detalhes no handoff); falta confirmar recuperação. A alteração do schema já está escrita na V9; foi adiada sua aplicação em produção, não sua implementação.
 
 ## Leia primeiro
 
@@ -11,10 +11,10 @@ Atualizado em 13/11/2026. O acesso administrativo ao banco não está disponíve
 
 ## Recuperar o código
 
-O trabalho está na branch `codex/ia-pronta-producao`, não na branch padrão do repositório. Para uma cópia nova:
+O trabalho local mais recente está na branch `codex/rag-vetorial-local`, com PR sobre `codex/ia-pronta-producao`, não na branch padrão do repositório. A base da PR não representa o Java publicado. Para uma cópia nova após o push:
 
 ```powershell
-git clone --branch codex/ia-pronta-producao https://github.com/PedroH135-ui/java-finance.git
+git clone --branch codex/rag-vetorial-local https://github.com/PedroH135-ui/java-finance.git
 Set-Location java-finance
 git status --short
 ```
@@ -44,7 +44,7 @@ Use Python 3.13 no comando inicial. Configure `JAVA_HOME` para o JDK 21 instalad
 
 | Pendência | Como confirmar a conclusão |
 |---|---|
-| Localizar o projeto Neon correto | Correspondência entre endpoint usado pelo Java de produção e projeto/branch acessível; não escolher `comunia-db` apenas por estar na conta |
+| Revalidar o projeto Neon correto | Identificado em 16/11 como `java-finance` / `twilight-field-61680463`; conferir correspondência novamente antes do backup, pois a configuração pode mudar |
 | Confirmar recuperação | Registrar projeto, branch de origem, ID/data/estado do ponto de recuperação ou backup e procedimento de restauração validado; nenhum segredo no Git |
 | Testar V9 em cópia isolada | Executar migração com conexão direta e verificar compatibilidade com dados existentes, sem alterar o banco principal |
 | Preparar o acesso Java → Python | Conferir hostname estável e mesmo token de serviço Production nos dois projetos; não reutilizar OIDC de Preview |

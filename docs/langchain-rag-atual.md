@@ -98,7 +98,9 @@ Depois da confirmação, a view pode excluir o par dos totais de renda/gastos, s
 
 Foram desenvolvidos o painel de assistência nos detalhes das movimentações, a escolha/remover categoria de registro bancário, a identificação/desfazer transferência própria, as estruturas da V9 e o serviço Python remoto. O serviço começou com suporte a LLM local e ganhou adaptador Groq, autenticação própria e configuração de produção. Histórico e regras continuam antes do modelo.
 
-Não foram desenvolvidos um chatbot financeiro, planejamento de compras, metas de poupança com aconselhamento, recomendações de investimentos, embeddings ou um RAG de documentos. Essas são ideias futuras. Não devem ser consideradas prontas por existir LangChain.
+Não foram desenvolvidos um chatbot financeiro, planejamento de compras, metas de poupança com aconselhamento, recomendações de investimentos ou um RAG de documentos. Essas são ideias futuras. Não devem ser consideradas prontas por existir LangChain.
+
+Em 16/11, embeddings e pgvector passaram a funcionar **na tela local de demonstração**, como opção separada da recuperação lexical descrita acima. `scripts/start-review-vector-ai.ps1` ativa explicitamente o Java local, que envia até 100 exemplos fictícios ao serviço Python 8126. `UIHistoryRetriever` transforma descrições em vetores MiniLM de 384 dimensões e busca até cinco vizinhos no pgvector 55435, filtrados por perfil, natureza, categorias permitidas e versão do snapshot. A cadeia é `RunnableLambda(recuperar_pgvector_local) | decisão_existente`. Regras, abstenção, cache e escolha manual são preservados. O painel mostra quais exemplos foram recuperados e se o fluxo precisou do adaptador LLM. Isso não mudou a recuperação do serviço publicado nem habilitou Java/V9 em produção. Veja [laboratório e integração local](rag-vetorial-local.md).
 
 ## Arquivos para estudar
 

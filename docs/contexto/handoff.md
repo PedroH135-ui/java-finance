@@ -1,6 +1,21 @@
 # Retomada da publicação da IA
 
-Atualizado em 13/11/2026.
+Atualizado em 16/11/2026.
+
+## Estado atual — prevalece sobre o histórico de 13/11 abaixo
+
+- Escopo atual: integração vetorial **local**, dados fictícios e PR com contexto. Não publicar nem fazer merge. Branch `codex/rag-vetorial-local`, base de PR `codex/ia-pronta-producao` (essa base também contém Java/V9 ainda não publicados).
+- Neon resolvido em 16/11 por consultas somente de leitura: organização `org-still-river-65847486`, projeto `java-finance` / `twilight-field-61680463`, branch principal `br-red-resonance-b6w00wvg`, endpoint `ep-bold-math-b6bdxylj`, região São Paulo, banco `java_finance`. O endpoint do projeto coincide com o hostname nos logs atuais da Vercel. Não usar o projeto `comunia-db` nem continuar procurando o endpoint antigo.
+- Java de produção atual observado: `dpl_5pMaPchaokz49sJSTQSrCDbmzxb7`, saúde 200/UP e logs de inicialização com schema **8**. A mudança do deployment/conexão foi externa a esta etapa; não atribuir ao código local. **Backup não criado/confirmado, V9 não aplicada por nós.**
+- Projeto Java Vercel continua sem vínculo Git, verificado antes de preparar o push. O envio desta branch não publica a aplicação.
+- Integração local: Java/React 8082 → FastAPI 8126 → embeddings MiniLM 384 + pgvector 55435. Banco fictício da aplicação 55434 separado. Python não recebe a conexão da aplicação nem credenciais Neon/Pluggy. Somente o perfil fictício explicitamente configurado é aceito.
+- A tela mostra exemplos e similaridade; categorias continuam sugestões. Abertura não salva; aplicar/remover exige clique. O cosseno recupera contexto, não substitui o score lexical nem mede certeza de classificação. Quando histórico/regras não resolvem, o adaptador Groq pode gerar ou reutilizar cache.
+- Snapshots versionados invalidam vetores de histórico removido/reclassificado. Histórico é limitado a 100 exemplos e categorias; não é indexação de todo o banco. Modo vetorial desativado por padrão e impedido em hospedagem não local.
+- Validação em 16/11: Java `verify` 88 testes (33 unitários + 55 integração), Python vetorial 10 testes, frontend lint + 3 testes, build Java/React e E2E real pela tela passaram. E2E verificou contexto pizza → Delivery, zero gravações ao abrir, dois cliques de aplicar/remover, categoria restaurada, saldos/fluxo/totais e quantidade de movimentos preservados, sem chamadas externas do navegador. Chamadas Groq ocorrem pelo Python e receberam apenas exemplos fictícios.
+- Executar `pwsh -NoProfile -File scripts/start-review-vector-ai.ps1 -Build -UseGroq` após preparar o ambiente fictício e o laboratório. Sem `-UseGroq`, não chama LLM. Ver `docs/rag-vetorial-local.md` para setup, limites, testes e rollback local.
+- Próxima etapa de produção continua separada: confirmar recuperação desse projeto correto, testar V9 em branch isolada, verificar invariantes e só então retomar publicação autorizada pertinente. A integração vetorial requer ainda avaliação de hospedagem do encoder, permissões multiusuário, atualização de índice e calibração antes de qualquer proposta de produção.
+
+## Histórico de 13/11 — identificação antiga do Neon superada
 
 ## Estado confirmado
 

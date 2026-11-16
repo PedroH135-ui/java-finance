@@ -62,7 +62,7 @@ public class BankAssistanceService {
             WHERE f.owner_id=? AND f.kind=? AND f.status='CONFIRMED' AND NOT f.hidden AND NOT c.archived
             ORDER BY f.operation_date DESC,f.id LIMIT 100
             """,(rs,n)->new CategoryAdvisor.Example(rs.getString("description"),rs.getString("category_id")),owner,kind);
-        var suggestion=advisor.suggest(new CategoryAdvisor.Request((String)e.get("description"),categories,history));
+        var suggestion=advisor.suggest(owner,kind,new CategoryAdvisor.Request((String)e.get("description"),categories,history));
         return new Assistance(version(e),current,true,"",suggestion,candidates,transfer);
     }
     private Map<UUID,Map<String,Object>> lockEntries(UUID owner,List<UUID> ids) {

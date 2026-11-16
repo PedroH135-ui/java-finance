@@ -8,7 +8,8 @@ import { Failure, Loading } from '../../components/Shared';
 
 interface Assistance {
   entryVersion:number; currentCategoryId:string|null; canCategorize:boolean; unavailableReason:string;
-  categorySuggestion:{categoryId:string|null;confidence:string;method:string;reason:string;evidenceCount:number;modelUsed:boolean;provider?:string};
+  categorySuggestion:{categoryId:string|null;confidence:string;method:string;reason:string;evidenceCount:number;modelUsed:boolean;provider?:string;
+    retrieval?:{method:string;model:string;dimensions:number;examples:{description:string;categoryId:string;similarity:number}[]}|null};
   transferCandidates:{id:string;accountName:string;description:string;amount:string;date:string;version:number}[];
   transfer:{id:string;peerId:string;version:number;valid:boolean}|null;
 }
@@ -56,6 +57,14 @@ export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChan
           {suggestion.evidenceCount>0&&<Chip size="small" label={suggestion.evidenceCount+' exemplo(s) relevante(s)'}/>}
         </Stack>}
       </Box>}
+      {import.meta.env.VITE_LOCAL_REVIEW==='true'&&suggestion.retrieval?.method==='PGVECTOR'&&<Alert severity="info">
+        <Typography variant="subtitle2">RAG vetorial local · {suggestion.retrieval.dimensions} dimensões</Typography>
+        <Typography variant="body2">Exemplos recuperados do histórico fictício deste perfil. Similaridade não é certeza de acerto.</Typography>
+        {suggestion.retrieval.examples.length?suggestion.retrieval.examples.map((example,index)=><Typography variant="body2" key={index}>
+          {example.description} → {categories.data?.find(c=>c.id===example.categoryId)?.name??'Categoria do perfil'} · similaridade {example.similarity.toFixed(3)}
+        </Typography>):<Typography variant="body2">Nenhum exemplo atingiu o corte experimental de 0,60. Você pode escolher a categoria manualmente.</Typography>}
+        <Typography variant="caption">{suggestion.modelUsed?'O fluxo consultou o adaptador do LLM; ele pode reutilizar cache.':'Esta resposta não precisou do LLM.'} Abrir os detalhes não grava a categoria.</Typography>
+      </Alert>}
       <Typography variant="caption" color="text.secondary">A sugestão não é certeza. Você pode escolher outra categoria; só aplicamos depois do seu clique.</Typography>
       {categories.isPending?<Loading/>:categories.error?<Failure error={categories.error}/>:<>
         <TextField select label="Categoria para este registro" value={choice} onChange={e=>setSelected(e.target.value)} disabled={busy}>
