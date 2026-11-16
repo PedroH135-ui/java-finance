@@ -2,6 +2,8 @@
 
 Branch `codex/categorias-padrao`, baseada no merge `647dbc4` da PR #15. A PR #14 foi fechada como substituída. Esta mudança é local: sem push, PR, migração ou deploy. Produção continua na versão anterior; não adicionar categorias reais nem ativar usuários por este documento.
 
+**Atualização posterior autorizada em 16/11:** alteração publicada em Production, deployment `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`, sem migração ou mudanças financeiras. Ler [resultado de publicação e rollback](publicacao-categorias-padrao-2026-11-16.md); a introdução acima registra a etapa local anterior.
+
 ## Comportamento
 
 No cadastro permitido pela configuração existente, `UserService.register` chama `CategoryService.addDefaults` na mesma transação: usuário e categorias são criados juntos. O cadastro de produção continua desabilitado; este código não altera essa configuração.

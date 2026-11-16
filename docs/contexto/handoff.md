@@ -2,6 +2,13 @@
 
 Atualizado em 16/11/2026.
 
+## Última etapa — categorias padrão publicadas, envio ao GitHub autorizado
+
+- Usuário autorizou publicar e depois abrir PR. Java/React `e9137ce` publicados no deployment `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`, domínio principal promovido após saúde e hashes conferidos. Python permanece `dpl_5mmPrfrZkJmuKDXTnUbC3nebHGUV`; sem mudanças em configurações/segredos/vínculo Git. Relatório: `docs/publicacao-categorias-padrao-2026-11-16.md`.
+- V13 e hashes financeiros, categorias, opt-in, correções e transferências preservados. Botão visível na sessão real; não foi clicado. Nenhum usuário real ativado, categoria real criada ou saldo alterado por esta publicação. Novos cadastros recebem padrões, mas o cadastro continua desabilitado em Production.
+- Saúde UP; API protegida 401/403; bundle e tela confirmados. Runtime error/fatal do deployment novo retornou zero no intervalo observado. Guardar só contagens/hashes, não logs brutos ou linhas financeiras. Base de testes: Java 117, frontend três/lint/build, quatro E2E locais, todos aprovados; Gitleaks sem achados.
+- Branch de trabalho `codex/categorias-padrao`. Abrir PR autorizada contra `feat/fundacao-financeira`, sem merge. Atualizar o link após criação; nenhum documento autoriza novos deploys ou ativação. Entradas abaixo são históricas.
+
 ## Etapa atual — categorias padrão locais
 
 - PR #15 integrada com checks aprovados, merge `647dbc4`; PR #14 fechada com comentário como substituída. Nenhum deploy por essas operações.
