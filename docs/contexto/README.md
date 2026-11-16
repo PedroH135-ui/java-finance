@@ -4,6 +4,8 @@ Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL 
 
 Estado: Python da IA publicado; recuperação Neon confirmada e V9 validada em branch isolada em 16/11. Produção Java continua na V8, sem alterações de saldos. O usuário pediu ver o resultado antes de publicar.
 
+Flyway local atualizado para **11.20.3**; novo teste V8 → V9 no PostgreSQL 18.7 passou sem aviso de compatibilidade, com invariantes preservados. Essa atualização ainda não foi publicada.
+
 O projeto Neon correto está acessível. A branch de recuperação foi preservada sem compute; a cópia de teste migrou com invariantes preservados. Na branch `codex/rag-vetorial-local`, o laboratório pgvector foi integrado à tela local com dados fictícios. Ler o handoff antes de publicar: esta integração não está em produção.
 
 - [Retomada e pendências](handoff.md)

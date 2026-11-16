@@ -1,6 +1,28 @@
 # Recuperação Neon e teste isolado da V9
 
-Concluído em **16/11/2026, 11:05 BRT**, a pedido do usuário, sem publicação. Código validado: `467e1f9`, branch Git `codex/rag-vetorial-local`. Nenhuma dependência ou migração foi modificada nesta validação.
+Atualizado em **16/11/2026, 11:18 BRT**, sem publicação. A primeira execução, às 11:05, validou `467e1f9` com Flyway 11.7.2. A execução posterior abaixo valida a atualização explícita para Flyway 11.20.3. Nenhum SQL de migração foi modificado.
+
+## Revalidação com Flyway 11.20.3 — aviso corrigido
+
+O usuário autorizou corrigir a compatibilidade e repetir o teste antes de publicar. `backend/pom.xml` agora fixa a propriedade gerenciada `flyway.version=11.20.3`, alinhando `flyway-core` e `flyway-database-postgresql`. Spring Boot 3.5.16, Java 21, JPA/JDBC, driver e SQL V1–V9 foram preservados. Mantivemos a major 11 para limitar o alcance da atualização.
+
+A fonte oficial de `flyway-database-postgresql` 11.20.3 usa `recommendFlywayUpgradeIfNecessaryForMajorVersion("18")`. A documentação Redgate lista PostgreSQL 18 entre as [versões verificadas](https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database); a versão foi confirmada no Maven Central e nas [notas oficiais](https://documentation.red-gate.com/fd/release-notes-for-flyway-engine-179732572.html). O aviso não foi ocultado por configuração de logging ou pela desativação de validações.
+
+Uma nova branch **`verify-v9-flyway11203-20261116` / `br-hidden-shape-b6545xdr`** foi criada do mesmo ponto de recuperação V8 preservado. A primeira branch já migrada não foi resetada. Novo endpoint `ep-flat-fire-b6jgjozs`, compute 0,25 CU, expiração `2026-11-18T15:00:00Z`. Após o teste foi suspenso (`idle`).
+
+Resultados às `2026-11-16T14:18:43Z`:
+
+- Artefato Java contém exatamente os dois módulos Flyway **11.20.3**, conferidos antes da execução.
+- V8 → V9 passou em **2.189 ms** no `migrate` medido; nove migrações validadas; repetição executou zero migrações.
+- Nenhum `Flyway upgrade recommended`, `support has not been tested` ou `unsupported database` no log capturado. O runner falharia se o aviso permanecesse.
+- Contas, movimentos, postings, registros bancários, vínculos, categorias, saldos e view `financial_record` preservados pelas mesmas contagens/fingerprints privados. Constraints válidas; campos novos e pares de transferência vazios.
+- Produção consultada somente em modo leitura: continua V8, sem estrutura V9 e com fingerprints financeiros inalterados no intervalo observado. Nenhuma importação ou envio de dados reais ao LLM.
+- Build e suíte Java completos com a nova dependência: **88 testes**, zero falhas/erros/ignorados (33 unitários e 55 integração).
+- Aplicação fictícia local recompilada/reiniciada na porta 8082, contendo os dois módulos 11.20.3. Login na aba do usuário confirmado com a conta fictícia. E2E local passou: recuperação vetorial exibida, nenhuma gravação ao consultar, aplicar/remover por clique, categoria restaurada e saldos/totais/quantidade de movimentos preservados. Imagem e relatório ficam em `.tools/vector-ui-flyway18-e2e`, ignorado.
+
+Evidências privadas desta repetição: `.tools/neon-v9/flyway18`; não acompanham o Git. O backup original continua ready e sem compute. Rollback do código desta atualização é reverter apenas a propriedade de versão no POM e reconstruir; isso não exige apagar estruturas ou restaurar dados. Voltar à versão antiga reintroduziria o aviso, portanto é uma contingência, não uma correção de compatibilidade.
+
+## Primeira execução com Flyway 11.7.2 — histórico
 
 ## Ponto de recuperação confirmado
 
@@ -49,9 +71,9 @@ O runner usou verificação TLS `verify-full` com CA pública explícita. Um cam
 
 Esses testes validam a migração e a preservação do conjunto real clonado; não substituem o smoke funcional do futuro deployment. Os testes funcionais locais já documentados cobrem escolha/remover categoria e identificação manual de transferências. Nenhum dado real foi enviado ao LLM.
 
-## Alerta antes da publicação
+## Alerta da primeira execução — resolvido acima
 
-O banco observado usa **PostgreSQL 18.7**. O **Flyway 11.7.2** empacotado emitiu aviso de que sua versão testada mais recente é PostgreSQL 17. A migração e a validação passaram, mas isso não elimina o aviso de compatibilidade. Avaliar uma versão compatível do Flyway em alteração separada e repetir a validação isolada antes de publicar uma atualização de dependências; nada foi atualizado silenciosamente.
+O banco observado usa **PostgreSQL 18.7**. O **Flyway 11.7.2** da primeira execução emitiu aviso de que sua versão testada mais recente era PostgreSQL 17. O usuário autorizou a correção; a atualização para 11.20.3 e o teste em uma nova cópia isolada resolveram o aviso, conforme evidências acima. A produção não recebeu essa dependência atualizada.
 
 ## Próximo passo e recuperação
 
