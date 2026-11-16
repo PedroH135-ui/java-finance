@@ -1,6 +1,6 @@
 # Retomar em outro computador
 
-Atualizado em 16/11/2026. O projeto Neon correto já foi localizado (detalhes no handoff); falta confirmar recuperação. A alteração do schema já está escrita na V9; foi adiada sua aplicação em produção, não sua implementação.
+Atualizado em 16/11/2026. Recuperação confirmada e V9 validada em branch isolada; leia [resultado e limites](../validacao-v9-neon.md). Produção continua V8 e o usuário pediu revisar o resultado antes de publicar. A alteração do schema já está escrita na V9; foi adiada sua aplicação em produção, não sua implementação.
 
 ## Leia primeiro
 
@@ -45,8 +45,8 @@ Use Python 3.13 no comando inicial. Configure `JAVA_HOME` para o JDK 21 instalad
 | Pendência | Como confirmar a conclusão |
 |---|---|
 | Revalidar o projeto Neon correto | Identificado em 16/11 como `java-finance` / `twilight-field-61680463`; conferir correspondência novamente antes do backup, pois a configuração pode mudar |
-| Confirmar recuperação | Registrar projeto, branch de origem, ID/data/estado do ponto de recuperação ou backup e procedimento de restauração validado; nenhum segredo no Git |
-| Testar V9 em cópia isolada | Executar migração com conexão direta e verificar compatibilidade com dados existentes, sem alterar o banco principal |
+| Revalidar recuperação recente | Ponto V8 confirmado em 16/11 e leitura exercitada por cópia filha; conferir estado/dados novos e preparar ponto recente antes do futuro deploy |
+| Revalidar V9/compatibilidade | Migração isolada passou em 16/11; revisar aviso Flyway 11.7.2 × PostgreSQL 18.7 e repetir em cópia nova se mudar dependências, SQL ou dados relevantes |
 | Preparar o acesso Java → Python | Conferir hostname estável e mesmo token de serviço Production nos dois projetos; não reutilizar OIDC de Preview |
 | Publicar Java revisado | Somente depois do backup; conferir Flyway V9 e saúde do deployment |
 | Verificar os invariantes | Mesma quantidade de movimentos/postings e mesmos saldos antes/depois, em evidência privada; nenhuma categoria real aplicada no smoke |

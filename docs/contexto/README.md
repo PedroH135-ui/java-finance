@@ -2,11 +2,12 @@
 
 Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL no Neon. Java/React usam container na Vercel; o serviço Python FastAPI/LangChain é separado e usa Groq. Preserve essa arquitetura.
 
-Estado: Python da IA publicado e testado em produção; Java/V9 aguardam confirmação do backup do banco correto. A aplicação Java atual e os saldos foram preservados.
+Estado: Python da IA publicado; recuperação Neon confirmada e V9 validada em branch isolada em 16/11. Produção Java continua na V8, sem alterações de saldos. O usuário pediu ver o resultado antes de publicar.
 
-O projeto Neon correto agora está acessível e foi identificado em 16/11; recuperação ainda não confirmada. Na branch `codex/rag-vetorial-local`, o laboratório pgvector foi integrado à tela local com dados fictícios. Ler o handoff antes de publicar: esta integração não está em produção.
+O projeto Neon correto está acessível. A branch de recuperação foi preservada sem compute; a cópia de teste migrou com invariantes preservados. Na branch `codex/rag-vetorial-local`, o laboratório pgvector foi integrado à tela local com dados fictícios. Ler o handoff antes de publicar: esta integração não está em produção.
 
 - [Retomada e pendências](handoff.md)
+- [Recuperação confirmada e resultado da V9 isolada](../validacao-v9-neon.md)
 - [Preparar outro computador e concluir a V9](retomada-outro-computador.md)
 - [LangChain e RAG, explicados pelo código atual](../langchain-rag-atual.md)
 - [Executar e inspecionar exemplos fictícios de RAG](../demo-langchain-rag.md)

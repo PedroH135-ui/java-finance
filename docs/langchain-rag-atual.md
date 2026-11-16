@@ -1,21 +1,54 @@
 # Como LangChain e RAG funcionam hoje
 
-Conferido no código em 13/11/2026. Este documento descreve a implementação existente, sem prometer funcionalidades futuras.
+Atualizado em 16/11/2026. Este documento distingue a implementação principal da integração vetorial local, sem prometer funcionalidades futuras.
 
 Para ver as etapas e o contexto real em exemplos fictícios, execute a [demonstração local reproduzível](demo-langchain-rag.md).
 
-**Experimento posterior:** existe agora um [laboratório local com embeddings e pgvector](rag-vetorial-local.md), separado em `vector-lab`. A descrição abaixo continua válida para o classificador principal; o laboratório não foi integrado ou publicado na aplicação.
+**Experimento local:** o [laboratório com embeddings e pgvector](rag-vetorial-local.md), separado em `vector-lab`, está integrado à tela de demonstração fictícia por modo opt-in. Não foi publicado. A descrição do fluxo principal abaixo continua válida para o serviço Python remoto, que mantém recuperação lexical.
 
 ## O que está publicado
 
 | Parte | Situação |
 |---|---|
 | Python FastAPI + LangChain + Groq na Vercel | Publicado e testado com dados fictícios |
-| Integração Java/React de categorias e transferências desta entrega | Desenvolvida e testada, no GitHub; publicação pendente do backup e da V9 |
-| Banco PostgreSQL de produção | Continua no Neon; conta/projeto proprietário ainda não identificado com segurança |
+| Integração Java/React de categorias e transferências desta entrega | Desenvolvida e testada, no GitHub; V9 validada em cópia e recuperação confirmada, aguardando revisão antes da publicação |
+| Banco PostgreSQL de produção | Neon `java-finance` identificado; produção permanece V8, sem alteração nesta validação |
 | Aplicação Java atualmente em uso | Continua na versão anterior; não está usando a nova integração Python |
 
 O Python funciona na nuvem sem o computador ligado. A disponibilidade continua sujeita às cotas e ao funcionamento da Vercel e da Groq; não há garantia de uso gratuito ilimitado. O serviço não possui banco próprio nem credenciais Neon/Pluggy.
+
+## Mapa mental do uso de LangChain
+
+```mermaid
+mindmap
+  root((Sugestões de categorias))
+    Java
+      Autoriza o perfil
+      Seleciona descrições e categorias
+      Não envia valores ou saldos
+    LangChain Python
+      Recuperação RAG
+        Principal remoto
+          Busca por palavras e Jaccard
+        Experimento local opt-in
+          MiniLM local gera vetores de 384 dimensões
+          PGVectorStore busca exemplos no pgvector
+          Filtros de perfil e snapshot
+      Decisão
+        Histórico e regras primeiro
+        Groq se necessário
+          Exemplos relevantes no contexto
+          Cache pode evitar nova chamada
+        Pode abster-se
+    Usuário
+      Vê a sugestão
+      Confirma ou escolhe outra
+      Não há alteração automática de saldo
+```
+
+O LangChain conecta a recuperação à decisão com Runnables. No laboratório integrado, a cadeia é `RunnableLambda(UIHistoryRetriever) | decisão_existente`; no serviço principal é `recuperar_exemplos | sugerir_categoria`. A persistência e a busca vetorial ficam no `PGVectorStore`; o encoder MiniLM implementa a interface `Embeddings`. A Groq é o adaptador de geração, não o armazenamento do histórico. Esse fluxo fornece contexto ao modelo, não o treina nem altera seus pesos.
+
+Exemplo observado na tela fictícia: `Pizza em domicílio` recuperou `pedido de pizza entregue em casa → Delivery`, cosseno 0,923. A semelhança ajuda a seleção do contexto, mas não é probabilidade de categoria correta. O LLM foi usado nesse cenário; em outros, o histórico/regras podem resolver sem geração. O painel informa passagem pelo adaptador, e não comprova que o cache fez uma nova chamada HTTP.
 
 ## Uma sugestão, do início ao fim
 

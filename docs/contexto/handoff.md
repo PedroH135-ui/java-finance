@@ -4,6 +4,17 @@ Atualizado em 16/11/2026.
 
 ## Estado atual — prevalece sobre o histórico de 13/11 abaixo
 
+### Recuperação e V9 — resultado mais recente de 16/11
+
+- Pedido atual autorizou backup e teste em branch isolada, **com apresentação do resultado antes de publicar**. Nenhum deploy/merge autorizado nesta etapa. PR de contexto existente: https://github.com/PedroH135-ui/java-finance/pull/14.
+- Recuperação confirmada: `recovery-before-v9-20261116` / `br-shy-scene-b63u96kc`, filha da produção `br-red-resonance-b6w00wvg`, criada às `2026-11-16T13:58:29Z`, LSN `0/235E9D0`, estado ready, sem compute e sem expiração configurada. É ponto dentro do mesmo projeto, não dump independente.
+- Teste derivado da recuperação: `verify-v9-20261116` / `br-cold-leaf-b6xfl0i8`. Cópia V8 legível com dados bancários, coincidente com a produção no intervalo comparado. Flyway executou **apenas V9**, validou nove migrações e repetiu com zero migrações. Contagens/fingerprints financeiros, saldos e view de relatórios preservados; novos campos vazios, sem categoria ou transferência aplicada. Produção conferida novamente: V8, sem V9 e sem mudança dos fingerprints.
+- Compute de teste `ep-quiet-brook-b6yrld61` suspenso (idle), expiração da branch `2026-11-18T14:00:00Z`. Produção e recuperação preservadas.
+- Atenção: banco PostgreSQL 18.7; Flyway 11.7.2 atual emitiu aviso de versão ainda não testada por ele. Teste passou, mas revisar compatibilidade antes de publicar. Não houve alteração de dependências, repair, baseline, conexão Vercel, importação ou LLM com dados reais.
+- Relatório completo: `docs/validacao-v9-neon.md`. Runners e fingerprints privados em `.tools/neon-v9` não acompanham o Git. Antes de futuro deploy, revalidar e preparar recuperação recente se houver novos dados. As afirmações de backup não confirmado nos registros anteriores abaixo são históricas e estão superadas por este teste.
+
+### Integração local e investigação anterior
+
 - Escopo atual: integração vetorial **local**, dados fictícios e PR com contexto. Não publicar nem fazer merge. Branch `codex/rag-vetorial-local`, base de PR `codex/ia-pronta-producao` (essa base também contém Java/V9 ainda não publicados).
 - Neon resolvido em 16/11 por consultas somente de leitura: organização `org-still-river-65847486`, projeto `java-finance` / `twilight-field-61680463`, branch principal `br-red-resonance-b6w00wvg`, endpoint `ep-bold-math-b6bdxylj`, região São Paulo, banco `java_finance`. O endpoint do projeto coincide com o hostname nos logs atuais da Vercel. Não usar o projeto `comunia-db` nem continuar procurando o endpoint antigo.
 - Java de produção atual observado: `dpl_5pMaPchaokz49sJSTQSrCDbmzxb7`, saúde 200/UP e logs de inicialização com schema **8**. A mudança do deployment/conexão foi externa a esta etapa; não atribuir ao código local. **Backup não criado/confirmado, V9 não aplicada por nós.**
