@@ -4,6 +4,8 @@ Atualizado em 16/11/2026. Recuperação confirmada e V9 validada em branch isola
 
 Após essa validação, o experimento de categorias automáticas foi desenvolvido na branch local `codex/categorias-auto-local`, com V10. Essa nova branch ainda não foi enviada ao GitHub; o clone abaixo recupera a PR anterior, não a automação. Não considerar V10/automação testadas no Neon. Ver `handoff.md` e [explicação prática](../categorias-automaticas-local.md) antes de retomar.
 
+**Atualização mais recente:** V9/V10/V11 e o JAR do Docker já passaram em uma nova cópia Neon; foi adicionada reutilização MEMORY para evitar LLM em repetições. A automação vetorial cloud ainda não está pronta, conforme [validação de produção](../validacao-producao-2026-11-16.md). A frase anterior sobre V10 não testada refere-se à primeira etapa local; foi superada pelo novo teste. A branch continua sem push.
+
 ## Leia primeiro
 
 1. `AGENTS.md`, na raiz.

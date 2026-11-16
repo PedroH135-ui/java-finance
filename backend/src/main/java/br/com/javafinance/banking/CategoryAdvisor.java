@@ -73,6 +73,10 @@ public class CategoryAdvisor {
         return Normalizer.normalize(value,Normalizer.Form.NFD).replaceAll("\\p{M}","").toLowerCase(Locale.ROOT)
             .replaceAll("\\S+@\\S+"," ").replaceAll("https?://\\S+"," ").replaceAll("[^a-z ]"," ").replaceAll("\\s+"," ").strip();
     }
+    public static String memoryKey(String value) {
+        // Preserve digits, accents and punctuation: different identifiers must not collapse into one memo.
+        return value.toLowerCase(Locale.ROOT).strip().replaceAll("\\s+"," ");
+    }
     private static Set<String> terms(String text) {
         var words=new HashSet<>(Arrays.asList(text.split(" +")));words.removeAll(STOP);words.remove("");return words;
     }
@@ -96,6 +100,10 @@ public class CategoryAdvisor {
         return suggest(null,null,raw);
     }
     public Suggestion suggest(UUID owner,String kind,Request raw) {
+        return suggest(owner,kind,raw,List.of());
+    }
+    /** Original AI decisions are a memo, never promoted to confirmed human RAG examples. */
+    public Suggestion suggest(UUID owner,String kind,Request raw,List<Example> modelDecisions) {
         if(localVectorDemo && (owner==null || kind==null || !Set.of("EXPENSE","INCOME").contains(kind)))
             throw new IllegalArgumentException("The local vector demonstration requires the authenticated owner and direction.");
         var request=new Request(sanitize(raw.description()),raw.categories().stream().map(c->new Category(c.id(),sanitize(c.name()))).filter(c->!c.name().isBlank()).toList(),raw.history().stream().map(h->new Example(sanitize(h.description()),h.categoryId())).toList());
@@ -107,6 +115,10 @@ public class CategoryAdvisor {
         var ids=exact.stream().map(Example::categoryId).distinct().toList();
         if(!request.description().isBlank() && ids.size()==1)return new Suggestion(ids.getFirst(),exact.size()>=3?"HIGH":"MEDIUM","HISTORY",reason("HISTORY"),Math.min(100,exact.size()),false);
         if(ids.size()>1)return new Suggestion(null,"NONE","NONE","Seu histórico contém classificações conflitantes; escolha uma categoria.",0,false);
+        var remembered=modelDecisions.stream().filter(e->allowed.contains(e.categoryId()) && memoryKey(raw.description()).equals(memoryKey(e.description()))).toList();
+        var rememberedIds=remembered.stream().map(Example::categoryId).distinct().toList();
+        if(rememberedIds.size()>1)return new Suggestion(null,"NONE","NONE","As decisões anteriores da IA são conflitantes; escolha uma categoria.",0,false);
+        if(rememberedIds.size()==1)return new Suggestion(rememberedIds.getFirst(),"LOW","MEMORY","Reutilizou uma decisão anterior da IA para a mesma descrição; sem nova chamada ao LLM.",Math.min(100,remembered.size()),false);
         // Only the opt-in, loopback-only synthetic demo sends the bounded history for semantic indexing.
         var outgoing=localVectorDemo?new Request(request.description(),request.categories().stream().limit(100).toList(),request.history().stream().limit(100).toList()):minimize(request);
         var sentIds=new HashSet<>(outgoing.categories().stream().map(Category::id).toList());

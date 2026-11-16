@@ -4,6 +4,16 @@ Atualizado em 16/11/2026.
 
 ## Estado atual — prevalece sobre o histórico de 13/11 abaixo
 
+### Validação de produção e economia de LLM — posterior em 16/11
+
+- Pedidos ativos: validar antes de PROD e usar LLM só quando necessário. Não houve deploy/push/merge ou alteração de configuração Vercel. Relatório definitivo: `docs/validacao-producao-2026-11-16.md`.
+- Reutilização persistida implementada: descrição exata (preservando números/pontuação/acentos), mesmo perfil/natureza/categoria ativa, decisão original LLM válida. Método MEMORY, origem AUTO/LOW, sem chamada HTTP/Python/LLM; cópias MEMORY não viram origem. Correção humana exata vence. Conflito abstém. V11 amplia apenas o domínio do método; V9/V10 anteriores preservadas.
+- 104 testes Java (39+65), revisão específica (18+9, subconjunto), Python 35+10, lint/3 testes frontend e dois E2E passaram. E2E confirmou primeira classificação LLM e repetição MEMORY, além de correção/remoção/reativação e invariantes. Teste unitário com instâncias novas confirmou zero HTTP na reutilização.
+- Dockerfile real compilou. JAR extraído da imagem usado para migrar cópia Neon V8→V11: V9/V10/V11, 11 migrações validadas e repetição zero, sem aviso Flyway. Contagens/fingerprints/saldos/views preservados. Container real iniciado em perfil de produção contra a cópia, **com IA/automação/Pluggy desligados**: saúde 200, sem sessão 401, invariantes preservados; container removido. Não confundir esse smoke com automação cloud ativa.
+- Recuperação nova: `recovery-readiness-20261116` / `br-aged-shape-b6n0u7m0`, main como parent, `2026-11-16T15:20:51Z`, LSN `0/23AA720`, ready, sem compute/expiração configurada. Teste `br-lively-sky-b6nysvb7`, compute `ep-jolly-cloud-b6x1zg43` suspenso, expira `2026-11-18T18:00:00Z`. Pontos anteriores preservados. Produção conferida read-only: V8, mesmo deployment, saúde 200 e mesmos metadados DB.
+- Python Production revalidado com textos fictícios: UP/Groq, sem token 401, regra/LLM e tamanho 413. Nenhum dado real no LLM. npm audit 0; cinco segredos protegidos comparados em memória contra 379 arquivos/recursos, sem correspondências. Rotação da chave compartilhada anteriormente ainda precisa ser comprovada.
+- **Não pronto para ativar automação vetorial em PROD:** guard aceita só perfil/banco fictícios, encoder/pgvector continuam locais/excluídos do deploy, execução de lotes ainda é @Scheduled/estado em memória. Faltam modo por usuário, hospedagem do RAG, acionamento/retomada persistentes e limites globais. Não publicar removendo os guards. A branch continua `codex/categorias-auto-local`, ainda local; PR #14 não foi atualizada com esse escopo.
+
 ### Categorias automáticas locais — etapa posterior de 16/11
 
 - Usuário substituiu a confirmação de cada categoria por classificação automática revisável **somente no teste local fictício**. Transferências continuam manuais. Não publicar nem atualizar a PR anterior com este novo escopo sem instrução pertinente.

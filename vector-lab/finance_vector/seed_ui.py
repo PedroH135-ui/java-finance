@@ -14,7 +14,9 @@ TARGETS = [('pizza','Pizza em domicílio'),('music','Pagamento streaming musical
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--root',type=Path,required=True)
     parser.add_argument('--automatic-test-id',type=UUID)
+    parser.add_argument('--automatic-repeat-of',type=UUID)
     args=parser.parse_args();root=args.root
+    if args.automatic_repeat_of and not args.automatic_test_id:raise RuntimeError('A repeat requires a new synthetic test id.')
     private=root/'.tools/local-review'
     cfg=json.loads((private/'config.json').read_text(encoding='utf-8-sig'))
     if cfg.get('database')!='java_finance_review' or cfg.get('dbUser')!='review_owner' or not cfg.get('demoSeeded'):
@@ -60,6 +62,10 @@ def main():
         if args.automatic_test_id:
             key=str(args.automatic_test_id)
             description='Pizza delivery automática fictícia '+key[:8]
+            if args.automatic_repeat_of:
+                original=conn.execute("SELECT description FROM bank_entry WHERE id=%s AND owner_id=%s AND external_id LIKE 'vector-ui-automatic-%%'",(args.automatic_repeat_of,owner)).fetchone()
+                if not original:raise RuntimeError('Only a previous synthetic automatic test record can be repeated.')
+                description=original[0]
             automatic={'id':add('automatic-'+key,description,'10.00','DEBIT','2026-11-16'),'description':description,
                 'deliveryCategoryId':str(category_ids['delivery']),'otherCategoryId':str(category_ids['food'])}
             add('automatic-offset-'+key,'Recomposição fictícia do teste automático '+key[:8],'10.00','CREDIT','2026-11-16')

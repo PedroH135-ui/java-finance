@@ -42,7 +42,7 @@ class AutomaticCategoryIT {
             link,owner,UUID.randomUUID(),UUID.randomUUID(),account,"Fictício",date.minusDays(9),new java.math.BigDecimal("950"));
         entry=entry(owner,link,"Pizza em domicílio","POSTED");
         when(scope.enabled()).thenReturn(true);when(scope.owner()).thenReturn(owner);when(scope.activeFor(owner)).thenReturn(true);
-        when(advisor.suggest(eq(owner),eq("EXPENSE"),any())).thenReturn(suggestion(food));
+        when(advisor.suggest(eq(owner),eq("EXPENSE"),any(),anyList())).thenReturn(suggestion(food));
     }
     UUID entry(UUID user,UUID bankLink,String description,String status){
         UUID id=UUID.randomUUID();
@@ -64,7 +64,7 @@ class AutomaticCategoryIT {
         assertThat(assistance.assistance(owner,entry).currentCategoryId()).isEqualTo(food);
         assertThat(assistance.assistance(owner,entry).categoryState().source()).isEqualTo("AUTO");
         assertThat(invariants()).isEqualTo(before);
-        automatic.runPending();verify(advisor,times(1)).suggest(eq(owner),eq("EXPENSE"),any());
+        automatic.runPending();verify(advisor,times(1)).suggest(eq(owner),eq("EXPENSE"),any(),anyList());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_event WHERE resource_id=? AND action='BANK_CATEGORY_AUTO'",Long.class,entry)).isEqualTo(1);
         mvc.perform(get("/api/movements/feed").param("from",date.toString()).param("to",date.toString()).with(user(new UserPrincipal(owner,"",0))))
             .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].categorySource").value("AUTO"));
@@ -76,14 +76,14 @@ class AutomaticCategoryIT {
         assertThat(assistance.assistance(owner,entry).categoryState().source()).isEqualTo("MANUAL");
         assistance.category(owner,entry,new BankAssistanceService.CategoryChange(version(),null));automatic.runPending();
         assertThat(assistance.assistance(owner,entry).currentCategoryId()).isNull();
-        verify(advisor,times(1)).suggest(eq(owner),eq("EXPENSE"),any());
+        verify(advisor,times(1)).suggest(eq(owner),eq("EXPENSE"),any(),anyList());
         assistance.allowAutomatic(owner,entry,version());automatic.runPending();
         assertThat(assistance.assistance(owner,entry).currentCategoryId()).isEqualTo(food);
         assertThat(invariants()).isEqualTo(before);
     }
     @Test void userCorrectionDuringModelCallWinsTheRace(){
         var before=invariants();
-        when(advisor.suggest(eq(owner),eq("EXPENSE"),any())).thenAnswer(call->{
+        when(advisor.suggest(eq(owner),eq("EXPENSE"),any(),anyList())).thenAnswer(call->{
             assistance.category(owner,entry,new BankAssistanceService.CategoryChange(version(),other));return suggestion(food);
         });
         automatic.runPending();
@@ -94,18 +94,18 @@ class AutomaticCategoryIT {
     @Test void autoLabelsNeverBecomeRagGroundTruthButUserCorrectionsDo(){
         automatic.runPending();entry(owner,link,"Outra compra","POSTED");automatic.runPending();
         var requests=ArgumentCaptor.forClass(CategoryAdvisor.Request.class);
-        verify(advisor,times(2)).suggest(eq(owner),eq("EXPENSE"),requests.capture());
+        verify(advisor,times(2)).suggest(eq(owner),eq("EXPENSE"),requests.capture(),anyList());
         assertThat(requests.getValue().history()).isEmpty();
         assistance.category(owner,entry,new BankAssistanceService.CategoryChange(version(),other));
         entry(owner,link,"Nova compra","POSTED");automatic.runPending();
-        verify(advisor,times(3)).suggest(eq(owner),eq("EXPENSE"),requests.capture());
+        verify(advisor,times(3)).suggest(eq(owner),eq("EXPENSE"),requests.capture(),anyList());
         assertThat(requests.getValue().history()).anySatisfy(h->{assertThat(h.description()).isEqualTo("Pizza em domicílio");assertThat(h.categoryId()).isEqualTo(other.toString());});
     }
     @Test void abstentionIsNotAppliedAndIsNotRetriedEveryPoll(){
-        var before=invariants();when(advisor.suggest(eq(owner),eq("EXPENSE"),any())).thenReturn(new CategoryAdvisor.Suggestion(null,"NONE","NONE","Sem contexto",0,false));
+        var before=invariants();when(advisor.suggest(eq(owner),eq("EXPENSE"),any(),anyList())).thenReturn(new CategoryAdvisor.Suggestion(null,"NONE","NONE","Sem contexto",0,false));
         automatic.runPending();automatic.runPending();
         assertThat(assistance.assistance(owner,entry).currentCategoryId()).isNull();
-        verify(advisor,times(1)).suggest(eq(owner),eq("EXPENSE"),any());
+        verify(advisor,times(1)).suggest(eq(owner),eq("EXPENSE"),any(),anyList());
         assertThat(invariants()).isEqualTo(before);
     }
     @Test void pendingHiddenAndManualRecordsAreSkippedAndScopeIsEnforced() throws Exception {
@@ -137,5 +137,21 @@ class AutomaticCategoryIT {
         assertThat(assistance.assistance(owner,entry).currentCategoryId()).isEqualTo(food);
         assistance.category(owner,entry,new BankAssistanceService.CategoryChange(version(),other));
         assertThatThrownBy(()->assistance.allowAutomatic(owner,entry,version())).isInstanceOf(ApiException.class);
+    }
+    @Test void onlyOriginalMatchingLlmDecisionsAreSuppliedAsMemo(){
+        automatic.runPending();
+        UUID repeated=entry(owner,link,"Pizza em domicílio","POSTED");
+        when(advisor.suggest(eq(owner),eq("EXPENSE"),any(),anyList())).thenAnswer(call->{
+            List<CategoryAdvisor.Example> prior=call.getArgument(3);
+            assertThat(prior).singleElement().satisfies(p->{assertThat(p.description()).isEqualTo("Pizza em domicílio");assertThat(p.categoryId()).isEqualTo(food.toString());});
+            return new CategoryAdvisor.Suggestion(food.toString(),"LOW","MEMORY","Decisão anterior",1,false);
+        });
+        var before=invariants();automatic.runPending();assertThat(invariants()).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT category_auto_method FROM bank_entry WHERE id=?",String.class,repeated)).isEqualTo("MEMORY");
+        jdbc.update("UPDATE bank_entry SET hidden=true WHERE id=?",entry);
+        UUID third=entry(owner,link,"Pizza em domicílio","POSTED");
+        doAnswer(call->{assertThat((List<?>)call.getArgument(3)).isEmpty();return new CategoryAdvisor.Suggestion(null,"NONE","NONE","Sem decisão original",0,false);})
+            .when(advisor).suggest(eq(owner),eq("EXPENSE"),any(),anyList());
+        automatic.runPending();assertThat(jdbc.queryForObject("SELECT category_id FROM bank_entry WHERE id=?",UUID.class,third)).isNull();
     }
 }

@@ -1,5 +1,7 @@
 # Recuperação Neon e teste isolado da V9
 
+**Teste posterior:** o pacote Docker atual também passou em V8→V11 numa nova cópia Neon. Ver [relatório de preparação para produção](validacao-producao-2026-11-16.md) para o estado mais recente e os bloqueios da automação cloud. Nenhuma migração foi aplicada na produção.
+
 Atualizado em **16/11/2026, 11:18 BRT**, sem publicação. A primeira execução, às 11:05, validou `467e1f9` com Flyway 11.7.2. A execução posterior abaixo valida a atualização explícita para Flyway 11.20.3. Nenhum SQL de migração foi modificado.
 
 ## Revalidação com Flyway 11.20.3 — aviso corrigido

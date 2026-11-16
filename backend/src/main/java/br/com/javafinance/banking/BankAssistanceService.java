@@ -76,7 +76,21 @@ public class BankAssistanceService {
               AND b.category_source IS DISTINCT FROM 'AUTO'
             ORDER BY f.operation_date DESC,f.id LIMIT 100
             """,(rs,n)->new CategoryAdvisor.Example(rs.getString("description"),rs.getString("category_id")),owner,kind);
-        var suggestion=advisor.suggest(owner,kind,new CategoryAdvisor.Request((String)e.get("description"),categories,history));
+        var request=new CategoryAdvisor.Request((String)e.get("description"),categories,history);
+        // Only original, still-valid LLM decisions qualify. Reused copies cannot recursively train themselves.
+        var remembered=forAutomatic?jdbc.query("""
+            SELECT b.description,b.category_id FROM bank_entry b
+            JOIN category c ON c.id=b.category_id AND c.owner_id=b.owner_id
+            WHERE b.owner_id=? AND b.direction=? AND c.kind=? AND NOT c.archived
+              AND b.category_source='AUTO' AND b.category_auto_method='LLM'
+              AND b.provider_status='POSTED' AND NOT b.hidden AND b.state<>'IGNORED'
+              AND b.movement_id IS NULL AND b.transfer_id IS NULL
+              AND b.category_description=b.description AND b.category_direction=b.direction
+              AND lower(regexp_replace(btrim(b.description),'\\s+',' ','g'))=?
+            ORDER BY b.date DESC,b.id LIMIT 100
+            """,(rs,n)->new CategoryAdvisor.Example(rs.getString("description"),rs.getString("category_id")),
+            owner,e.get("direction"),kind,CategoryAdvisor.memoryKey((String)e.get("description"))):List.<CategoryAdvisor.Example>of();
+        var suggestion=forAutomatic?advisor.suggest(owner,kind,request,remembered):advisor.suggest(owner,kind,request);
         return new Assistance(version(e),current,true,"",suggestion,candidates,transfer,categoryState);
     }
     private Map<UUID,Map<String,Object>> lockEntries(UUID owner,List<UUID> ids) {
@@ -108,7 +122,7 @@ public class BankAssistanceService {
         boolean current=e.get("category_id")!=null && Objects.equals(e.get("category_description"),e.get("description")) && Objects.equals(e.get("category_direction"),e.get("direction"));
         if(version(e)!=expected || !eligible(e) || current || Boolean.TRUE.equals(e.get("category_auto_blocked")) || "MANUAL".equals(e.get("category_source")))return false;
         jdbc.update("UPDATE bank_entry SET category_auto_attempted_at=? WHERE id=? AND owner_id=?",java.sql.Timestamp.from(clock.instant()),id,owner);
-        if(suggestion==null || suggestion.categoryId()==null || !Set.of("HISTORY","RULE","LLM").contains(suggestion.method()) || !Set.of("HIGH","MEDIUM","LOW").contains(suggestion.confidence()))return false;
+        if(suggestion==null || suggestion.categoryId()==null || !Set.of("HISTORY","RULE","LLM","MEMORY").contains(suggestion.method()) || !Set.of("HIGH","MEDIUM","LOW").contains(suggestion.confidence()))return false;
         UUID category=UUID.fromString(suggestion.categoryId());
         var categories=jdbc.queryForList("SELECT kind,archived FROM category WHERE id=? AND owner_id=? FOR UPDATE",category,owner);
         if(categories.isEmpty() || Boolean.TRUE.equals(categories.getFirst().get("archived")) || !Objects.equals(categories.getFirst().get("kind"),"DEBIT".equals(e.get("direction"))?"EXPENSE":"INCOME"))return false;

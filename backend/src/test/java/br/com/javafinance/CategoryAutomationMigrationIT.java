@@ -27,7 +27,7 @@ class CategoryAutomationMigrationIT {
             jdbc.update("UPDATE bank_entry SET category_id=?,category_description=description,category_direction=direction WHERE id=?",category,selected);
             jdbc.update("INSERT INTO audit_event(id,owner_id,resource_id,action,reason,created_at) VALUES (?,?,?,'BANK_CATEGORY_CHANGED','Categoria removida pelo usuário',now())",UUID.randomUUID(),owner,removed);
             String before=jdbc.queryForObject("SELECT jsonb_agg(to_jsonb(f) ORDER BY id)::text FROM financial_record f",String.class);
-            var result=Flyway.configure().dataSource(db.getJdbcUrl(),db.getUsername(),db.getPassword()).load().migrate();
+            var result=Flyway.configure().dataSource(db.getJdbcUrl(),db.getUsername(),db.getPassword()).target("10").load().migrate();
             assertThat(result.migrationsExecuted).isEqualTo(1);
             assertThat(jdbc.queryForObject("SELECT jsonb_agg(to_jsonb(f) ORDER BY id)::text FROM financial_record f",String.class)).isEqualTo(before);
             for(UUID id:new UUID[]{selected,removed}){
@@ -40,6 +40,10 @@ class CategoryAutomationMigrationIT {
             assertThat(jdbc.queryForObject("SELECT count(*) FROM movement",Long.class)).isZero();
             assertThat(jdbc.queryForObject("SELECT count(*) FROM posting",Long.class)).isZero();
             assertThat(jdbc.queryForObject("SELECT count(*) FROM bank_transfer_pair",Long.class)).isZero();
+            var reuse=Flyway.configure().dataSource(db.getJdbcUrl(),db.getUsername(),db.getPassword()).target("11").load().migrate();
+            assertThat(reuse.migrationsExecuted).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT jsonb_agg(to_jsonb(f) ORDER BY id)::text FROM financial_record f",String.class)).isEqualTo(before);
+            jdbc.update("UPDATE bank_entry SET category_auto_method='MEMORY' WHERE id=?",untouched);
         }
     }
 }

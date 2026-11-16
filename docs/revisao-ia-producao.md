@@ -1,5 +1,7 @@
 # Revisão antes da publicação — IA de categorias
 
+**Revisão mais recente (16/11):** consultar [validação de produção](validacao-producao-2026-11-16.md). A recuperação está confirmada e V9/V10/V11 passaram em cópia isolada, mas a automação com RAG vetorial permanece restrita ao laboratório e ainda tem bloqueios cloud. O restante deste documento registra a revisão anterior de sugestões manuais, não autoriza publicar a nova automação.
+
 ## Estado da entrega
 
 **Atualização:** Python publicado e testado em Production; Java/V9 continuam aguardando confirmação do backup. Consulte o [estado operacional atual](contexto/handoff.md). O restante deste documento preserva a revisão feita antes dessa publicação parcial.

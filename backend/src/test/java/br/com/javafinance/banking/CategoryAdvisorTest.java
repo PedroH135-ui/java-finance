@@ -29,6 +29,34 @@ class CategoryAdvisorTest {
     CategoryAdvisor.Request request(String text,List<CategoryAdvisor.Example> history) {
         return new CategoryAdvisor.Request(text,List.of(new CategoryAdvisor.Category("food","Alimentação")),history);
     }
+    @Test void repeatedAiDecisionIsReusedAcrossAdvisorInstancesWithoutAnyHttpCall() {
+        var prior=List.of(new CategoryAdvisor.Example("Restaurante Alfa 123","food"));
+        for(int i=0;i<2;i++){
+            var result=advisor(true).suggest(UUID.randomUUID(),"EXPENSE",request(" RESTAURANTE   ALFA 123 ",List.of()),prior);
+            assertThat(result.method()).isEqualTo("MEMORY");assertThat(result.categoryId()).isEqualTo("food");
+            assertThat(result.modelUsed()).isFalse();assertThat(result.confidence()).isEqualTo("LOW");
+        }
+        assertThat(calls.get()).isZero();
+    }
+    @Test void humanDecisionOverridesMemoAndConflictingMemosAbstain() {
+        var categories=List.of(new CategoryAdvisor.Category("food","Alimentação"),new CategoryAdvisor.Category("other","Outros"));
+        var prior=List.of(new CategoryAdvisor.Example("Restaurante Alfa","other"));
+        var human=new CategoryAdvisor.Request("Restaurante Alfa",categories,List.of(new CategoryAdvisor.Example("Restaurante Alfa","food")));
+        assertThat(advisor(true).suggest(UUID.randomUUID(),"EXPENSE",human,prior).method()).isEqualTo("HISTORY");
+        assertThat(advisor(true).suggest(UUID.randomUUID(),"EXPENSE",human,prior).categoryId()).isEqualTo("food");
+        var conflict=List.of(new CategoryAdvisor.Example("Restaurante Alfa","food"),new CategoryAdvisor.Example("Restaurante Alfa","other"));
+        assertThat(advisor(true).suggest(UUID.randomUUID(),"EXPENSE",new CategoryAdvisor.Request("Restaurante Alfa",categories,List.of()),conflict).categoryId()).isNull();
+        assertThat(calls.get()).isZero();
+    }
+    @Test void memoPreservesIdentifiersAndCannotReuseForeignCategoriesOrFinancialDescriptions() {
+        var prior=List.of(new CategoryAdvisor.Example("Restaurante Alfa 456","food"));
+        advisor(true).suggest(UUID.randomUUID(),"EXPENSE",request("Restaurante Alfa 123",List.of()),prior);
+        assertThat(calls.get()).isEqualTo(1);
+        advisor(true).suggest(UUID.randomUUID(),"EXPENSE",request("Restaurante Alfa 123",List.of()),List.of(new CategoryAdvisor.Example("Restaurante Alfa 123","foreign")));
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(advisor(true).suggest(UUID.randomUUID(),"EXPENSE",request("Transferencia Alfa",List.of()),List.of(new CategoryAdvisor.Example("Transferencia Alfa","food"))).categoryId()).isNull();
+        assertThat(calls.get()).isEqualTo(2);
+    }
     @Test void localCallRedactsIdentifiersAndDoesNotTrustModelReason() {
         var result=advisor(true).suggest(request("Mercádo 123 CPF 999.888 email@example.test",List.of()));
         assertThat(result.categoryId()).isEqualTo("food"); assertThat(result.reason()).doesNotContain("untrusted");

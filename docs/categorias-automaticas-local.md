@@ -2,6 +2,8 @@
 
 Em 16/11/2026, o usuário autorizou categorizar automaticamente **no ambiente local fictício**, com liberdade para corrigir e sem alterar saldos, antes de publicar. Esse pedido substitui a exigência anterior de confirmação de cada categoria somente neste experimento. Transferências próprias continuam exigindo confirmação. Branch `codex/categorias-auto-local`, derivada de `87c3468`; nenhum deploy, push ou merge desta etapa.
 
+**Atualização posterior:** o pedido de economizar LLM acrescentou memória persistida de decisões originais, identificada como MEMORY e mantendo origem AUTO/LOW. Descrição exata, perfil/natureza/categoria válidos permitem reutilização sem HTTP; correções humanas vencem e cópias reutilizadas não se tornam origem ou exemplos humanos do RAG. A V11 amplia o domínio do método, sem editar V10. Isso é separado do cache Python de cinco minutos. A validação atual tem 104 testes Java, 45 Python, dois E2E e V8→V11 testada em cópia Neon. Ver [relatório e bloqueios de PROD](validacao-producao-2026-11-16.md); os resultados da primeira etapa abaixo são históricos.
+
 ## Como funcionava antes, com um exemplo real da demonstração
 
 1. Abrir os detalhes de `Pizza em domicílio` fazia o React chamar `GET /api/banking/entries/{id}/assistance`.
