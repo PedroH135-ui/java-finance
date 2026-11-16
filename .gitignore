@@ -24,3 +24,13 @@ artifacts/
 .vercel/
 .cloud/
 .test-db/
+.tools/
+/.codex/
+/.agents/
+/skills-lock.json
+/category-ai/models/
+
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/
+**/pytest-cache-files-*/

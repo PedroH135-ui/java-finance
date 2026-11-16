@@ -17,6 +17,8 @@ public class LedgerService {
         movements.saveAndFlush(m); post(m);
     }
     public void post(Movement m) {
+        // Bank entries already occurred at the bank. Their reviewed movements feed reports, not balances.
+        if("MEU_PLUGGY".equals(m.source)) return;
         BigDecimal sourceAmount = (m.kind==Movement.Kind.EXPENSE || m.kind==Movement.Kind.TRANSFER)?m.amount.negate():m.amount;
         add(m,m.accountId,sourceAmount);
         if(m.kind==Movement.Kind.TRANSFER) add(m,m.destinationId,m.amount);

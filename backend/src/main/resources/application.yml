@@ -36,6 +36,18 @@ server:
         secure: ${COOKIE_SECURE:false}
         same-site: strict
 app:
+  category-ai:
+    enabled: ${CATEGORY_AI_ENABLED:false}
+    url: ${CATEGORY_AI_URL:http://127.0.0.1:8123}
+    token: ${CATEGORY_AI_TOKEN:}
+    allowed-host: ${CATEGORY_AI_ALLOWED_HOST:}
+    preview-oidc: ${CATEGORY_AI_PREVIEW_OIDC:}
+    local-vector-demo: ${CATEGORY_AI_LOCAL_VECTOR_DEMO:false}
+    automatic-demo-enabled: ${CATEGORY_AI_AUTOMATIC_DEMO_ENABLED:false}
+    automatic-demo-owner: ${CATEGORY_AI_AUTOMATIC_DEMO_OWNER:}
+    automatic-cloud-enabled: ${CATEGORY_AI_AUTOMATIC_CLOUD_ENABLED:false}
+    cloud-rag: ${CATEGORY_AI_CLOUD_RAG:false}
+    job-token: ${CATEGORY_AI_JOB_TOKEN:}
   banking:
     client-id: ${PLUGGY_CLIENT_ID:}
     client-secret: ${PLUGGY_CLIENT_SECRET:}

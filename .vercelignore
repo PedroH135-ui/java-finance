@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 .cloud
+.tools
+.codex
+.agents
+skills-lock.json
+vector-lab
 .test-db
 .vercel
 **/node_modules

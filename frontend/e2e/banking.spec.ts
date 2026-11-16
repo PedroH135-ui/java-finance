@@ -58,7 +58,7 @@ test('conexões: interface simulada de vínculo, consulta, revisão e desativaç
   await page.getByRole('option', { name: 'Nubank simulado', exact: false }).click();
   await page.getByRole('combobox', { name: 'Conta no Java Finance' }).click();
   await page.getByRole('option', { name: 'Nubank local de teste', exact: true }).click();
-  await page.getByLabel('Conferi a data e o saldo de abertura para evitar duplicidade.').check();
+  await page.getByLabel('Conferi a data e os registros existentes para evitar duplicidade nos relatórios.').check();
   await page.getByRole('button', { name: 'Vincular para leitura' }).click();
   await expect(page.getByRole('heading', { name: 'Nubank simulado', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Consultar dados', exact: true }).click();
@@ -68,12 +68,12 @@ test('conexões: interface simulada de vínculo, consulta, revisão e desativaç
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`banking-review-${width}.png`), fullPage: true });
   }
-  await page.getByRole('button', { name: 'Revisar importação' }).click();
+  await page.getByRole('button', { name: 'Revisar classificação' }).click();
   await page.getByRole('combobox', { name: 'Categoria', exact: true }).click();
   await page.getByRole('option', { name: 'Alimentação teste', exact: true }).click();
   await page.getByLabel('Confirmei que esta operação é uma receita/despesa real.').check();
-  await page.getByRole('button', { name: 'Confirmar importação' }).click();
-  await expect(page.getByText('Importado', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirmar classificação' }).click();
+  await expect(page.getByText('Classificado', { exact: true })).toBeVisible();
   expect(importedCategory).toBe(category.id);
   await page.getByRole('button', { name: 'Desativar leitura aqui' }).click();
   await expect(page.getByText('Leitura desativada aqui. Para revogar o consentimento, faça isso também no Meu Pluggy ou no banco.')).toBeVisible();

@@ -24,6 +24,17 @@ public class MovementService {
     }
     @Transactional
     public View create(UUID owner,Create input) {
+        return create(owner,input,null);
+    }
+    /** Internal banking review only. The HTTP create DTO has no source or balance-impact switch. */
+    @Transactional
+    public View recordBankReview(UUID owner,Create input,String externalReference) {
+        if(input.status()!=Movement.Status.CONFIRMED || !Set.of(Movement.Kind.INCOME,Movement.Kind.EXPENSE).contains(input.kind())
+            || externalReference==null || externalReference.isBlank() || externalReference.length()>200)
+            throw ApiException.bad("Classificação bancária inválida.");
+        return create(owner,input,externalReference);
+    }
+    private View create(UUID owner,Create input,String bankReference) {
         if(input.kind()==Movement.Kind.OPENING) throw ApiException.bad("Saldo inicial é criado junto com a conta.");
         if(input.status()==Movement.Status.CANCELLED) throw ApiException.bad("Não é possível criar um registro cancelado.");
         if(input.kind()!=Movement.Kind.TRANSFER && input.destinationId()!=null) throw ApiException.bad("Destino só se aplica a transferências.");
@@ -41,7 +52,9 @@ public class MovementService {
         var existing=movements.findByOwnerIdAndRequestKey(owner,input.requestKey());
         if(existing.isPresent()) {
             Movement old=existing.get();
-            if(!sameRequest(old,input,amount)) throw ApiException.conflict("Esta chave já foi usada para outra operação.");
+            if(!sameRequest(old,input,amount) || (bankReference==null ? !"MANUAL".equals(old.source)
+                : !"MEU_PLUGGY".equals(old.source) || !bankReference.equals(old.externalReference)))
+                throw ApiException.conflict("Esta chave já foi usada para outra operação.");
             return View.from(old);
         }
         if(input.competence().getDayOfMonth()!=1) throw ApiException.bad("A competência deve ser o primeiro dia do mês.");
@@ -57,6 +70,7 @@ public class MovementService {
         m.operationDate=input.operationDate(); m.competence=input.competence(); m.dueDate=input.dueDate();
         m.notes=input.notes()==null?"":input.notes(); m.requestKey=input.requestKey(); m.createdAt=clock.instant();
         m.requestFingerprint=fingerprint(input,amount);
+        if(bankReference!=null) { m.source="MEU_PLUGGY"; m.externalReference=bankReference; }
         if(m.status==Movement.Status.CONFIRMED) { validateSettlement(input.settledDate(),m.operationDate,locked.values()); m.settledDate=input.settledDate(); }
         else if(input.settledDate()!=null) throw ApiException.bad("Uma previsão não possui data de efetivação.");
         movements.saveAndFlush(m);

@@ -14,12 +14,19 @@ public class AccountService {
     public record Edit(@NotBlank @Size(max=100) String name, @Size(max=100) String institution,
         boolean archived, long version) {}
     public record View(UUID id,String name,String institution,Account.Kind kind,String currency,
-        LocalDate openingDate,boolean archived,long version,BigDecimal balance) {}
+        LocalDate openingDate,boolean archived,long version,BigDecimal balance,AccountBalanceService.Source balanceSource,
+        Instant bankUpdatedAt,Instant bankCheckedAt,boolean bankReadActive,UUID bankLinkId) {}
     private final AccountRepository accounts; private final LedgerService ledger; private final Clock clock; private final AuditService audit;
-    public AccountService(AccountRepository accounts, LedgerService ledger, Clock clock, AuditService audit) {
+    private final AccountBalanceService balances;
+    public AccountService(AccountRepository accounts, LedgerService ledger, Clock clock, AuditService audit,AccountBalanceService balances) {
         this.accounts=accounts; this.ledger=ledger; this.clock=clock; this.audit=audit;
+        this.balances=balances;
     }
-    @Transactional(readOnly=true) public List<View> list(UUID owner) { return accounts.findByOwnerIdOrderByNameAsc(owner).stream().map(this::view).toList(); }
+    @Transactional(readOnly=true) public List<View> list(UUID owner) {
+        var owned=accounts.findByOwnerIdOrderByNameAsc(owner);
+        var positions=balances.current(owner);
+        return owned.stream().map(a->view(a,positions.get(a.id))).toList();
+    }
     @Transactional public View create(UUID owner, Create input) {
         if(input.openingDate().isAfter(LocalDate.now(clock))) throw ApiException.bad("O saldo inicial não pode ter data futura.");
         var balance=Money.parse(input.openingBalance());
@@ -37,7 +44,12 @@ public class AccountService {
         return view(a);
     }
     private View view(Account a) {
-        return new View(a.id,a.name,a.institution,a.kind,a.currency,a.openingDate,a.archived,a.version,ledger.balance(a.ownerId,a.id,LocalDate.now(clock)));
+        return view(a,balances.current(a.ownerId).get(a.id));
+    }
+    private View view(Account a,AccountBalanceService.Balance position) {
+        if(position==null) throw ApiException.missing();
+        return new View(a.id,a.name,a.institution,a.kind,a.currency,a.openingDate,a.archived,a.version,position.amount(),position.source(),
+            position.updatedAt(),position.checkedAt(),position.readActive(),position.linkId());
     }
 }
 

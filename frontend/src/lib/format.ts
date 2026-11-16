@@ -6,6 +6,10 @@ export function money(value: string): string {
 }
 export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 export const civilDate = (value: string | null) => value ? value.split('-').reverse().join('/') : '—';
+export function bankDateTime(value: string | null) {
+  if (!value || !Number.isFinite(Date.parse(value))) return 'Não informada';
+  return new Date(value).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' (Brasília)';
+}
 export function monthBounds(month: string) {
   const [year, m] = month.split('-').map(Number);
   const last = new Date(Date.UTC(year, m, 0)).getUTCDate();

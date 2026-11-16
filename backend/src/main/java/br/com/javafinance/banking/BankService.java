@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.dao.DataAccessException;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class BankService {
@@ -19,6 +21,7 @@ public class BankService {
     public record Bind(@NotNull UUID itemId, @NotNull UUID externalAccountId, @NotNull UUID accountId, @NotNull LocalDate importFrom, boolean confirmedBaseline) {}
     public record Sync(@NotNull LocalDate from, @NotNull LocalDate to) {}
     public record Review(long version, UUID categoryId, UUID movementId, boolean confirmedNature, boolean reviewedDuplicates) {}
+    public record Visibility(@PositiveOrZero long version,@NotNull Boolean hidden,@Size(max=300) String reason) {}
     public record Link(UUID id, UUID itemId, UUID externalAccountId, UUID accountId, String name, LocalDate importFrom,
                        boolean active, Instant lastCheckedAt, Instant providerUpdatedAt, BigDecimal reportedBalance,
                        LocalDate autoCheckedThrough, Instant autoErrorAt) {}
@@ -27,6 +30,10 @@ public class BankService {
                         String direction, String providerStatus, String state, UUID movementId, long version, List<Candidate> candidates) {}
     private final BankProperties config; private final BankProvider provider; private final JdbcTemplate jdbc;
     private final MovementService movements; private final AuditService audit; private final Clock clock; private final TransactionTemplate tx;
+    private org.springframework.context.ApplicationEventPublisher events;
+    public record ReadCompleted(UUID owner) {}
+    @org.springframework.beans.factory.annotation.Autowired
+    public void events(org.springframework.context.ApplicationEventPublisher events){this.events=events;}
     public BankService(BankProperties config, BankProvider provider, JdbcTemplate jdbc, MovementService movements, AuditService audit, Clock clock, PlatformTransactionManager manager) {
         this.config=config; this.provider=provider; this.jdbc=jdbc; this.movements=movements; this.audit=audit; this.clock=clock; tx=new TransactionTemplate(manager);
     }
@@ -51,7 +58,7 @@ public class BankService {
             rs.getObject("auto_checked_through",LocalDate.class),instant(rs.getTimestamp("auto_error_at"))),owner);
     }
     public void bind(UUID owner, Bind input) {
-        if(!input.confirmedBaseline()) throw ApiException.bad("Confirme a data e o saldo de abertura antes de vincular a conta.");
+        if(!input.confirmedBaseline()) throw ApiException.bad("Confirme a data inicial e revise os registros existentes antes de vincular a conta.");
         var snapshot=discover(owner,input.itemId());
         var external=snapshot.accounts().stream().filter(a->a.id().equals(input.externalAccountId()) && a.type().equals("BANK") && a.currency().equals("BRL")).findFirst().orElseThrow(ApiException::missing);
         tx.executeWithoutResult(status->{
@@ -68,10 +75,31 @@ public class BankService {
             UUID id=UUID.randomUUID();
             jdbc.update("INSERT INTO bank_link(id,owner_id,item_id,external_account_id,account_id,name,import_from,provider_updated_at,reported_balance) VALUES (?,?,?,?,?,?,?,?,?)",
                 id,owner,input.itemId(),external.id(),input.accountId(),external.name(),input.importFrom(),timestamp(snapshot.updatedAt()),external.balance());
-            audit.record(owner,id,"BANK_LINKED","Conta vinculada para leitura. Nenhum saldo ou lançamento foi alterado.");
+            audit.record(owner,id,"BANK_LINKED","Conta vinculada para leitura; saldo principal informado pelo banco. Nenhum registro classificado automaticamente.");
         });
     }
     public int sync(UUID owner, UUID id, Sync input) {
+        long started = System.nanoTime();
+        boolean completed = false;
+        String reference = UUID.randomUUID().toString();
+        try {
+            int read = read(owner, id, input);
+            completed = true;
+            if(events!=null)events.publishEvent(new ReadCompleted(owner));
+            return read;
+        } catch (BankReadException ex) {
+            reference = ex.reference;
+            throw ex;
+        } catch (DataAccessException ex) {
+            // Database exception messages may contain SQL, identifiers and financial values.
+            LoggerFactory.getLogger(BankService.class).warn("bank_read_failed stage=STORAGE code=STORAGE_ERROR reference={}", reference);
+            throw ex;
+        } finally {
+            LoggerFactory.getLogger(BankService.class).info("bank_read_finished reference={} completed={} duration_ms={}",
+                reference, completed, (System.nanoTime() - started) / 1_000_000);
+        }
+    }
+    private int read(UUID owner, UUID id, Sync input) {
         Link link=links(owner).stream().filter(l->l.id().equals(id)).findFirst().orElseThrow(ApiException::missing);
         remote(owner,link.itemId());
         if(!link.active()) throw ApiException.bad("A conexão está desconectada neste sistema.");
@@ -102,19 +130,23 @@ public class BankService {
         });
     }
     public List<Entry> entries(UUID owner, UUID linkId, int page) {
+        return entries(owner,linkId,page,false);
+    }
+    public List<Entry> entries(UUID owner, UUID linkId, int page, boolean pending) {
         owner(owner);
         if(page<0 || page>10000) throw ApiException.bad("Página inválida.");
         return jdbc.query("""
             SELECT e.*,a.name account_name,l.account_id FROM bank_entry e
             JOIN bank_link l ON l.id=e.link_id AND l.owner_id=e.owner_id
             JOIN account a ON a.id=l.account_id AND a.owner_id=e.owner_id
-            WHERE e.owner_id=? AND e.link_id=? ORDER BY e.date DESC,e.id LIMIT 50 OFFSET ?
+            WHERE e.owner_id=? AND e.link_id=? AND (NOT ? OR e.state IN ('REVIEW','CHANGED'))
+            ORDER BY e.date DESC,e.id LIMIT 50 OFFSET ?
             """,(rs,n)->{
                 var amount=rs.getBigDecimal("amount"); var date=rs.getObject("date",LocalDate.class); var direction=rs.getString("direction");
                 var state=rs.getString("state");
                 return new Entry(rs.getObject("id",UUID.class),linkId,rs.getString("account_name"),rs.getString("description"),amount,date,direction,rs.getString("provider_status"),state,
                     rs.getObject("movement_id",UUID.class),rs.getLong("version"),state.equals("REVIEW")?candidates(owner,rs.getObject("account_id",UUID.class),amount,date,direction):List.of());
-            },owner,linkId,page*50);
+            },owner,linkId,pending,page*50);
     }
     private List<Candidate> candidates(UUID owner, UUID account, BigDecimal amount, LocalDate date, String direction) {
         return jdbc.query("""
@@ -135,9 +167,10 @@ public class BankService {
         String state=(String)entry.get("state");
         if(!Set.of("REVIEW","CHANGED").contains(state)) throw ApiException.conflict("Este lançamento já foi revisado.");
         if(action.equals("ignore")) {
-            jdbc.update("UPDATE bank_entry SET state='IGNORED',version=version+1 WHERE id=? AND owner_id=?",id,owner);
+            jdbc.update("UPDATE bank_entry SET state='IGNORED',hidden=true,version=version+1 WHERE id=? AND owner_id=?",id,owner);
             audit.record(owner,id,"BANK_IGNORED","Ignorado na revisão, sem movimentação financeira."); return;
         }
+        if(entry.get("transfer_id")!=null) throw ApiException.bad("Desfaça a identificação de transferência antes de vincular ou classificar este registro.");
         if(entry.get("movement_id")!=null || !"POSTED".equals(entry.get("provider_status")))
             throw ApiException.bad("Revise alterações no provedor ou aguarde a efetivação. Não será criado outro lançamento.");
         UUID account=(UUID)link.get("account_id"); BigDecimal amount=(BigDecimal)entry.get("amount");
@@ -159,13 +192,12 @@ public class BankService {
             if(!matches.isEmpty() && !input.reviewedDuplicates()) throw ApiException.conflict("Há possíveis duplicidades. Vincule o lançamento existente ou confirme que são operações distintas.");
             if(input.categoryId()==null) throw ApiException.bad("Selecione a categoria.");
             UUID request=UUID.nameUUIDFromBytes(("MEU_PLUGGY:"+owner+":"+id).getBytes(StandardCharsets.UTF_8));
-            var created=movements.create(owner,new MovementDtos.Create(request,(String)entry.get("description"),amount.toPlainString(),
-                direction.equals("DEBIT")?Movement.Kind.EXPENSE:Movement.Kind.INCOME,Movement.Status.CONFIRMED,account,null,input.categoryId(),date,date.withDayOfMonth(1),date,date,"Importado após revisão do Meu Pluggy."));
+            var created=movements.recordBankReview(owner,new MovementDtos.Create(request,(String)entry.get("description"),amount.toPlainString(),
+                direction.equals("DEBIT")?Movement.Kind.EXPENSE:Movement.Kind.INCOME,Movement.Status.CONFIRMED,account,null,input.categoryId(),date,date.withDayOfMonth(1),date,date,"Classificado após revisão do Meu Pluggy; sem alterar saldo bancário."),(String)entry.get("external_id"));
             movement=created.id();
-            jdbc.update("UPDATE movement SET source='MEU_PLUGGY',external_reference=? WHERE id=? AND owner_id=?",entry.get("external_id"),movement,owner);
         } else throw ApiException.bad("Ação inválida.");
         jdbc.update("UPDATE bank_entry SET state=?,movement_id=?,version=version+1 WHERE id=? AND owner_id=?",action.equals("match")?"MATCHED":"IMPORTED",movement,id,owner);
-        audit.record(owner,id,"BANK_REVIEWED",action.equals("match")?"Vinculado a lançamento existente, sem duplicar saldo.":"Importação confirmada pelo usuário.");
+        audit.record(owner,id,"BANK_REVIEWED",action.equals("match")?"Vinculado a lançamento existente, sem duplicar saldo.":"Classificação confirmada para relatórios, sem alterar saldo bancário.");
     }
     @Transactional public void disconnect(UUID owner, UUID id) {
         owner(owner);
@@ -173,6 +205,19 @@ public class BankService {
         if(links.isEmpty()) throw ApiException.missing();
         jdbc.update("UPDATE bank_link SET active=false WHERE id=? AND owner_id=?",id,owner);
         audit.record(owner,id,"BANK_DISCONNECTED","Consultas desativadas neste sistema. Revogue também a autorização no Meu Pluggy/banco.");
+    }
+    @Transactional public void visibility(UUID owner,UUID id,Visibility input) {
+        owner(owner);
+        var rows=jdbc.queryForList("SELECT * FROM bank_entry WHERE id=? AND owner_id=? FOR UPDATE",id,owner);
+        if(rows.isEmpty()) throw ApiException.missing();
+        var entry=rows.getFirst();
+        if(input.hidden()==null) throw ApiException.bad("Informe a visibilidade do registro.");
+        if(((Number)entry.get("version")).longValue()!=input.version()) throw ApiException.conflict("O registro mudou. Atualize a lista.");
+        // Separate visibility preserves classification and survives future provider updates.
+        jdbc.update("UPDATE bank_entry SET hidden=?,state=CASE WHEN NOT ? AND state='IGNORED' THEN CASE WHEN movement_id IS NULL THEN 'REVIEW' ELSE 'CHANGED' END ELSE state END,version=version+1 WHERE id=? AND owner_id=?",
+            input.hidden(),input.hidden(),id,owner);
+        String reason=input.reason()==null || input.reason().isBlank() ? (input.hidden()?"Ocultado pelo usuário; fora dos relatórios, sem alterar saldo.":"Restaurado pelo usuário; volta à lista e aos relatórios.") : input.reason().strip();
+        audit.record(owner,id,input.hidden()?"BANK_HIDDEN":"BANK_RESTORED",reason);
     }
     public void reconnect(UUID owner, UUID id) {
         Link link=links(owner).stream().filter(l->l.id().equals(id)).findFirst().orElseThrow(ApiException::missing);

@@ -2,6 +2,11 @@
 **/target
 **/target-cloud
 .cloud
+.tools
+.codex
+.agents
+skills-lock.json
+vector-lab
 .test-db
 .vercel
 frontend/dist

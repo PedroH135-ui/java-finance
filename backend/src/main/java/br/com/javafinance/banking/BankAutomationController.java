@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class BankAutomationController {
     private final BankProperties config; private final BankAutoSync sync; private final ObjectMapper mapper;
+    private CloudCategoryJobs categoryJobs;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void categoryJobs(CloudCategoryJobs jobs){this.categoryJobs=jobs;}
     public BankAutomationController(BankProperties config,BankAutoSync sync,ObjectMapper mapper) { this.config=config; this.sync=sync; this.mapper=mapper; }
     @PostMapping("/api/banking/hooks/pluggy")
     ResponseEntity<Void> webhook(HttpServletRequest request) throws IOException {
@@ -35,6 +38,7 @@ public class BankAutomationController {
     @GetMapping("/api/banking/jobs/daily")
     ResponseEntity<Void> daily(HttpServletRequest request) {
         authorize(request.getHeader("Authorization"),"Bearer "+config.getCronSecret());
+        if(categoryJobs!=null)categoryJobs.retryPending();
         return result(sync.daily());
     }
     private void authorize(String received,String expected) {

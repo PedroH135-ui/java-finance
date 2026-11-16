@@ -11,7 +11,7 @@ public class BankAutomationSecurity {
     /** Machine endpoints validate independent secrets, never a user's session. Other routes keep CSRF. */
     @Bean @Order(1)
     SecurityFilterChain bankAutomationChain(HttpSecurity http) throws Exception {
-        return http.securityMatcher("/api/banking/hooks/pluggy","/api/banking/jobs/daily")
+        return http.securityMatcher("/api/banking/hooks/pluggy","/api/banking/jobs/daily","/api/banking/jobs/categories")
             .csrf(c->c.disable()).sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a->a.anyRequest().permitAll()).headers(h->h.cacheControl(c->{})).build();
     }

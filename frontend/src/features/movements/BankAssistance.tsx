@@ -1,0 +1,84 @@
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert, Box, Button, Chip, Divider, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { api, json } from '../../lib/api';
+import type { Category, FinancialRecord } from '../../lib/types';
+import { civilDate, money } from '../../lib/format';
+import { Failure, Loading } from '../../components/Shared';
+
+interface Assistance {
+  entryVersion:number; currentCategoryId:string|null; canCategorize:boolean; unavailableReason:string;
+  categorySuggestion:{categoryId:string|null;confidence:string;method:string;reason:string;evidenceCount:number;modelUsed:boolean;provider?:string;
+    retrieval?:{method:string;model:string;dimensions:number;examples:{description:string;categoryId:string;similarity:number}[]}|null};
+  transferCandidates:{id:string;accountName:string;description:string;amount:string;date:string;version:number}[];
+  transfer:{id:string;peerId:string;version:number;valid:boolean}|null;
+  categoryState:{source:string|null;method:string|null;confidence:string|null;automaticBlocked:boolean;automaticEnabled:boolean};
+}
+
+export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChanged:()=>void}) {
+  const client=useQueryClient();
+  const query=useQuery({queryKey:['bankAssistance',record.bankEntryId],queryFn:()=>api<Assistance>(`/banking/entries/${record.bankEntryId}/assistance`),staleTime:0});
+  const categories=useQuery({queryKey:['categories'],queryFn:()=>api<Category[]>('/categories')});
+  const [selected,setSelected]=useState<string|undefined>(),[peer,setPeer]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+  async function apply(action:string,body:unknown) {
+    if(busy)return;setBusy(true);setError('');
+    try {
+      await api(`/banking/entries/${record.bankEntryId}/${action}`,{method:'POST',body:json(body)});
+      onChanged();
+      await Promise.all(['movementFeed','bankAssistance','bankEntries','summary','budgets'].map(key=>client.invalidateQueries({queryKey:[key]})));
+    } catch(e){setError((e as Error).message);} finally{setBusy(false);}
+  }
+  if(query.isPending)return <Loading/>;
+  if(query.error)return <Failure error={query.error} retry={()=>void query.refetch()}/>;
+  const data=query.data,suggestion=data.categorySuggestion;
+  const choice=selected??data.currentCategoryId??suggestion.categoryId??'';
+  const candidate=data.transferCandidates.find(c=>c.id===peer);
+  return <Stack spacing={2}>
+    <Divider/>
+    {error&&<Alert severity="error">{error}</Alert>}
+    <Typography variant="subtitle1" fontWeight={650}>Transferências entre suas contas</Typography>
+    {data.transfer?<>
+      <Alert severity={data.transfer.valid?'success':'warning'}>{data.transfer.valid?'Transferência própria identificada. Os dois registros ficam fora de renda e gastos, sem alterar os saldos.':'O banco mudou os dados usados na identificação. Os registros voltaram aos totais; confira e identifique novamente se forem uma transferência própria.'}</Alert>
+      <Button disabled={busy} onClick={()=>void apply('transfer/undo',{version:data.transfer!.version})}>Desfazer identificação de transferência</Button>
+    </>:data.transferCandidates.length>0?<>
+      <Alert severity="info">Encontramos mesmo valor, direção oposta, outra conta vinculada e até dois dias de diferença. Isso é uma sugestão: confirme somente se as duas contas forem suas e representarem a mesma transferência.</Alert>
+      {data.transferCandidates.length>1&&<Alert severity="warning">Há mais de um par possível. Escolha com atenção; nada será identificado automaticamente.</Alert>}
+      <TextField select label="Operação na outra conta" value={peer} onChange={e=>setPeer(e.target.value)} disabled={busy}>
+        {data.transferCandidates.map(c=><MenuItem key={c.id} value={c.id}>{c.accountName} · {civilDate(c.date)} · {money(c.amount)} · {c.description}</MenuItem>)}
+      </TextField>
+      <Button variant="outlined" disabled={busy||!candidate} onClick={()=>candidate&&void apply('transfer',{version:data.entryVersion,peerId:candidate.id,peerVersion:candidate.version})}>Confirmar transferência entre minhas contas</Button>
+    </>:<Typography variant="body2" color="text.secondary">Nenhum par disponível. Para identificar um par, precisamos dos registros das duas contas vinculadas. Uma descrição de PIX sozinha não comprova uma transferência própria.</Typography>}
+    <Divider/><Typography variant="subtitle1" fontWeight={650}>{data.currentCategoryId?'Categoria do registro':'Categoria sugerida'}</Typography>
+    {!data.canCategorize?<Typography variant="body2">{data.unavailableReason}</Typography>:<>
+      {data.currentCategoryId&&data.categoryState.source==='AUTO'&&<Alert severity="info">Categoria aplicada automaticamente ({data.categoryState.method==='MEMORY'?'decisão anterior da IA, sem nova chamada ao LLM':data.categoryState.method==='HISTORY'?'histórico':data.categoryState.method==='RULE'?'regra de descrição':'LLM'}). Você pode corrigir; sua escolha terá prioridade. A classificação pode errar.</Alert>}
+      {data.categoryState.automaticBlocked&&<Alert severity="success">{data.currentCategoryId?'Categoria escolhida por você. A automação não vai sobrescrevê-la.':'Classificação automática pausada neste registro. Sua escolha manual tem prioridade.'}</Alert>}
+      {!data.currentCategoryId&&data.categoryState.automaticEnabled&&!data.categoryState.automaticBlocked&&<Alert severity="info">A classificação automática roda em segundo plano. Casos sem informação suficiente continuam sem categoria. Você também pode escolher manualmente.</Alert>}
+      {!data.currentCategoryId&&!data.categoryState.automaticEnabled&&<Box>
+        <Typography variant="body2">{suggestion.reason}</Typography>
+        {suggestion.categoryId&&<Stack direction="row" gap={1} flexWrap="wrap" mt={1}>
+          <Chip size="small" label={suggestion.method==='HISTORY'?'Seu histórico':suggestion.method==='RULE'?'Regra de descrição':suggestion.provider==='groq'?'Modelo na nuvem':'Modelo local'}/>
+          <Chip size="small" label={'Consistência '+(suggestion.confidence==='HIGH'?'alta':suggestion.confidence==='MEDIUM'?'moderada':'baixa')}/>
+          {suggestion.evidenceCount>0&&<Chip size="small" label={suggestion.evidenceCount+' exemplo(s) relevante(s)'}/>}
+        </Stack>}
+      </Box>}
+      {import.meta.env.VITE_LOCAL_REVIEW==='true'&&suggestion.retrieval?.method==='PGVECTOR'&&<Alert severity="info">
+        <Typography variant="subtitle2">RAG vetorial local · {suggestion.retrieval.dimensions} dimensões</Typography>
+        <Typography variant="body2">Exemplos recuperados do histórico fictício deste perfil. Similaridade não é certeza de acerto.</Typography>
+        {suggestion.retrieval.examples.length?suggestion.retrieval.examples.map((example,index)=><Typography variant="body2" key={index}>
+          {example.description} → {categories.data?.find(c=>c.id===example.categoryId)?.name??'Categoria do perfil'} · similaridade {example.similarity.toFixed(3)}
+        </Typography>):<Typography variant="body2">Nenhum exemplo atingiu o corte experimental de 0,60. Você pode escolher a categoria manualmente.</Typography>}
+        <Typography variant="caption">{suggestion.modelUsed?'O fluxo consultou o adaptador do LLM; ele pode reutilizar cache.':'Esta resposta não precisou do LLM.'} Abrir os detalhes não grava a categoria.</Typography>
+      </Alert>}
+      <Typography variant="caption" color="text.secondary">{data.categoryState.automaticEnabled?'Você pode corrigir ou remover a categoria automática. Isso organiza os relatórios, sem alterar o saldo.':'A sugestão não é certeza. Você pode escolher outra categoria; só aplicamos depois do seu clique.'}</Typography>
+      {categories.isPending?<Loading/>:categories.error?<Failure error={categories.error}/>:<>
+        <TextField select label="Categoria para este registro" value={choice} onChange={e=>setSelected(e.target.value)} disabled={busy}>
+          <MenuItem value="">Escolha uma categoria</MenuItem>
+          {categories.data.filter(c=>!c.archived&&c.kind===record.kind).map(c=><MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+        </TextField>
+        <Button variant="outlined" disabled={busy||!choice} onClick={()=>void apply('category',{version:data.entryVersion,categoryId:choice})}>{data.categoryState.automaticEnabled?'Salvar minha categoria':'Aplicar categoria escolhida'}</Button>
+        {data.currentCategoryId&&<Button disabled={busy} onClick={()=>void apply('category',{version:data.entryVersion,categoryId:null})}>Remover categoria</Button>}
+        {!data.currentCategoryId&&data.categoryState.automaticEnabled&&data.categoryState.automaticBlocked&&<Button disabled={busy} onClick={()=>void apply('category/automatic/allow',{version:data.entryVersion})}>Permitir classificação automática novamente</Button>}
+      </>}
+    </>}
+  </Stack>;
+}

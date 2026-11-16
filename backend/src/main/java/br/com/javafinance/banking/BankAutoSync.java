@@ -79,6 +79,8 @@ public class BankAutoSync {
                 """,complete,generation,complete?null:ts(clock.instant()),owner,item,token);
             return complete;
         } catch(RuntimeException ex) {
+            // Never log exception text or SQL parameters from the job coordinator.
+            org.slf4j.LoggerFactory.getLogger(BankAutoSync.class).warn("bank_job_failed code=JOB_COORDINATION");
             jdbc.update("UPDATE bank_sync_job SET last_error_at=?,lease_token=null,lease_until=null WHERE owner_id=? AND item_id=? AND lease_token=?",ts(clock.instant()),owner,item,token);
             return false;
         }

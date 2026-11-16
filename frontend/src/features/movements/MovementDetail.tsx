@@ -24,8 +24,8 @@ export function MovementDetail({id,onClose}:{id:string;onClose:()=>void}) {
         <Typography>Operação: {civilDate(m.operationDate)} · Competência: {m.competence.slice(0,7).split('-').reverse().join('/')}</Typography>
         <Typography>Vencimento: {civilDate(m.dueDate)} · Efetivação: {civilDate(m.settledDate)}</Typography>
         <Typography variant="body2" sx={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{m.notes||'Sem observações.'}</Typography>
-        <Typography variant="body2">Origem: {m.source==='MANUAL'?'Cadastro manual':m.source}</Typography>
-        <Alert severity="info">Para corrigir valores, cancele esta operação e registre a correta. O histórico é preservado. Transferências são revertidas nos dois lados.</Alert>
+        <Typography variant="body2">Origem: {m.source==='MANUAL'?'Cadastro manual':m.source==='MEU_PLUGGY'?'Classificação bancária':m.source}</Typography>
+        <Alert severity="info">{m.source==='MEU_PLUGGY'?'Esta classificação alimenta categorias e relatórios. Cancelá-la não altera o saldo informado pelo banco. O histórico é preservado.':'Para corrigir valores, cancele esta operação e registre a correta. O histórico é preservado. Contas vinculadas mantêm o saldo informado pelo banco; nas contas manuais, o saldo calculado é ajustado.'}</Alert>
         <Divider/><Typography variant="h6">Histórico</Typography>
         {audit.isPending?<Loading/>:audit.error?<Failure error={audit.error}/>:audit.data?.map((event,i)=><Typography key={i} variant="body2">{new Date(event.created_at).toLocaleString('pt-BR')} — {event.reason}</Typography>)}
       </Stack>}</DialogContent>
@@ -47,6 +47,7 @@ function ChangeForm({movement,action,onClose}:{movement:Movement;action:'confirm
     actions={<Button variant="contained" color={action==='cancel'?'error':'primary'} type="submit" form="change-form" disabled={busy}>{busy?'Salvando…':'Confirmar'}</Button>}>
     <form id="change-form" onSubmit={submit}><Stack spacing={2} pt={1}>{error&&<Alert severity="error">{error}</Alert>}
       <Typography>{movement.description} · {money(movement.amount)}</Typography>
+      {action==='cancel'&&movement.source==='MEU_PLUGGY'&&<Alert severity="info">Cancelar retira a classificação dos relatórios, sem alterar o saldo bancário.</Alert>}
       {action==='confirm'&&<TextField label="Data de efetivação" type="date" value={date} onChange={e=>setDate(e.target.value)} required slotProps={{inputLabel:{shrink:true}}}/>}
       <TextField label="Motivo para o histórico" value={reason} onChange={e=>setReason(e.target.value)} required autoFocus multiline rows={2} slotProps={{htmlInput:{maxLength:300}}}/>
     </Stack></form>
