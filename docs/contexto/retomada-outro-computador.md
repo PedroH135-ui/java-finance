@@ -1,5 +1,7 @@
 # Retomar em outro computador
 
+**Estado atual — 17/11, Production/V16:** melhoria de salário/gastos publicada e verificada; ler [relatório/rollback](../publicacao-metas-renda-2026-11-17.md) e o topo do [handoff](handoff.md). Código/contexto enviados em `codex/metas-renda-mensal` e incorporados à [PR17](https://github.com/PedroH135-ui/java-finance/pull/17), cabeça `codex/organizacao-financeira-local`, sem merge. Conferir a presença de `645d04b` e dos relatórios no remoto antes de retomar. Não copiar `.tools`, dump, DPAPI ou conexões. Recuperação V15 restaurada no Neon, em banco isolado novo, permite continuar sem depender do arquivo DPAPI deste computador. Entradas abaixo são históricas.
+
 **17/11:** versão Production/V15 enviada e [PR17](https://github.com/PedroH135-ui/java-finance/pull/17) aberta, checks aprovados e sem merge/deploy novo. Ela pode ser recuperada de `origin/codex/organizacao-financeira-local`. Evolução de salário/gastos/V16 está **somente localmente** em `codex/metas-renda-mensal`, implementada/testada e ainda não enviada ou publicada; ler `../metas-renda-mensal-local.md` e o topo do handoff. Credenciais, `.tools`, DPAPI e bancos fictícios não acompanham o clone. Entradas abaixo são históricas.
 
 **Mais recente: organização publicada em Production**, V15, Java `dpl_HzvgiTtJqCrbY2RRmZg2iNa9ys58` e Python `dpl_CQ2R7PSbVpFA2219vPnntCRZi6JW`. Recuperação V13 restaurada, migrações isoladas e testes aprovados; IA default-on para novos cadastros/vínculo, com opt-out e correções preservados. Ler `../publicacao-organizacao-2026-11-16.md` e o topo do handoff. Código funcional `c4135e9` **somente na branch local** `codex/organizacao-financeira-local`, ainda sem push/PR/merge. Pedir autorização de envio para disponibilizar em outro computador; não copiar `.tools`, DPAPI, dumps ou segredos. Entradas abaixo registram etapas antigas.
@@ -21,10 +23,10 @@ O código mais recente está no GitHub em `codex/publica-rag-cloud`, [PR #15](ht
 
 ## Recuperar o código
 
-O trabalho mais recente está na branch remota `codex/publica-rag-cloud`, não na branch padrão. Use:
+Para recuperar a evolução V16 após o envio, use a branch `codex/metas-renda-mensal`, não a branch padrão:
 
 ```powershell
-git clone --branch codex/categorias-padrao https://github.com/PedroH135-ui/java-finance.git
+git clone --branch codex/metas-renda-mensal https://github.com/PedroH135-ui/java-finance.git
 Set-Location java-finance
 git status --short
 ```

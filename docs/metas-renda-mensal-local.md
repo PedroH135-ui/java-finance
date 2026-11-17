@@ -1,6 +1,6 @@
-# Salário, gastos mensais e capacidade de guardar — etapa local
+# Salário, gastos mensais e capacidade de guardar — implementação e testes locais
 
-17/11/2026. Branch `codex/metas-renda-mensal`, commit funcional local `645d04b`, baseada na versão já publicada. **Não publicada nem enviada ao GitHub.** A [PR17](https://github.com/PedroH135-ui/java-finance/pull/17) contém somente a organização V15 já em produção e está aberta, com checks de segredos/privacidade e frontend aprovados. Não houve merge ou novo deploy nesta etapa.
+17/11/2026. Branch `codex/metas-renda-mensal`, commit funcional `645d04b`, baseada na organização V15. Este documento registra a implementação e os testes locais. **Publicação posterior autorizada concluída em Production/V16:** ler [resultado, recuperação e rollback](publicacao-metas-renda-2026-11-17.md). Código/contexto enviados ao GitHub e incorporados à [PR17](https://github.com/PedroH135-ui/java-finance/pull/17), sem merge. As referências à etapa local abaixo descrevem a validação anterior ao rollout.
 
 ## Pedido e comportamento
 
@@ -47,4 +47,4 @@ Referência manual de gastos não oculta compromissos maiores já registrados. L
 - Segredos: 12 valores protegidos comparados em memória com495arquivos/recursos, zero correspondências; Gitleaks fontes sem achados. Fixtures, senhas, hashes, dumps e logs reais não acompanham o código. O seed só escreve a identificação fictícia em arquivo ignorado.
 - Após reiniciar Docker, os containers fictícios estavam parados. A proteção do seed bloqueou corretamente; foram iniciados somente `java-finance-review-db` e `java-finance-vector-lab`, após conferir labels e portas127.0.0.1. Nenhum container de outro projeto foi alterado.
 
-Produção permanece V15, conforme `publicacao-organizacao-2026-11-16.md`; a PR17 não contém V16. Antes de publicar esta evolução: autorização explícita, backup do banco correto, V16 em branch isolada, contrato Python compatível e testes. Iniciar o Java com conexão real aplicaria Flyway. Não usar scripts antigos de provisionamento. Rollback futuro pode manter a tabela aditiva, preservando previsões; não executar downgrade destrutivo nem apagar dados. Não copiar credenciais, dumps, DPAPI ou `.tools` ao GitHub/outro computador.
+Antes da publicação, produção permanecia V15. Os requisitos de autorização, recuperação restaurada, V16 isolada e contrato Python foram cumpridos no [rollout posterior](publicacao-metas-renda-2026-11-17.md). Iniciar o Java com conexão real aplica Flyway mesmo sem promover domínio. Não usar scripts antigos de provisionamento. Rollback pode manter a tabela aditiva, preservando previsões; não executar downgrade destrutivo nem apagar dados. Não copiar credenciais, dumps, DPAPI ou `.tools` ao GitHub/outro computador.

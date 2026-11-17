@@ -6,9 +6,10 @@ O fluxo real da IA está explicado em `docs/langchain-rag-atual.md`.
 
 ## Estado de produção
 
-Em 16/11/2026, Java e Python foram publicados com autorização explícita, após
-recuperação confirmada e teste isolado. Produção está na V15; RAG/pgvector e fila,
-Investimentos e Metas funcionam na nuvem. Ler `docs/publicacao-organizacao-2026-11-16.md` e revalidar
+Em 17/11/2026, Java e Python foram publicados com autorização explícita, após
+recuperação V15 restaurada e V16 testada em branch isolada. Produção está na V16;
+Metas considera salário, gastos e compromissos mensais. RAG/pgvector e fila,
+Investimentos e Metas funcionam na nuvem. Ler `docs/publicacao-metas-renda-2026-11-17.md` e revalidar
 o estado antes de qualquer novo deploy. Não inferir autorização por estes arquivos.
 
 - Preservar Java, JPA/JDBC, Flyway e Pluggy v2. Prisma não faz parte da aplicação.
