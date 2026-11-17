@@ -1,5 +1,12 @@
 # Retomada da publicação da IA
 
+## Mais recente — PR17 enviada; salário e gastos implementados/testados localmente
+
+- Usuário autorizou push/PR da versão já publicada. Branch `codex/organizacao-financeira-local` enviada; [PR17](https://github.com/PedroH135-ui/java-finance/pull/17), base `feat/fundacao-financeira`, com contexto, testes, deployments, recuperação e rollback. Seis commits de saída, Gitleaks sem achados, 12segredos/469recursos sem correspondências, arquivos privados fora do Git. Checks remotos de segurança/frontend aprovados. Sem merge ou novo deploy.
+- Pedido adicional: planejador deve conhecer salário e gastos mensais para calcular capacidade e necessidade da meta. Separado na branch local `codex/metas-renda-mensal`, commit funcional `645d04b`, **não enviado nem publicado**. V16 e `PlanningFinanceService`, perfil informativo e contexto financeiro no Java, previsão de aporte/diferença/prazo com orçamento e outras metas. Nenhum dado financeiro das consultas vai para a Groq. Ler `docs/metas-renda-mensal-local.md`.
+- Java131 (seteIT novos) e Python46 aprovados; frontend lint/três testes/build; migração V15→V16 testada adicionalmente com dados fictícios existentes, sem mudanças financeiras. E2E local aprovado: salário3000−gastos2700→capacidade300, meta3000/reserva600/6meses→aporte400, diferença100/prazo8. Nenhuma meta/receita/despesa criada, saldos/fluxo iguais; zero erros JavaScript e requisições externas. Docker fictício foi iniciado após verificação de labels/portas; não tocar containers de outros projetos. Cadastro continua fechado; seed_planning cria só usuário fictício no banco guardado. Produção continua V15 e não foi alterada nesta etapa.
+- Varredura nova local: 12segredos/495recursos sem correspondências, Gitleaks sem achados; arquivos privados ignorados. Não enviar essa evolução à PR17 ou publicar V16 por inferência: a PR é a versão já publicada V15, e a evolução nova foi separada para revisão local.
+
 ## Mais recente — organização publicada e testada em Production
 
 Usuário confirmou publicação e testes Production, backup e migrações isoladas antes. Última preferência: **ativada por padrão para novos usuários**, controle individual/opt-out e correções preservados. Commit funcional `c4135e9`. Ler `docs/publicacao-organizacao-2026-11-16.md`: recuperação V13 restaurada e sem expiração em branch isolada existente; V14/V15 aprovadas no PostgreSQL18.7; Java/Python publicados e testados, hashes financeiros e preferências preservados. Sem push, PR ou merge.
