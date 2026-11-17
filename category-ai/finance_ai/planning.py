@@ -41,8 +41,8 @@ def interpret(request:PlanningRequest):
     if months and 1<=int(months[1])<=120:data['months']=int(months[1])
     cleaned=re.sub(r'\b\d{1,3}\s*mes(?:es)?\b','',text)
     value=amount(cleaned)
-    action='PURCHASE' if any(t in text for t in ('comprar','posso gastar','cabe no orçamento')) else 'SUMMARY' if any(t in text for t in ('meu resumo','meus gastos','como estou')) else 'GOAL'
-    if value is not None:
+    action='PURCHASE' if any(t in text for t in ('comprar','posso gastar','cabe no orcamento')) else 'SUMMARY' if any(t in text for t in ('meu resumo','meus gastos','como estou','quanto ganho','meu salario','minha renda','quanto gasto','gasto por mes','gastos mensais','quanto recebo','salario mensal')) else 'GOAL'
+    if value is not None and action!='SUMMARY':
         if any(t in text for t in ('já tenho','ja tenho','já guardei','ja guardei','reservado')):data['saved']=value
         else:data['target']=value
     if 'viaj' in text:data['title']='Viagem'

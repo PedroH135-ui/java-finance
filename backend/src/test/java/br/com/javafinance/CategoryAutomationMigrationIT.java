@@ -56,6 +56,11 @@ class CategoryAutomationMigrationIT {
             assertThat(jdbc.queryForObject("SELECT count(*) FROM financial_knowledge",Long.class)).isEqualTo(5);
             assertThat(jdbc.queryForObject("SELECT count(*) FROM bank_financial_nature",Long.class)).isZero();
             assertThat(jdbc.queryForObject("SELECT reported_balance FROM bank_link WHERE id=?",BigDecimal.class,link)).isEqualByComparingTo("123.45");
+            var planning=Flyway.configure().dataSource(db.getJdbcUrl(),db.getUsername(),db.getPassword()).target("16").load().migrate();
+            assertThat(planning.migrationsExecuted).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM planning_income_profile",Long.class)).isZero();
+            assertThat(jdbc.queryForObject("SELECT jsonb_agg(to_jsonb(f) ORDER BY id)::text FROM financial_record f",String.class)).isEqualTo(before);
+            assertThat(jdbc.queryForObject("SELECT enabled FROM category_automation_preference WHERE owner_id=?",Boolean.class,owner)).isFalse();
         }
     }
 }

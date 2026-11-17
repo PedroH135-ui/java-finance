@@ -30,6 +30,11 @@ def test_goal_conversation_is_langchain_without_llm_and_keeps_amount_and_deadlin
  third=planning_chain.invoke(PlanningRequest(message='já tenho 600 reservado',state=GoalState(target='3000',months=6,title='Viagem')))
  assert third.target=='3000' and third.saved=='600' and third.months==6
 
+def test_salary_and_expense_questions_are_summary_and_do_not_change_the_goal():
+ for message in ('Quanto ganho de salário?','Quanto gasto por mês?','Meu salário é 3000'):
+  result=planning_chain.invoke(PlanningRequest(message=message,state=GoalState(target='5000',months=10)))
+  assert result.action=='SUMMARY' and result.target=='5000' and not result.modelUsed
+
 def test_planning_endpoint_requires_service_auth_and_rejects_extra_context(monkeypatch):
  import importlib
  from fastapi.testclient import TestClient
