@@ -1,10 +1,12 @@
 # Contexto do Java Finance
 
-**17/11 — faturas:** diagnóstico detalhado `5aa621a` em produção, V18.
-Correção de total bancário original/V19 somente local e branch isolada;
-backup V18 restaurado, fingerprints preservados e testes aprovados.
-[Resultado, limites e próxima publicação](../faturas-total-original-v19.md).
-Sem autorização de publicar V19 por estes arquivos.
+**17/11 — faturas V19 publicadas:** fonte `f5eb86e`, Java/React
+`dpl_3H445zcqzbverFqALxaiZKc3YqDy`, após autorização específica,
+backup V18 restaurado/revalidado e V19 isolada aprovada. Leitura controlada
+retornou faturas com cobertura disponível; totais originais preservados,
+conciliação de valores incompatíveis bloqueada, saldos/correções intactos.
+[Resultado, testes e rollback](../faturas-total-original-v19.md). Python preservado;
+sem push/PR/merge nesta etapa. Entradas seguintes são históricas.
 
 **Produção V18 publicada — 17/11:** Java/React `dpl_2rzkbwNhztw62SrYXR8aspQFCH2b`,
 fonte funcional `2575d5d`. Backup V16 restaurado e V17/V18/rollback aprovados na

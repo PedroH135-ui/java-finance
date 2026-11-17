@@ -1,5 +1,25 @@
 # Retomada da publicação da IA
 
+## Mais recente — faturas V19 publicadas e leitura concluída
+
+17/11: usuário autorizou expressamente `f5eb86e`/V19 e uma leitura.
+Publicado `dpl_3H445zcqzbverFqALxaiZKc3YqDy` no domínio principal,
+Python `dpl_FAfZ4jeHmEXjfJSmSuqBThAeQ9Ji`/configurações preservados.
+Backup V18 DPAPI revalidado e restaurado em dois bancos isolados; V19
+aprovada antes do candidato. Candidato UP, fingerprints preservados antes
+de promover; leitura real trouxe faturas com cobertura disponível, sinal e
+precisão originais. Conferência posterior preservou saldos, registros,
+correções humanas e preferências; zero conciliações/importações.
+Totais com frações de centavo/negativos continuam bloqueados para conciliar.
+Leituras adicionais automáticas continuam desligadas. Não houve mudança
+no agendamento bancário existente. Java47 unitários/frontend11/lint/build/
+quatro E2E e SQL isolado aprovados; suíte Docker completa não concluída.
+Ler `docs/faturas-total-original-v19.md` e preservar `.tools/card-fix/v19`
+privado (recuperação read-only/teste existentes, não sobrescrever/apagar).
+Rollback não deve reduzir precisão nem promover UI antiga que trunque totais.
+Sem push/PR/merge. Esta autorização não cobre nova publicação.
+Entradas abaixo são históricas, inclusive a V19 somente local.
+
 ## Mais recente — faturas, diagnóstico publicado e V19 isolada
 
 17/11: diagnóstico detalhado `5aa621a` publicado com autorização em

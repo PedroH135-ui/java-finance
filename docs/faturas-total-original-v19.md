@@ -1,7 +1,36 @@
-# Faturas: total original do banco — V19 local
+# Faturas: total original do banco — V19 publicada
 
-17/11/2026. Branch `codex/corrige-cartoes-investimentos`. A V19 está testada
-somente na branch Neon isolada; não publicada. Produção permanece V18.
+17/11/2026. Branch `codex/corrige-cartoes-investimentos`. Usuário autorizou
+explicitamente publicar `f5eb86e` com V19 e executar uma leitura controlada,
+após receber os testes e as limitações abaixo. Publicação concluída.
+
+## Resultado em produção
+
+- Java/React `dpl_3H445zcqzbverFqALxaiZKc3YqDy`, fonte `f5eb86e`,
+  domínio `https://java-finance.vercel.app`, schema19.
+- Candidato Production criado com `--skip-domain`, fonte canônica do Git sem
+  arquivos privados. SQLs comparados aos testes isolados, respeitando apenas
+  normalização de finais de linha. Gitleaks do pacote sem achados.
+- Backup V18 novamente decriptado/digest conferido e duas restaurações isoladas
+  legíveis antes da publicação; fingerprints atuais iguais ao backup.
+- Candidato saudável; V19 e todos os fingerprints/caches anteriores conferidos
+  antes da promoção do mesmo artefato. Nenhuma alteração de configuração.
+- Uma leitura controlada após promover retornou faturas, cartões/detalhes e
+  posições com cobertura disponível. Totais assinados/precisos foram preservados;
+  a quantidade e os valores reais ficam somente nas evidências privadas.
+- Interface real conferida: faturas visíveis, aviso de total original,
+  checkbox e confirmação de conciliação bloqueados para total incompatível.
+  Nenhuma conciliação, categorização manual ou importação foi acionada.
+- Após a leitura: registros financeiros, saldos, correções humanas, preferências
+  e projeções protegidas iguais; zero conciliações. Repetição de leituras
+  adicionais permanece desligada, sem modificar o agendamento bancário existente.
+- Logs pontuais sem marcadores `bank_read_failed`/`bank_product_read_failed`.
+  Saúde Java UP. Python anterior e configurações Java/Python preservados.
+- Evidências privadas `.tools/card-fix/v19`, nunca versionar. Sem push/PR/merge.
+
+Os totais originais com frações de centavo continuam impedidos de conciliação:
+o banco precisa fornecer um total elegível e cobertura/detalhes exatos antes
+de qualquer confirmação humana. Leitura bem-sucedida não equivale a conciliação.
 
 ## Diagnóstico confirmado
 
@@ -62,13 +91,10 @@ como read-only. Material privado em `.tools/card-fix/v19`, nunca versionar.
 
 ## Publicação e rollback
 
-A autorização mais recente cobriu somente o diagnóstico `5aa621a` e uma leitura.
-A V19 requer nova autorização específica antes de qualquer candidato que use
-o banco real: iniciar Java pode aplicar Flyway mesmo sem promover o domínio.
-Após aprovação, revalidar backup/fingerprints/SQL, construir fonte canônica,
-conferir candidato e configuração, promover e fazer uma leitura controlada.
-Não importar movimentos, confirmar faturas nem alterar saldos ou correções.
-Python e suas configurações não precisam mudar.
+A autorização posterior incluiu expressamente `f5eb86e`, V19 e uma leitura,
+executados conforme o resultado acima. Não reutilizar essa autorização para
+outros commits, migrações, leituras ou publicações. Iniciar Java com conexão
+real pode aplicar Flyway mesmo sem promover o domínio. Python não mudou.
 
 Não converter numeric novamente para numeric(19,2): isso arredondaria os dados.
 Não fazer down migration, repair ou apagar snapshots. Não promover cegamente
