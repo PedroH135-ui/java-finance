@@ -1,5 +1,42 @@
 # Retomada da publicação da IA
 
+## Mais recente — 17/11: módulos publicados com V17/V18
+
+- Usuário autorizou publicar após backup e migrações isoladas e depois atualizar
+  GitHub. Publicado Java/React `dpl_2rzkbwNhztw62SrYXR8aspQFCH2b`, fonte `2575d5d`,
+  domínio estável conferido; Python `dpl_FAfZ4jeHmEXjfJSmSuqBThAeQ9Ji` preservado.
+  Ler `docs/publicacao-modulos-integrados-2026-11-17.md`. Entradas abaixo sobre
+  produção V16/somente local descrevem etapas anteriores.
+- Backup atual V16 criptografado e novamente decriptado/digest conferido;
+  restauração validada nos bancos novos `modules_recovery_20261117_v16` (read-only)
+  e `modules_verify_20261117_v18` da branch existente `br-round-hall-b668ttqy`,
+  sem expiração. Não apagar/redefinir a branch ou recuperações anteriores.
+- V17 em2227ms, V18 em2604ms, PostgreSQL18.7/Flyway11.20.3, validação e repetição
+  zero. SQL canônico do Git comparado ao artefato local, sem repair. Rollback
+  compatível testado com fixture fictícia dentro de transação revertida.
+- Gates reais antes/depois da promoção/inspeção: schema18, constraints válidas,
+  fingerprints financeiros/correções/preferências iguais, novas tabelas vazias.
+  Não foram marcados salários reais, criadas regras/previsões, acionadas consultas
+  Pluggy/LLM ou confirmadas faturas durante a verificação.
+- Sessão real mantida; Configurações/regras, previsão manual, novos filtros,
+  consulta adicional e posições bancárias conferidos por leitura. Tela deixada
+  em Conexões. SaúdeUP, autenticação401/CSRF403 e bundles novos aprovados.
+  Candidato protegido conferido via sessão Vercel existente, sem novo bypass ou
+  Trusted Sources. Logs error/fatal zero no intervalo pontual registrado.
+- GitHub: atualização autorizada da PR17 por avanço normal de
+  `codex/organizacao-financeira-local`, recebendo os commits desenvolvidos na
+  branch local `codex/salario-modulos-integrados`, sem force-push/merge/deploy pelo push.
+  Dependência picomatch continua sem correção oficial; não mascarar audit.
+- Rollback Java anterior `dpl_F99qaevGVVfwhbkkfAwmQieTqVM6` exige antes a projeção
+  `docs/sql/rollback-v18-consumption.sql`, testada; manter V17/V18 e todos os
+  dados humanos. Não promover V16 cegamente sobre a origem CARD nem apagar
+  tabelas ou recriar o banco. Python não mudou.
+- Evidências e backup privados `.tools/modules-production`; não versionar.
+  Houve falta de espaço local no fechamento. Removidas somente69 bibliotecas
+  JAR regeneráveis extraídas nessa pasta; backup preservado e revalidado, gate
+  de banco repetido com sucesso. `migrate_isolated.py` reextrai libs se necessário.
+  Não limpar outros arquivos/volumes por inferência; disco ainda com pouco espaço.
+
 ## Trabalho atual — 17/11: salário e módulos integrados, somente local
 
 - Usuário autorizou implementar/testar localmente salário/regra opcional e

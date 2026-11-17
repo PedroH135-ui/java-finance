@@ -1,5 +1,13 @@
 # Contexto do Java Finance
 
+**Produção V18 publicada — 17/11:** Java/React `dpl_2rzkbwNhztw62SrYXR8aspQFCH2b`,
+fonte funcional `2575d5d`. Backup V16 restaurado e V17/V18/rollback aprovados na
+branch Neon isolada, PostgreSQL18.7. Saúde/smoke/interface reais aprovados;
+fingerprints financeiros, correções e preferências preservados. Python anterior
+mantido. Ler [publicação, testes e rollback](../publicacao-modulos-integrados-2026-11-17.md).
+Atualização do GitHub autorizada para PR17; sem merge ou supressão da pendência
+de audit/picomatch. As entradas seguintes de somente local/V16 são históricas.
+
 **Entrega local concluída — 17/11:** branch `codex/salario-modulos-integrados`:
 botão É meu salário/regra futura, previsão salarial exclusivamente manual,
 melhorias de desempenho/orçamento e integração read-only de cartão/faturas/posições.

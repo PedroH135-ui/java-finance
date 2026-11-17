@@ -1,5 +1,14 @@
 # Como LangChain e RAG funcionam hoje
 
+**Produção V18,17/11:** [publicação de salário e módulos integrados](publicacao-modulos-integrados-2026-11-17.md).
+Regras pessoais de salário rodam no Java sem LLM e não mudam o salário previsto,
+que permanece manual. Detalhes de cartão reutilizam a fila/RAG/classificador
+existentes, com preferência individual, prioridade humana e até uma chamada
+LLM quando necessária. Python/embeddings/modelo preservados; nenhum dado real
+foi categorizado ou enviado ao LLM por esta verificação de publicação. Valores
+de salário/planejamento, saldo e posições continuam fora do prompt de categorias.
+Entradas abaixo sobre essa evolução apenas local são históricas.
+
 **Evolução local em17/11, ainda não publicada:**
 [salário e módulos integrados](salario-modulos-integrados-local.md). A regra
 opcional de salário é instrução exata no Java, sem RAG/LLM. Salário previsto
