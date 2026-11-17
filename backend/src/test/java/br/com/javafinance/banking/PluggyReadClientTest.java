@@ -21,9 +21,23 @@ class PluggyReadClientTest {
         responses.add("{\"apiKey\":\"synthetic-token\"}");
         responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"private-card-name\"}]}");
         responses.add("{\"results\":[{\"id\":\"private-bill\",\"totalAmount\":123.45,\"totalAmountCurrencyCode\":\"unsupported-private-currency\"}]}");
-        assertThatThrownBy(()->client.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15)))
-            .isInstanceOfSatisfying(BankReadException.class,e->{assertThat(e.stage).isEqualTo(BankReadException.Stage.BILLS);assertThat(e.getMessage()).doesNotContain("private-bill","123.45");});
+        responses.add("{\"next\":null,\"results\":[]}");
+        var result=client.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));
+        assertThat(result).hasSize(1);assertThat(result.getFirst().billsAvailable()).isFalse();assertThat(result.getFirst().bills()).isEmpty();
         assertThat(output.getAll()).contains("stage=BILLS","field=CURRENCY").doesNotContain("private-card-name","private-bill","123.45","unsupported-private-currency","synthetic-token");
+    }
+    @Test void invalidBillTotalsAreNotRoundedOrReplacedAndValidBillsSurvive(CapturedOutput output) {
+        for(String total:List.of("-0.01","1.001","\"private-invalid-total\"")) {
+            responses.add("{\"apiKey\":\"synthetic-token\"}");
+            responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"private-card\"}]}");
+            responses.add("{\"results\":[{\"id\":\"bad\",\"dueDate\":\"2026-10-14\",\"totalAmount\":"+total+",\"totalAmountCurrencyCode\":\"BRL\"},{\"id\":\"good\",\"dueDate\":\"2026-10-14\",\"totalAmount\":500,\"totalAmountCurrencyCode\":\"BRL\"}]}");
+            responses.add("{\"results\":[],\"next\":null}");
+            var reader=new PluggyReadClient(config,new ObjectMapper(),http);
+            var cards=reader.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));
+            assertThat(cards).hasSize(1);assertThat(cards.getFirst().billsAvailable()).isFalse();
+            assertThat(cards.getFirst().bills()).hasSize(1);assertThat(cards.getFirst().bills().getFirst().id()).isEqualTo("good");assertThat(cards.getFirst().bills().getFirst().total()).isEqualByComparingTo("500.00");
+        }
+        assertThat(output.getAll()).contains("stage=BILLS","field=AMOUNT").doesNotContain("-0.01","1.001","private-invalid-total","private-card","synthetic-token");
     }
     @Test void additionalProductsUseReadOnlyAllowlistedPathsAndKeepOnlyNecessaryFields() {
         responses.add("{\"apiKey\":\"synthetic-token\"}");

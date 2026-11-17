@@ -1,5 +1,19 @@
 # Retomada da publicação da IA
 
+## Mais recente — diagnóstico de cartões e filtro de posições
+
+17/11, branch `codex/corrige-cartoes-investimentos`: diagnóstico/filtro `dbf9f4c`
+publicado com autorização específica em `dpl_H7WCSzgNP2iD3py5mE7ufbkaxDaL`, V18,
+Python preservado. Leitura controlada localizou **BILLS / AMOUNT**; saldos,
+correções e demais registros protegidos preservados. Filtro Ativos e rótulo de
+resgate total conferidos em produção. Correção adicional para isolar faturas
+não validáveis e sinalizar cobertura parcial está **somente local**,21 testes
+do cliente e frontend9/lint/build/dois E2E aprovados. Regressão completa bloqueada
+por Docker local sem resposta; não foi aprovada. Ler
+`docs/correcao-cartoes-investimentos-2026-11-17.md` antes de nova publicação.
+Autorização anterior foi específica ao diagnóstico/filtro; não inferir nova
+publicação pelo documento. Sem push, merge ou migração nesta etapa.
+
 ## Mais recente — 17/11: módulos publicados com V17/V18
 
 - Usuário autorizou publicar após backup e migrações isoladas e depois atualizar

@@ -177,10 +177,18 @@ public class PluggyReadClient implements BankProvider {
                 UUID card=UUID.fromString(text(account,"id",200));var bills=new ArrayList<BankProductsProvider.Bill>();boolean available=true;
                 productStage=BILLS;
                 try{for(var bill:productPages("/bills?accountId="+card)){
-                    if(!"BRL".equals(bill.path("totalAmountCurrencyCode").asText()))throw invalidValue(BankReadException.Field.CURRENCY);
-                    BigDecimal total=decimal(bill,"totalAmount",false);if(total.signum()<0)throw invalidValue(BankReadException.Field.AMOUNT);
-                    bills.add(new BankProductsProvider.Bill(text(bill,"id",200),productDate(bill,"dueDate",true),total));
-                }}catch(BankReadException error){if(error.code==ACCESS_DENIED||error.code==HTTP_ERROR&&error.providerStatus==404)available=false;else throw error;}
+                    try {
+                        if(!"BRL".equals(bill.path("totalAmountCurrencyCode").asText()))throw invalidValue(BankReadException.Field.CURRENCY);
+                        BigDecimal total=decimal(bill,"totalAmount",false);if(total.signum()<0)throw invalidValue(BankReadException.Field.AMOUNT);
+                        bills.add(new BankProductsProvider.Bill(text(bill,"id",200),productDate(bill,"dueDate",true),total));
+                    } catch(ProviderValueException invalid) {
+                        available=false;
+                        BankReadException.failure(BILLS,INVALID_RESPONSE,0,invalid.field);
+                    } catch(DateTimeException|IndexOutOfBoundsException invalid) {
+                        available=false;
+                        BankReadException.failure(BILLS,INVALID_RESPONSE,0,BankReadException.Field.DATE);
+                    }
+                }}catch(BankReadException error){if(error.code==ACCESS_DENIED||error.code==INVALID_RESPONSE||error.code==HTTP_ERROR&&error.providerStatus==404)available=false;else throw error;}
                 productStage=CARD_TRANSACTIONS;
                 var charges=new ArrayList<BankProductsProvider.Charge>();String query="accountId="+card+"&dateFrom="+from.minusDays(1)+"&dateTo="+to.plusDays(1),after=null;var seen=new HashSet<String>();
                 for(int page=0;page<20;page++){

@@ -25,7 +25,7 @@ export function BankProducts({links}:{links:Link[]}){
    {query.data.cards.length===0&&<Typography>Nenhum cartão disponível na última leitura. Isso não significa fatura zero ou ausência de dívida.</Typography>}
    {query.data.cards.map(card=><Paper variant="outlined" sx={{p:2}} key={card.id}><Stack spacing={1}>
     <Typography variant="h6" component="h3">{card.name}</Typography><Typography variant="caption">Consulta em {new Date(card.checkedAt).toLocaleString('pt-BR')}</Typography>
-    {!card.billsAvailable&&<Alert severity="warning">O conector retornou cartão, mas não faturas. Não podemos conferir a cobertura nem conciliar automaticamente.</Alert>}
+    {!card.billsAvailable&&<Alert severity="warning">Não foi possível validar todas as faturas desta leitura. Valores incompatíveis não foram substituídos ou estimados; dados anteriores podem estar desatualizados. A conciliação fica indisponível enquanto a cobertura estiver incompleta.</Alert>}
     {card.bills.map(b=><Box key={b.id} sx={{borderTop:1,borderColor:'divider',pt:1}}><Typography>Fatura com vencimento em {civilDate(b.dueDate)} · {money(b.total)}</Typography><Typography>{b.detailCount} detalhes · soma líquida {money(b.detailedTotal)} · {b.pendingCount} pendentes · {b.reconciled?'Conciliada: consumo vem dos detalhes':'Não conciliada: detalhes ainda fora do consumo'}</Typography><Button onClick={()=>setBill({card,bill:b})}>Conferir fatura e pagamento</Button></Box>)}
     <Box component="details"><Box component="summary" sx={{cursor:'pointer',py:1}}>Ver detalhes e parcelas do cartão ({card.charges.length})</Box><ChargeList card={card} onSelect={setCharge}/></Box>
    </Stack></Paper>)}
