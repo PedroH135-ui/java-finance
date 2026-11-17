@@ -1,5 +1,11 @@
 # Retomada da publicação da IA
 
+## Análise posterior — integração dos módulos, sem alteração funcional
+
+17/11, branch local `codex/revisao-modulos-financeiros`: revisão do código e leitura da sessão real. Usuário quer salário só manual, gastos automáticos com IA quando necessária, menos lentidão e melhor integração de orçamento/investimentos/faturas. Ler `docs/plano-integracao-modulos-2026-11-17.md`: propostas, evidências, validação e ordem de entrega. Nenhum código funcional, preferência, categoria, natureza, migração ou produção alterados. Produção continua V16; fallback salarial histórico ainda existe até futura implementação. Não classificar ou confirmar registros reais por este documento.
+
+Achados: histórico do dashboard faz ao menos12 consultas sequenciais; polling ocioso e bundle único; falta invalidar planningFinances em alterações relacionadas; orçamento lista categorias ativas zeradas; fatura/RDB são abstidos pelo classificador comum e têm natureza sugerida separada. Integração Pluggy aceita só BANK: não excluir fatura sem tratar a ausência das compras do cartão. Posições continuam manuais e fluxos dependem de confirmação. Contagens, contrapartes e valores reais não entram no relatório público. Sem nova consulta ao banco/Pluggy, deploy, push, PR ou merge nesta análise.
+
 ## Estado atual — 17/11: salário e gastos publicados, V16
 
 - Usuário autorizou publicar Java/Python após backup e V16 isolada, mantendo correções e saldos, e atualizar GitHub. Concluído em Production: Java `dpl_F99qaevGVVfwhbkkfAwmQieTqVM6`, Python `dpl_FAfZ4jeHmEXjfJSmSuqBThAeQ9Ji`. Código funcional `645d04b`, exportação `767bb95`. Ler `docs/publicacao-metas-renda-2026-11-17.md`; as entradas seguintes sobre somente local são históricas.
