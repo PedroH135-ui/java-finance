@@ -33,6 +33,12 @@ public class BankService {
     private org.springframework.context.ApplicationEventPublisher events;
     private br.com.javafinance.categories.CategoryService categories;
     private CloudCategoryJobs categoryJobs;
+    private SalaryService salaries;
+    private BankProductsService products;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void products(BankProductsService products){this.products=products;}
+    @org.springframework.beans.factory.annotation.Autowired
+    public void salaryRules(SalaryService salaries){this.salaries=salaries;}
     @org.springframework.beans.factory.annotation.Autowired
     public void organization(br.com.javafinance.categories.CategoryService categories,CloudCategoryJobs jobs){this.categories=categories;this.categoryJobs=jobs;}
     public record ReadCompleted(UUID owner) {}
@@ -96,6 +102,7 @@ public class BankService {
         try {
             int read = read(owner, id, input);
             completed = true;
+            try{products.readIfEnabled(owner,id);}catch(RuntimeException error){LoggerFactory.getLogger(getClass()).warn("optional_products_deferred code=RETRY_NEXT_READ");}
             if(events!=null)events.publishEvent(new ReadCompleted(owner));
             return read;
         } catch (BankReadException ex) {
@@ -127,17 +134,25 @@ public class BankService {
         categories.addDefaults(owner);
         return tx.execute(status->{
             lockLink(owner,id);
+            var salaryRules=salaries.rulesForRead(owner,id);
             for(var entry:entries) {
                 if(entry.date().isBefore(input.from()) || entry.date().isAfter(input.to())) throw ApiException.bad("O provedor retornou dados fora do período solicitado.");
+                UUID newId=UUID.randomUUID();
                 int inserted=jdbc.update("INSERT INTO bank_entry(id,owner_id,link_id,external_id,description,amount,date,direction,provider_status,counterparty_type) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(link_id,external_id) DO NOTHING",
-                    UUID.randomUUID(),owner,id,entry.id(),entry.description(),entry.amount(),entry.date(),entry.direction(),entry.status(),entry.counterpartyType());
-                if(inserted==0) jdbc.update("""
+                    newId,owner,id,entry.id(),entry.description(),entry.amount(),entry.date(),entry.direction(),entry.status(),entry.counterpartyType());
+                int updated=0;
+                if(inserted==0) updated=jdbc.update("""
                     UPDATE bank_entry SET description=?,amount=?,date=?,direction=?,provider_status=?,
                       state=CASE WHEN state='REVIEW' THEN 'REVIEW' ELSE 'CHANGED' END,version=version+1,category_auto_attempted_at=null,category_auto_resolution=null
                     WHERE owner_id=? AND link_id=? AND external_id=?
                       AND (description,amount,date,direction,provider_status) IS DISTINCT FROM (?,?,?,?,?)
                     """,entry.description(),entry.amount(),entry.date(),entry.direction(),entry.status(),owner,id,entry.id(),entry.description(),entry.amount(),entry.date(),entry.direction(),entry.status());
                 if(inserted==0)jdbc.update("UPDATE bank_entry SET counterparty_type=?,category_auto_attempted_at=null,category_auto_resolution=null,version=version+1 WHERE owner_id=? AND link_id=? AND external_id=? AND counterparty_type<>?",entry.counterpartyType(),owner,id,entry.id(),entry.counterpartyType());
+                if(inserted>0)salaries.applyNew(owner,newId,entry,salaryRules);
+                else if(updated>0&&!salaryRules.isEmpty()){
+                    UUID existing=jdbc.queryForObject("SELECT id FROM bank_entry WHERE owner_id=? AND link_id=? AND external_id=?",UUID.class,owner,id,entry.id());
+                    salaries.applyNew(owner,existing,entry,salaryRules);
+                }
             }
             jdbc.update("UPDATE bank_link SET last_checked_at=?,provider_updated_at=?,reported_balance=? WHERE id=? AND owner_id=?",timestamp(clock.instant()),timestamp(snapshot.updatedAt()),external.balance(),id,owner);
             audit.record(owner,id,"BANK_READ","Dados consultados para revisão, sem confirmação automática."); return entries.size();

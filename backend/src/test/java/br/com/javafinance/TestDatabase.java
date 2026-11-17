@@ -7,6 +7,9 @@ import org.testcontainers.containers.PostgreSQLContainer;
 final class TestDatabase {
     private TestDatabase() {}
     static void configure(DynamicPropertyRegistry registry) {
+        // Multiple cached Spring test contexts share one disposable server; keep their pools bounded.
+        registry.add("spring.datasource.hikari.maximum-pool-size",()->4);
+        registry.add("spring.datasource.hikari.minimum-idle",()->0);
         String local = System.getProperty("finance.test.url");
         if (local != null) {
             if (!local.equals("jdbc:postgresql://127.0.0.1:55433/java_finance_verify"))

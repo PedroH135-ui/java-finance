@@ -58,8 +58,8 @@ public class BudgetService {
             else { configured++; limit = limit.add(row.limit()); spent = spent.add(row.spent()); planned = planned.add(row.planned()); }
         }
         // Raw bank expenses are visible immediately, without inventing a category or assigning a budget.
-        BigDecimal uncategorized=jdbc.queryForObject("SELECT COALESCE(SUM(amount),0)::numeric(19,2) FROM consumption_record WHERE owner_id=? AND NOT hidden AND category_id IS NULL AND kind='EXPENSE' AND status='CONFIRMED' AND competence=?",BigDecimal.class,owner,month.atDay(1));
-        unspent=unspent.add(uncategorized);
+        var uncategorized=jdbc.queryForMap("SELECT COALESCE(SUM(amount) FILTER(WHERE status='CONFIRMED'),0)::numeric(19,2) spent,COALESCE(SUM(amount) FILTER(WHERE status='PLANNED'),0)::numeric(19,2) planned FROM consumption_record WHERE owner_id=? AND NOT hidden AND category_id IS NULL AND kind='EXPENSE' AND status IN ('CONFIRMED','PLANNED') AND competence=?",owner,month.atDay(1));
+        unspent=unspent.add((BigDecimal)uncategorized.get("spent"));unplanned=unplanned.add((BigDecimal)uncategorized.get("planned"));
         return new Month(month.toString(), rows, new Totals(limit, spent, planned, limit.subtract(spent), unspent, unplanned, configured));
     }
 

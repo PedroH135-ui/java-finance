@@ -85,7 +85,7 @@ public class BankAssistanceService {
             JOIN category c ON c.id=f.category_id AND c.owner_id=f.owner_id
             LEFT JOIN bank_entry b ON b.id=f.bank_entry_id AND b.owner_id=f.owner_id
             WHERE f.owner_id=? AND f.kind=? AND f.status='CONFIRMED' AND NOT f.hidden AND NOT c.archived
-              AND b.category_source IS DISTINCT FROM 'AUTO'
+              AND b.category_source IS DISTINCT FROM 'AUTO' AND b.category_source IS DISTINCT FROM 'RULE'
             ORDER BY f.operation_date DESC,f.id LIMIT 100
             """,(rs,n)->new CategoryAdvisor.Example(rs.getString("description"),rs.getString("category_id")),owner,kind);
         var request=new CategoryAdvisor.Request((String)e.get("description"),categories,history,(String)e.get("counterparty_type"));

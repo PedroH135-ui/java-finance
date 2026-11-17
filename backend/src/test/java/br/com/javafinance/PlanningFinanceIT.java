@@ -54,8 +54,8 @@ class PlanningFinanceIT {
         var c=finances.context(owner);
         assertThat(c.observedMonths()).isEqualTo(2);assertThat(c.averageIncome()).isEqualByComparingTo("3450");
         assertThat(c.averageSalary()).isEqualByComparingTo("3100");assertThat(c.averageConsumption()).isEqualByComparingTo("2600");
-        assertThat(c.monthlySalary()).isEqualByComparingTo("3100");assertThat(c.available()).isEqualByComparingTo("500");
-        assertThat(c.currentIncome()).isEqualByComparingTo("10000");assertThat(c.salarySource()).isEqualTo("HISTORY");assertThat(c.warnings()).anyMatch(w->w.contains("2 de 3"));
+        assertThat(c.monthlySalary()).isNull();assertThat(c.available()).isNull();
+        assertThat(c.currentIncome()).isEqualByComparingTo("10000");assertThat(c.salarySource()).isEqualTo("UNKNOWN");assertThat(c.warnings()).anyMatch(w->w.contains("2 de 3"));
     }
     @Test void receivedPixNeverBecomesSalaryAndProfileMakesGoalGapExplicitWithoutChangingMoney(){
         entry(month.minusMonths(1),"PIX recebido fictício","5000","CREDIT",null);entry(month.minusMonths(1),"Consumo fictício","2700","DEBIT",market);
@@ -85,11 +85,18 @@ class PlanningFinanceIT {
         var assessment=finances.assess(c,new BigDecimal("100"),BigDecimal.ZERO,120);assertThat(assessment.minimumMonths()).isNull();assertThat(assessment.fitsEstimate()).isFalse();assertThat(money()).isEqualTo(before);
     }
     @Test void onlyConfirmedInvestmentNatureChangesTheSpendingReference(){
+        finances.save(owner,new PlanningFinanceService.Input("3000",null,0));
         entry(month.minusMonths(1),"Salário fictício","3000","CREDIT",salary);entry(month.minusMonths(1),"Consumo fictício","1000","DEBIT",market);
         var investment=entry(month.minusMonths(1),"Aplicação RDB","800","DEBIT",null);
         assertThat(finances.context(owner).monthlyExpenses()).isEqualByComparingTo("1800");
         natures.confirm(owner,investment,new FinancialNatureService.Change(0,FinancialNatureService.Nature.INVESTMENT_IN,"RDB",null,true));
         assertThat(finances.context(owner).monthlyExpenses()).isEqualByComparingTo("1000");assertThat(finances.context(owner).available()).isEqualByComparingTo("2000");
+    }
+    @Test void uncategorizedPendingBankExpensesRemainInBudgetAndPlanning(){
+        finances.save(owner,new PlanningFinanceService.Input("3000","1000",0));
+        UUID pending=entry(month,"Despesa agendada fictícia","1500","DEBIT",null);jdbc.update("UPDATE bank_entry SET provider_status='PENDING' WHERE id=?",pending);
+        assertThat(budgets.month(owner,month).totals().unbudgetedPlanned()).isEqualByComparingTo("1500");
+        assertThat(finances.context(owner).monthlyExpenses()).isEqualByComparingTo("1500");assertThat(finances.context(owner).currentConsumption()).isEqualByComparingTo("0");
     }
     @Test void unknownExpensesAreDifferentFromExplicitZeroAndRoundingDoesNotUnderfundGoal(){
         entry(month.minusMonths(1),"Salário fictício","3000","CREDIT",salary);

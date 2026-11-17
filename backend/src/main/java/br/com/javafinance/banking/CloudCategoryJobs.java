@@ -15,6 +15,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** Durable owner wake-ups; leased work and versioned writes survive duplicate delivery/restarts. */
 @Service
 public class CloudCategoryJobs {
+    private CardCategoryService cardCategories;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void cardCategories(CardCategoryService service){this.cardCategories=service;}
     public record Preference(boolean enabled,long version) {}
     private static final String CANDIDATE="""
         owner_id=? AND provider_status='POSTED' AND NOT hidden AND state<>'IGNORED'
@@ -76,6 +79,10 @@ public class CloudCategoryJobs {
         // The banking transaction has already committed. AI infrastructure cannot fail the bank read.
         try{request(event.owner());}catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(getClass()).warn("category_enqueue_failed code=RETRY_ON_NEXT_SYNC");}
     }
+    @org.springframework.context.event.EventListener
+    public void afterProductRead(BankProductsService.ReadCompleted event){
+        try{request(event.owner());}catch(RuntimeException error){org.slf4j.LoggerFactory.getLogger(getClass()).warn("card_category_enqueue_failed code=RETRY_ON_NEXT_SYNC");}
+    }
     @org.springframework.transaction.event.TransactionalEventListener(phase=org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
     public void afterExplicitRetry(BankAssistanceService.CategoryWorkRequested event){
         // The original transaction already committed; persist the wake-up in its own transaction.
@@ -126,7 +133,8 @@ public class CloudCategoryJobs {
                 var result=assistance.automaticSuggestion(owner,id);
                 assistance.applyAutomatic(owner,id,result.entryVersion(),result.categorySuggestion());
             }
-            boolean more=policy.activeFor(owner) && Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM bank_entry WHERE "+CANDIDATE+")",Boolean.class,owner));
+            if(ids.size()<3)cardCategories.process(owner,3-ids.size());
+            boolean more=policy.activeFor(owner) && (Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM bank_entry WHERE "+CANDIDATE+")",Boolean.class,owner))||cardCategories.pending(owner));
             jdbc.update("UPDATE category_automation_job SET completed_version=CASE WHEN ? THEN completed_version ELSE ? END,last_run=now() WHERE owner_id=? AND lease_token=?",more,generation,owner,lease);
             success=true;
             return more || Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM category_automation_job WHERE owner_id=? AND requested_version>completed_version)",Boolean.class,owner));

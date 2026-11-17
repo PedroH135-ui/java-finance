@@ -14,13 +14,14 @@ public final class BankReadException extends ApiException {
     public final Stage stage;
     public final Code code;
     public final String reference;
+    public final int providerStatus;
 
     private BankReadException(Stage stage, Code code, int providerStatus, String reference, Field field) {
         super(code == Code.ITEM_NOT_READY || code == Code.RESULT_LIMIT ? HttpStatus.BAD_REQUEST : HttpStatus.BAD_GATEWAY,
             message(stage, code) + " Código: " + stage + "_" + code
             + (providerStatus > 0 ? " (HTTP " + providerStatus + ")" : "")
             + ". Referência: " + reference + ". Nenhum lançamento foi confirmado.");
-        this.stage = stage; this.code = code; this.reference = reference;
+        this.stage = stage; this.code = code; this.reference = reference;this.providerStatus=providerStatus;
         LoggerFactory.getLogger(BankReadException.class).warn(
             "bank_read_failed stage={} code={} provider_status={} reference={} field={}", stage, code, providerStatus, reference, field);
     }

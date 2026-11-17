@@ -31,6 +31,7 @@ class OrganizationIT {
  @Autowired UserService users;@Autowired BankService bank;@Autowired BankProperties config;@Autowired AccountService accounts;
  @Autowired CategoryService categories;@Autowired FinancialNatureService natures;@Autowired InvestmentService investments;
  @Autowired GoalService goals;@Autowired ReportService reports;@Autowired BudgetService budgets;@Autowired JdbcTemplate jdbc;@Autowired MockMvc mvc;
+ @Autowired CardCategoryService cardCategories;@Autowired BankProductsService products;
  @MockitoBean BankProvider provider;@MockitoBean CategoryAdvisor advisor;@MockitoSpyBean CloudCategoryJobs jobs;
  UUID owner,account,link,item,external;LocalDate date=LocalDate.now().minusDays(1);
  UUID register(){return users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Organização fictícia","UmaSenhaSegura123!")).id();}
@@ -99,5 +100,22 @@ class OrganizationIT {
   assertThat(investments.summary(stranger).flows()).isEmpty();assertThat(goals.list(stranger)).isEmpty();
   natures.confirm(owner,id,new FinancialNatureService.Change(0,FinancialNatureService.Nature.INVESTMENT_IN,"RDB",null,true));
   assertThatThrownBy(()->natures.confirm(owner,id,new FinancialNatureService.Change(0,FinancialNatureService.Nature.ORDINARY,"NONE",null,true))).isInstanceOf(ApiException.class);
+ }
+ @Test void cardAutomationUsesExistingOwnerPolicyAndManualCorrectionsWithoutChangingMoney(){
+  UUID card=UUID.randomUUID(),charge=UUID.randomUUID();
+  jdbc.update("INSERT INTO bank_card(id,owner_id,item_id,external_id,name,bills_available,checked_at) VALUES (?,?,?,?,?,false,now())",card,owner,item,UUID.randomUUID(),"Cartão fictício");
+  jdbc.update("INSERT INTO bank_card_charge(id,owner_id,card_id,external_id,description,amount,date,direction,provider_status) VALUES (?,?,?,?,?,30,?,'DEBIT','POSTED')",charge,owner,card,"synthetic-charge","Mercado do cartão fictício",date);
+  UUID category=categories.list(owner).stream().filter(c->c.name().equals("Mercado")).findFirst().orElseThrow().id();
+  when(advisor.suggest(eq(owner),eq("EXPENSE"),any(),anyList())).thenReturn(new CategoryAdvisor.Suggestion(category.toString(),"MEDIUM","RAG","Exemplos fictícios do perfil",2,false));
+  var before=money();cardCategories.process(owner,3);
+  assertThat(jdbc.queryForObject("SELECT category_source FROM bank_card_charge WHERE id=?",String.class,charge)).isEqualTo("AUTO");assertThat(money()).isEqualTo(before);
+  var current=products.charge(owner,charge);products.categorize(owner,charge,new BankProductsService.CategoryChange(current.version(),null));cardCategories.process(owner,3);
+  assertThat(products.charge(owner,charge).categoryId()).isNull();assertThat(jdbc.queryForObject("SELECT category_auto_blocked FROM bank_card_charge WHERE id=?",Boolean.class,charge)).isTrue();
+  assertThat(money()).isEqualTo(before);verify(advisor,times(1)).suggest(eq(owner),eq("EXPENSE"),any(),anyList());
+ }
+ @Test void disabledCardAutomationNeverInvokesAdvisor(){
+  UUID card=UUID.randomUUID();jdbc.update("INSERT INTO bank_card(id,owner_id,item_id,external_id,name,bills_available,checked_at) VALUES (?,?,?,?,?,false,now())",card,owner,item,UUID.randomUUID(),"Cartão fictício");
+  jdbc.update("INSERT INTO bank_card_charge(id,owner_id,card_id,external_id,description,amount,date,direction,provider_status) VALUES (?,?,?,?,?,30,?,'DEBIT','POSTED')",UUID.randomUUID(),owner,card,"synthetic-disabled","Despesa fictícia",date);
+  jdbc.update("UPDATE category_automation_preference SET enabled=false WHERE owner_id=?",owner);clearInvocations(advisor);cardCategories.process(owner,3);verifyNoInteractions(advisor);
  }
 }

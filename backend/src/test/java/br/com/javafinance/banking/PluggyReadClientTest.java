@@ -17,6 +17,23 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(OutputCaptureExtension.class)
 class PluggyReadClientTest {
+    @Test void additionalProductsUseReadOnlyAllowlistedPathsAndKeepOnlyNecessaryFields() {
+        responses.add("{\"apiKey\":\"synthetic-token\"}");
+        responses.add("{\"page\":1,\"totalPages\":1,\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"Cartão fictício\",\"number\":\"never-copy-card-number\"}]}");
+        responses.add("{\"results\":[{\"id\":\"bill\",\"dueDate\":\"2026-10-14T00:00:00Z\",\"totalAmount\":500,\"totalAmountCurrencyCode\":\"BRL\"}]}");
+        responses.add("{\"next\":null,\"results\":[{\"id\":\"charge\",\"accountId\":\""+account+"\",\"description\":\"Mercado fictício\",\"amount\":500,\"date\":\"2026-10-12\",\"type\":\"DEBIT\",\"status\":\"POSTED\",\"currencyCode\":\"BRL\",\"creditCardMetadata\":{\"billId\":\"bill\",\"installmentNumber\":1,\"totalInstallments\":2,\"cardNumber\":\"never-copy-card-number\"}}]}");
+        var cards=client.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));
+        assertThat(cards).hasSize(1);assertThat(cards.getFirst().charges().getFirst().billId()).isEqualTo("bill");assertThat(cards.toString()).doesNotContain("never-copy-card-number");
+        UUID investment=UUID.randomUUID();responses.add("{\"results\":[{\"id\":\""+investment+"\",\"itemId\":\""+item+"\",\"name\":\"RDB fictício\",\"type\":\"FIXED_INCOME\",\"subtype\":\"RDB\",\"balance\":500,\"currencyCode\":\"BRL\",\"date\":\"2026-10-14\"}]}");
+        assertThat(client.investments(item).getFirst().profit()).isNull();
+        assertThat(requests.stream().skip(1)).allSatisfy(request->{assertThat(request.method()).isEqualTo("GET");assertThat(request.uri().getHost()).isEqualTo("api.pluggy.ai");assertThat(request.uri().getPath()).doesNotContain("payments","refresh");});
+    }
+    @Test void unavailableBillsDoNotPreventCardDetailsAndUnlistedProductsNeverReachNetwork() {
+        assertThatThrownBy(()->client.investments(UUID.randomUUID())).isInstanceOf(ApiException.class);verifyNoInteractions(http);
+        responses.add("{\"apiKey\":\"synthetic-token\"}");responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"Cartão fictício\"}]}");
+        responses.add("{\"sensitive\":\"never-log-provider-body\"}");responses.add("{\"next\":null,\"results\":[]}");statusCodes.addAll(List.of(200,200,403,200));
+        var result=client.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));assertThat(result.getFirst().billsAvailable()).isFalse();assertThat(result.getFirst().charges()).isEmpty();
+    }
     HttpClient http; BankProperties config; PluggyReadClient client;
     UUID item=UUID.randomUUID(), account=UUID.randomUUID();
     List<HttpRequest> requests; Queue<String> responses;

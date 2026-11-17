@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 /** Optional Python advisor on loopback or an explicitly allowed HTTPS Vercel host. */
 @Component
 public class CategoryAdvisor {
+    private static String correlation(){String id=org.slf4j.MDC.get("correlation_id");return id==null?UUID.randomUUID().toString():id;}
     public record Category(String id,String name) {}
     public record Example(String description,String categoryId) {}
     public record Request(String description,List<Category> categories,List<Example> history,String counterpartyType) {
@@ -49,7 +50,7 @@ public class CategoryAdvisor {
         try{
             var b=HttpRequest.newBuilder(endpoint.resolve("/planning/interpret")).timeout(Duration.ofSeconds(8))
                 .header("Content-Type","application/json").header("Authorization","Bearer "+token)
-                .header("X-Correlation-ID",UUID.randomUUID().toString()).header("X-Category-Owner",owner.toString());
+                .header("X-Correlation-ID",correlation()).header("X-Category-Owner",owner.toString());
             String oidc=VercelRuntimeIdentity.token();if(!oidc.isBlank())b.header("x-vercel-trusted-oidc-idp-token",oidc);
             var response=http.send(b.POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload))).build(),HttpResponse.BodyHandlers.ofInputStream());
             try(var stream=response.body()){
@@ -158,7 +159,7 @@ public class CategoryAdvisor {
         var outgoing=(localVectorDemo || cloudRag)?new Request(request.description(),request.categories().stream().limit(100).toList(),request.history().stream().limit(100).toList(),request.counterpartyType()):minimize(request);
         var sentIds=new HashSet<>(outgoing.categories().stream().map(Category::id).toList());
         if(enabled && token.length()>=32 && (retryAfterNanos==0 || System.nanoTime()-retryAfterNanos>=0)) {
-            String correlation=UUID.randomUUID().toString();long start=System.nanoTime();int status=0;
+            String correlation=correlation();long start=System.nanoTime();int status=0;
             try {
                 var builder=HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(10)).header("Content-Type","application/json").header("Authorization","Bearer "+token).header("X-Correlation-ID",correlation);
                 if(!previewOidc.isBlank())builder.header("x-vercel-trusted-oidc-idp-token",previewOidc);

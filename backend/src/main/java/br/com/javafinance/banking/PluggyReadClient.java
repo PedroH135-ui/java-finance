@@ -43,7 +43,7 @@ public class PluggyReadClient implements BankProvider {
     }
     private JsonNode get(String path) {
         // Only these fixed paths may reach the provider. Never accept a URL from a user or provider response.
-        if (!(path.startsWith("/items/") || path.startsWith("/accounts?") || path.startsWith("/v2/transactions?"))) throw new IllegalArgumentException("Read endpoint required");
+        if (!(path.startsWith("/items/") || path.startsWith("/accounts?") || path.startsWith("/v2/transactions?") || path.startsWith("/bills?") || path.startsWith("/investments?"))) throw new IllegalArgumentException("Read endpoint required");
         var stage = path.startsWith("/items/") ? ITEM : path.startsWith("/accounts?") ? ACCOUNTS : TRANSACTIONS;
         return exchange(HttpRequest.newBuilder(URI.create("https://api.pluggy.ai" + path)).timeout(Duration.ofSeconds(20))
             .header("X-API-KEY", token()).GET().build(), stage);
@@ -132,6 +132,78 @@ public class PluggyReadClient implements BankProvider {
             throw BankReadException.failure(TRANSACTIONS, RESULT_LIMIT);
         } catch (ProviderValueException e) { throw BankReadException.failure(TRANSACTIONS, INVALID_RESPONSE, 0, e.field); }
         catch (IllegalArgumentException | DateTimeException | IndexOutOfBoundsException e) { throw BankReadException.failure(TRANSACTIONS, INVALID_RESPONSE); }
+    }
+    private List<JsonNode> productPages(String query){
+        var all=new ArrayList<JsonNode>();
+        var ids=new HashSet<String>();long began=System.nanoTime();
+        for(int page=1;page<=20;page++){
+            if(System.nanoTime()-began>50_000_000_000L)throw BankReadException.failure(ACCOUNTS,TIMEOUT);
+            var response=get(query+"&pageSize=100&page="+page);var rows=response.path("results");
+            if(!rows.isArray()||rows.size()>100||all.size()+rows.size()>2000)throw BankReadException.failure(ACCOUNTS,INVALID_RESPONSE);
+            if(response.has("page")&&response.path("page").asInt()!=page)throw BankReadException.failure(ACCOUNTS,INVALID_RESPONSE);
+            for(var row:rows){if(!ids.add(text(row,"id",200)))throw BankReadException.failure(ACCOUNTS,INVALID_RESPONSE);all.add(row);}
+            int pages=response.path("totalPages").asInt(1);
+            if(pages<0||pages>20)throw BankReadException.failure(ACCOUNTS,RESULT_LIMIT);
+            if(page>=pages)return List.copyOf(all);
+        }
+        throw BankReadException.failure(ACCOUNTS,RESULT_LIMIT);
+    }
+    private static LocalDate productDate(JsonNode node,String field,boolean required){
+        if(node.path(field).isNull()||node.path(field).isMissingNode()){if(!required)return null;throw invalidValue(BankReadException.Field.DATE);}
+        return LocalDate.parse(node.path(field).asText().substring(0,10));
+    }
+    private static BigDecimal optionalMoney(JsonNode node,String field){return node.path(field).isNull()||node.path(field).isMissingNode()?null:decimal(node,field,false);}
+    public List<BankProductsProvider.Position> investments(UUID item){
+        if(!config.getItemIds().contains(item))throw ApiException.missing();
+        try{
+            var result=new ArrayList<BankProductsProvider.Position>();
+            for(var row:productPages("/investments?itemId="+item)){
+                if(!item.toString().equals(row.path("itemId").asText())||!"BRL".equals(row.path("currencyCode").asText()))throw invalidValue(BankReadException.Field.CURRENCY);
+                String subtype=row.path("subtype").asText("");if(subtype.length()>60)throw invalidValue(BankReadException.Field.RESPONSE);
+                String state=row.path("status").asText("");if(state.length()>30)throw invalidValue(BankReadException.Field.STATUS);
+                result.add(new BankProductsProvider.Position(UUID.fromString(text(row,"id",200)),text(row,"name",100),text(row,"type",40),subtype,decimal(row,"balance",false),productDate(row,"date",false),optionalMoney(row,"amountProfit"),optionalMoney(row,"amountWithdrawal"),state));
+            }
+            return List.copyOf(result);
+        }catch(IllegalArgumentException|DateTimeException|IndexOutOfBoundsException error){throw BankReadException.failure(ACCOUNTS,INVALID_RESPONSE);}
+    }
+    public List<BankProductsProvider.Card> cards(UUID item,LocalDate from,LocalDate to){
+        if(!config.getItemIds().contains(item))throw ApiException.missing();
+        try{
+            var cards=new ArrayList<BankProductsProvider.Card>();long began=System.nanoTime();
+            for(var account:productPages("/accounts?itemId="+item+"&type=CREDIT")){
+                if(!"CREDIT".equals(account.path("type").asText())||!"CREDIT_CARD".equals(account.path("subtype").asText()))continue;
+                if(!item.toString().equals(account.path("itemId").asText())||!"BRL".equals(account.path("currencyCode").asText()))throw invalidValue(BankReadException.Field.CURRENCY);
+                UUID card=UUID.fromString(text(account,"id",200));var bills=new ArrayList<BankProductsProvider.Bill>();boolean available=true;
+                try{for(var bill:productPages("/bills?accountId="+card)){
+                    if(!"BRL".equals(bill.path("totalAmountCurrencyCode").asText()))throw invalidValue(BankReadException.Field.CURRENCY);
+                    BigDecimal total=decimal(bill,"totalAmount",false);if(total.signum()<0)throw invalidValue(BankReadException.Field.AMOUNT);
+                    bills.add(new BankProductsProvider.Bill(text(bill,"id",200),productDate(bill,"dueDate",true),total));
+                }}catch(BankReadException error){if(error.code==ACCESS_DENIED||error.code==HTTP_ERROR&&error.providerStatus==404)available=false;else throw error;}
+                var charges=new ArrayList<BankProductsProvider.Charge>();String query="accountId="+card+"&dateFrom="+from.minusDays(1)+"&dateTo="+to.plusDays(1),after=null;var seen=new HashSet<String>();
+                for(int page=0;page<20;page++){
+                    if(System.nanoTime()-began>60_000_000_000L)throw BankReadException.failure(TRANSACTIONS,TIMEOUT);
+                    var response=get("/v2/transactions?"+query+(after==null?"":"&after="+URLEncoder.encode(after,StandardCharsets.UTF_8)));var rows=response.path("results");
+                    if(!rows.isArray()||rows.size()>500||charges.size()+rows.size()>2000)throw BankReadException.failure(TRANSACTIONS,RESULT_LIMIT);
+                    for(var row:rows){
+                        if(!card.toString().equals(row.path("accountId").asText())||!"BRL".equals(row.path("currencyCode").asText()))throw invalidValue(BankReadException.Field.ACCOUNT_ID);
+                        LocalDate date=productDate(row,"date",true);if(date.isBefore(from)||date.isAfter(to))continue;
+                        String direction=row.path("type").asText(),status=row.path("status").asText();
+                        if(!Set.of("DEBIT","CREDIT").contains(direction)||!Set.of("POSTED","PENDING").contains(status))throw invalidValue(BankReadException.Field.STATUS);
+                        var meta=row.path("creditCardMetadata");String billId=meta.path("billId").asText(null);if(billId!=null&&billId.length()>200)throw invalidValue(BankReadException.Field.ID);
+                        Integer installment=meta.path("installmentNumber").isInt()?meta.path("installmentNumber").asInt():null;
+                        Integer installments=meta.path("totalInstallments").isInt()?meta.path("totalInstallments").asInt():null;
+                        charges.add(new BankProductsProvider.Charge(text(row,"id",200),text(row,"description",200),decimal(row,"amount",true),date,direction,status,billId,installment,installments));
+                    }
+                    if(response.path("next").isNull()){after=null;break;}
+                    if(!response.path("next").isTextual())throw invalidValue(BankReadException.Field.RESPONSE);
+                    after=nextCursor(response.path("next").asText(),card,from,to);if(!seen.add(after))throw invalidValue(BankReadException.Field.RESPONSE);
+                }
+                if(after!=null)throw BankReadException.failure(TRANSACTIONS,RESULT_LIMIT);
+                cards.add(new BankProductsProvider.Card(card,text(account,"name",100),List.copyOf(bills),List.copyOf(charges),available));
+                if(cards.size()>10)throw BankReadException.failure(ACCOUNTS,RESULT_LIMIT);
+            }
+            return List.copyOf(cards);
+        }catch(IllegalArgumentException|DateTimeException|IndexOutOfBoundsException error){throw BankReadException.failure(ACCOUNTS,INVALID_RESPONSE);}
     }
     private static String nextCursor(String next, UUID account, LocalDate from, LocalDate to) {
         // Never follow provider URLs. Extract only the cursor, keeping our host, account and dates fixed.

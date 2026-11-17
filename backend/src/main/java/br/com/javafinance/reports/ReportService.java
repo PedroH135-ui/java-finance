@@ -22,7 +22,16 @@ public class ReportService {
     public Summary summary(UUID owner,YearMonth month) {
         if(month.getYear()<1900 || month.getYear()>2200) throw ApiException.bad("Período fora do intervalo suportado.");
         LocalDate today=LocalDate.now(clock);
-        Totals totals=totals(owner,month);
+        var history=jdbc.query("""
+            SELECT competence,COALESCE(SUM(amount) FILTER(WHERE kind='INCOME'),0)::numeric(19,2) income,
+              COALESCE(SUM(amount) FILTER(WHERE kind='EXPENSE'),0)::numeric(19,2) expenses,count(*) records
+            FROM consumption_record WHERE owner_id=? AND NOT hidden AND status='CONFIRMED'
+              AND kind IN ('INCOME','EXPENSE') AND competence BETWEEN ? AND ? GROUP BY competence
+            """,(rs,n)->new MonthTotal(YearMonth.from(rs.getObject("competence",LocalDate.class)).toString(),rs.getBigDecimal("income"),rs.getBigDecimal("expenses"),rs.getLong("records")),owner,month.minusMonths(5).atDay(1),month.atDay(1));
+        var byMonth=new HashMap<String,MonthTotal>();history.forEach(row->byMonth.put(row.month(),row));
+        var current=byMonth.getOrDefault(month.toString(),new MonthTotal(month.toString(),new BigDecimal("0.00"),new BigDecimal("0.00"),0));
+        BigDecimal result=current.income().subtract(current.expenses());
+        Totals totals=new Totals(current.income(),current.expenses(),result,Money.percent(result,current.income()));
         var positions=balances.current(owner).values();
         boolean complete=positions.stream().noneMatch(position->position.amount()==null);
         BigDecimal balance=complete?positions.stream().map(AccountBalanceService.Balance::amount).reduce(new BigDecimal("0.00"),BigDecimal::add):null;
@@ -40,18 +49,17 @@ public class ReportService {
             """,(rs,n)->new CategoryTotal(rs.getObject("id",UUID.class),rs.getString("name"),rs.getBigDecimal("total")),owner,month.atDay(1));
         var evolution=new ArrayList<MonthTotal>();
         for(int i=5;i>=0;i--) {
-            YearMonth period=month.minusMonths(i); Totals t=totals(owner,period);
-            long count=jdbc.queryForObject("SELECT count(*) FROM consumption_record WHERE owner_id=? AND NOT hidden AND competence=? AND status='CONFIRMED' AND kind IN ('INCOME','EXPENSE')",Long.class,owner,period.atDay(1));
-            evolution.add(new MonthTotal(period.toString(),t.income(),t.expenses(),count));
+            String period=month.minusMonths(i).toString();
+            evolution.add(byMonth.getOrDefault(period,new MonthTotal(period,new BigDecimal("0.00"),new BigDecimal("0.00"),0)));
         }
         var upcoming=jdbc.query("""
             SELECT id,description,due_date,amount,kind FROM movement WHERE owner_id=? AND status='PLANNED'
             ORDER BY due_date,id LIMIT 8
             """,(rs,n)->new Upcoming(rs.getObject("id",UUID.class),rs.getString("description"),rs.getObject("due_date",LocalDate.class),rs.getBigDecimal("amount"),rs.getString("kind")),owner);
         long accounts=jdbc.queryForObject("SELECT count(*) FROM account WHERE owner_id=?",Long.class,owner);
-        long records=jdbc.queryForObject("SELECT count(*) FROM consumption_record WHERE owner_id=? AND NOT hidden AND kind IN ('INCOME','EXPENSE') AND status='CONFIRMED' AND competence=?",Long.class,owner,month.atDay(1));
-        long unclassified=jdbc.queryForObject("SELECT count(*) FROM consumption_record WHERE owner_id=? AND NOT hidden AND source='BANK' AND category_id IS NULL AND kind IN ('INCOME','EXPENSE') AND status='CONFIRMED' AND competence=?",Long.class,owner,month.atDay(1));
-        long excluded=jdbc.queryForObject("SELECT count(*) FROM financial_record f JOIN valid_financial_nature n ON n.entry_id=f.bank_entry_id AND n.owner_id=f.owner_id WHERE f.owner_id=? AND NOT f.hidden AND f.competence=? AND n.nature<>'ORDINARY'",Long.class,owner,month.atDay(1));
+        long records=current.records();
+        long unclassified=jdbc.queryForObject("SELECT count(*) FROM consumption_record WHERE owner_id=? AND NOT hidden AND source IN ('BANK','CARD') AND category_id IS NULL AND kind IN ('INCOME','EXPENSE') AND status='CONFIRMED' AND competence=?",Long.class,owner,month.atDay(1));
+        long excluded=jdbc.queryForObject("SELECT count(*) FROM financial_record f JOIN valid_financial_nature n ON n.entry_id=f.bank_entry_id AND n.owner_id=f.owner_id WHERE f.owner_id=? AND NOT f.hidden AND f.competence=? AND n.nature<>'ORDINARY' AND NOT EXISTS(SELECT 1 FROM consumption_record c WHERE c.id=f.id AND c.owner_id=f.owner_id)",Long.class,owner,month.atDay(1));
         return new Summary(month.toString(),today,balance,totals,cash,categories,evolution,upcoming,accounts,records,complete,unclassified,excluded);
     }
     private Totals totals(UUID owner,YearMonth month) {

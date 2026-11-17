@@ -74,10 +74,9 @@ public class PlanningFinanceService {
         var income=average(history.stream().map(Month::income).toList());
         var salary=average(history.stream().map(Month::salary).toList());
         var consumption=average(history.stream().map(Month::consumption).toList());
-        boolean salaryObserved=history.stream().anyMatch(r->r.salary().signum()>0);
         boolean expenseObserved=history.stream().anyMatch(r->r.consumption().signum()>0);
-        BigDecimal monthlySalary=p.netSalary()!=null?p.netSalary():salaryObserved?salary:null;
-        String salarySource=p.netSalary()!=null?"USER":salaryObserved?"HISTORY":"UNKNOWN";
+        BigDecimal monthlySalary=p.netSalary();
+        String salarySource=p.netSalary()!=null?"USER":"UNKNOWN";
         BigDecimal expenseReference=p.monthlyExpenses()!=null?p.monthlyExpenses():expenseObserved?consumption:null;
         String expenseSource=p.monthlyExpenses()!=null?"USER":expenseObserved?"HISTORY":"UNKNOWN";
         var budget=budgets.month(owner,month).totals();
@@ -88,8 +87,7 @@ public class PlanningFinanceService {
         BigDecimal result=monthlySalary==null||monthlyExpenses==null?null:monthlySalary.subtract(monthlyExpenses).subtract(existingGoals);
         var warnings=new ArrayList<String>();
         if(observed<3)warnings.add("Há "+observed+" de 3 meses anteriores com registros. Mês sem dados não foi tratado como gasto zero.");
-        if(monthlySalary==null)warnings.add("Salário líquido mensal não identificado. Informe a previsão; outras entradas não são consideradas salário automaticamente.");
-        else if(salarySource.equals("HISTORY"))warnings.add("Salário estimado pelos registros na categoria Salário; confirme o valor líquido previsto.");
+        if(monthlySalary==null)warnings.add("Informe seu salário líquido mensal previsto. Recebimentos categorizados não preenchem nem substituem essa previsão.");
         if(expenseReference==null)warnings.add("Gastos mensais ainda desconhecidos. Informe uma previsão ou complete o histórico para avaliar a capacidade de poupar.");
         if(history.stream().anyMatch(r->r.uncategorized()>0)||current.uncategorized()>0)warnings.add("Há registros sem categoria. Aplicações, faturas e transferências ainda não confirmadas podem distorcer os indicadores.");
         if(expenseReference!=null&&monthlyExpenses.compareTo(expenseReference)>0)warnings.add("Gastos e compromissos do mês ou limites de orçamento superam a referência mensal; usamos o maior valor.");
