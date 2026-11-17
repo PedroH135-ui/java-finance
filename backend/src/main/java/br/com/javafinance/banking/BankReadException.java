@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 
 /** Only allow-listed diagnostics; never attach provider bodies, URLs or exception causes. */
 public final class BankReadException extends ApiException {
-    public enum Stage { AUTH, ITEM, ACCOUNTS, TRANSACTIONS, STORAGE }
+    public enum Stage { AUTH, ITEM, ACCOUNTS, TRANSACTIONS, STORAGE, CARDS, BILLS, CARD_TRANSACTIONS, INVESTMENTS }
     public enum Code { AUTH_DENIED, ACCESS_DENIED, RATE_LIMIT, HTTP_ERROR, TIMEOUT, NETWORK,
         INVALID_RESPONSE, ITEM_NOT_READY, RESULT_LIMIT, ACCOUNT_NOT_FOUND, STORAGE_ERROR }
     public enum Field { NONE, RESPONSE, ACCOUNT_ID, CURRENCY, DATE, ID, NAME, DESCRIPTION, AMOUNT, STATUS }
@@ -34,6 +34,10 @@ public final class BankReadException extends ApiException {
     }
     private static String message(Stage stage, Code code) {
         String step = switch (stage) {
+            case CARDS -> "Consulta dos cartões";
+            case BILLS -> "Consulta das faturas";
+            case CARD_TRANSACTIONS -> "Consulta dos detalhes de cartão";
+            case INVESTMENTS -> "Consulta dos investimentos";
             case AUTH -> "Autenticação no Meu Pluggy";
             case ITEM -> "Consulta da conexão";
             case ACCOUNTS -> "Consulta das contas";

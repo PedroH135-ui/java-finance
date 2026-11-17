@@ -17,6 +17,14 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(OutputCaptureExtension.class)
 class PluggyReadClientTest {
+    @Test void cardFailureKeepsSafeBillFieldWithoutFinancialPayload(CapturedOutput output) {
+        responses.add("{\"apiKey\":\"synthetic-token\"}");
+        responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"private-card-name\"}]}");
+        responses.add("{\"results\":[{\"id\":\"private-bill\",\"totalAmount\":123.45,\"totalAmountCurrencyCode\":\"unsupported-private-currency\"}]}");
+        assertThatThrownBy(()->client.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15)))
+            .isInstanceOfSatisfying(BankReadException.class,e->{assertThat(e.stage).isEqualTo(BankReadException.Stage.BILLS);assertThat(e.getMessage()).doesNotContain("private-bill","123.45");});
+        assertThat(output.getAll()).contains("stage=BILLS","field=CURRENCY").doesNotContain("private-card-name","private-bill","123.45","unsupported-private-currency","synthetic-token");
+    }
     @Test void additionalProductsUseReadOnlyAllowlistedPathsAndKeepOnlyNecessaryFields() {
         responses.add("{\"apiKey\":\"synthetic-token\"}");
         responses.add("{\"page\":1,\"totalPages\":1,\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"Cartão fictício\",\"number\":\"never-copy-card-number\"}]}");

@@ -168,17 +168,20 @@ public class PluggyReadClient implements BankProvider {
     }
     public List<BankProductsProvider.Card> cards(UUID item,LocalDate from,LocalDate to){
         if(!config.getItemIds().contains(item))throw ApiException.missing();
+        BankReadException.Stage productStage=CARDS;
         try{
             var cards=new ArrayList<BankProductsProvider.Card>();long began=System.nanoTime();
             for(var account:productPages("/accounts?itemId="+item+"&type=CREDIT")){
                 if(!"CREDIT".equals(account.path("type").asText())||!"CREDIT_CARD".equals(account.path("subtype").asText()))continue;
                 if(!item.toString().equals(account.path("itemId").asText())||!"BRL".equals(account.path("currencyCode").asText()))throw invalidValue(BankReadException.Field.CURRENCY);
                 UUID card=UUID.fromString(text(account,"id",200));var bills=new ArrayList<BankProductsProvider.Bill>();boolean available=true;
+                productStage=BILLS;
                 try{for(var bill:productPages("/bills?accountId="+card)){
                     if(!"BRL".equals(bill.path("totalAmountCurrencyCode").asText()))throw invalidValue(BankReadException.Field.CURRENCY);
                     BigDecimal total=decimal(bill,"totalAmount",false);if(total.signum()<0)throw invalidValue(BankReadException.Field.AMOUNT);
                     bills.add(new BankProductsProvider.Bill(text(bill,"id",200),productDate(bill,"dueDate",true),total));
                 }}catch(BankReadException error){if(error.code==ACCESS_DENIED||error.code==HTTP_ERROR&&error.providerStatus==404)available=false;else throw error;}
+                productStage=CARD_TRANSACTIONS;
                 var charges=new ArrayList<BankProductsProvider.Charge>();String query="accountId="+card+"&dateFrom="+from.minusDays(1)+"&dateTo="+to.plusDays(1),after=null;var seen=new HashSet<String>();
                 for(int page=0;page<20;page++){
                     if(System.nanoTime()-began>60_000_000_000L)throw BankReadException.failure(TRANSACTIONS,TIMEOUT);
@@ -199,11 +202,13 @@ public class PluggyReadClient implements BankProvider {
                     after=nextCursor(response.path("next").asText(),card,from,to);if(!seen.add(after))throw invalidValue(BankReadException.Field.RESPONSE);
                 }
                 if(after!=null)throw BankReadException.failure(TRANSACTIONS,RESULT_LIMIT);
+                productStage=CARDS;
                 cards.add(new BankProductsProvider.Card(card,text(account,"name",100),List.copyOf(bills),List.copyOf(charges),available));
                 if(cards.size()>10)throw BankReadException.failure(ACCOUNTS,RESULT_LIMIT);
             }
             return List.copyOf(cards);
-        }catch(IllegalArgumentException|DateTimeException|IndexOutOfBoundsException error){throw BankReadException.failure(ACCOUNTS,INVALID_RESPONSE);}
+        }catch(ProviderValueException error){throw BankReadException.failure(productStage,INVALID_RESPONSE,0,error.field);}
+        catch(IllegalArgumentException|DateTimeException|IndexOutOfBoundsException error){throw BankReadException.failure(productStage,INVALID_RESPONSE);}
     }
     private static String nextCursor(String next, UUID account, LocalDate from, LocalDate to) {
         // Never follow provider URLs. Extract only the cursor, keeping our host, account and dates fixed.
