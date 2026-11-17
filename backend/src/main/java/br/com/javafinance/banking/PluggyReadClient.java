@@ -179,7 +179,7 @@ public class PluggyReadClient implements BankProvider {
                 try{for(var bill:productPages("/bills?accountId="+card)){
                     try {
                         if(!"BRL".equals(bill.path("totalAmountCurrencyCode").asText()))throw invalidValue(BankReadException.Field.CURRENCY);
-                        BigDecimal total=decimal(bill,"totalAmount",false);if(total.signum()<0)throw invalidValue(BankReadException.Field.AMOUNT);
+                        BigDecimal total=billTotal(bill);
                         bills.add(new BankProductsProvider.Bill(text(bill,"id",200),productDate(bill,"dueDate",true),total));
                     } catch(ProviderValueException invalid) {
                         available=false;
@@ -217,6 +217,17 @@ public class PluggyReadClient implements BankProvider {
             return List.copyOf(cards);
         }catch(ProviderValueException error){throw BankReadException.failure(productStage,INVALID_RESPONSE,0,error.field);}
         catch(IllegalArgumentException|DateTimeException|IndexOutOfBoundsException error){throw BankReadException.failure(productStage,INVALID_RESPONSE);}
+    }
+    private static BigDecimal billTotal(JsonNode bill) {
+        var field=bill.path("totalAmount");
+        if(field.isMissingNode()||field.isNull())throw invalidValue(BankReadException.Field.BILL_TOTAL_MISSING);
+        if(field.isTextual())throw invalidValue(BankReadException.Field.BILL_TOTAL_STRING);
+        if(!field.isNumber())throw invalidValue(BankReadException.Field.BILL_TOTAL_STRUCTURE);
+        BigDecimal value=bill.get("totalAmount").decimalValue().stripTrailingZeros();
+        if(value.signum()<0)throw invalidValue(BankReadException.Field.BILL_TOTAL_NEGATIVE);
+        if(value.scale()>2)throw invalidValue(BankReadException.Field.BILL_TOTAL_PRECISION);
+        try{return Money.parse(value.toPlainString());}
+        catch(ApiException invalid){throw invalidValue(BankReadException.Field.BILL_TOTAL_RANGE);}
     }
     private static String nextCursor(String next, UUID account, LocalDate from, LocalDate to) {
         // Never follow provider URLs. Extract only the cursor, keeping our host, account and dates fixed.
