@@ -1,7 +1,8 @@
-param([switch]$Build,[switch]$Restart,[switch]$RestartAi,[switch]$RemoteAi,[switch]$VectorAi,[switch]$AutomaticCategories,[ValidateSet('off','qwen2.5:1.5b','groq')][string]$Llm)
+param([switch]$Build,[switch]$Restart,[switch]$RestartAi,[switch]$RemoteAi,[switch]$VectorAi,[switch]$AutomaticCategories,[switch]$SyntheticProducts,[ValidateSet('off','qwen2.5:1.5b','groq')][string]$Llm)
 $ErrorActionPreference='Stop'
 if($VectorAi -and ($RemoteAi -or $PSBoundParameters.ContainsKey('Llm'))){throw 'The vector demo cannot be combined with the remote or classic model switches.'}
 if($AutomaticCategories -and !$VectorAi){throw 'Automatic categories require the guarded synthetic vector demo.'}
+if($SyntheticProducts -and ($RemoteAi -or $AutomaticCategories)){throw 'Synthetic products cannot use remote AI or the automatic demo owner.'}
 $financeReviewRoot=Split-Path $PSScriptRoot -Parent
 $financeReviewPrivate=Join-Path $financeReviewRoot '.tools/local-review'
 New-Item -ItemType Directory -Path $financeReviewPrivate -Force | Out-Null
@@ -128,6 +129,13 @@ try {
         $env:CATEGORY_AI_PREVIEW_OIDC=$env:VERCEL_OIDC_TOKEN
     }
     if($financeReviewConfig.ownerId){$env:PLUGGY_OWNER_ID=$financeReviewConfig.ownerId}
+    if($SyntheticProducts){
+        $financeModules=Get-Content -LiteralPath (Join-Path $financeReviewPrivate 'modules-fixture.json') -Raw|ConvertFrom-Json
+        if(!$financeModules.syntheticOnly -or $financeModules.email -notmatch '^modules-[a-f0-9-]+@example\.test$'){throw 'Synthetic modules fixture guard failed.'}
+        $env:SPRING_PROFILES_ACTIVE='local-review';$env:PLUGGY_OWNER_ID=[guid]$financeModules.ownerId
+        $env:PLUGGY_ITEM_IDS=[guid]$financeModules.itemId
+        $env:PLUGGY_CLIENT_ID='synthetic-products';$env:PLUGGY_CLIENT_SECRET='synthetic-products'
+    }
     $financeAppListener=Get-NetTCPConnection -LocalPort 8082 -State Listen -ErrorAction SilentlyContinue
     if(!$financeAppListener) {
         $financeBackend=Start-Process -WindowStyle Hidden -FilePath (Join-Path $env:JAVA_HOME 'bin/java.exe') -ArgumentList @('-jar',('"'+$financeReviewJar+'"')) -WorkingDirectory $financeReviewRoot -RedirectStandardOutput (Join-Path $financeReviewPrivate 'backend.stdout.log') -RedirectStandardError (Join-Path $financeReviewPrivate 'backend.stderr.log') -PassThru

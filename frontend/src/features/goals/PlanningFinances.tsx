@@ -34,10 +34,10 @@ export function PlanningFinances({assessment,onChanged}:{assessment:Assessment|n
   }
   return <Paper variant="outlined" sx={{p:2,mb:3}}><Stack spacing={2}>
     <Typography variant="h6" component="h2">Sua renda e seus gastos no planejamento</Typography>
-    <Typography>Entradas registradas incluem outras receitas. Apenas a categoria Salário identifica salário; você pode informar o valor líquido esperado para melhorar a previsão.</Typography>
+    <Typography>Informe seu salário líquido esperado. Recebimentos na categoria Salário aparecem no histórico, mas não preenchem nem substituem sua previsão.</Typography>
     {error&&<Alert severity="error">{error}</Alert>}{notice&&<Alert severity="success">{notice}</Alert>}
     <Box component="fieldset" disabled={busy} sx={{border:0,p:0,m:0}}><Stack spacing={2}>
-      <MoneyInput label="Salário líquido mensal previsto" value={salary??data.profile.netSalary??''} onChange={setSalary} helperText="Deixe vazio para usar a média identificada nos meses anteriores."/>
+      <MoneyInput label="Salário líquido mensal previsto" value={salary??data.profile.netSalary??''} onChange={setSalary} helperText="Preenchimento exclusivamente manual. Vazio significa salário previsto não informado."/>
       <MoneyInput label="Gastos mensais previstos (opcional)" value={expenses??data.profile.monthlyExpenses??''} onChange={setExpenses} helperText="Deixe vazio para usar o histórico. Compromissos maiores do mês continuam sendo considerados."/>
       <Button variant="outlined" disabled={busy} onClick={()=>void save()}>Salvar previsões do planejamento</Button>
     </Stack></Box>

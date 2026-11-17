@@ -8,6 +8,8 @@ import { civilDate, money } from '../../lib/format';
 import { FormDialog } from '../../components/Shared';
 import { BankAssistance } from './BankAssistance';
 import { FinancialNature } from './FinancialNature';
+import { SalaryAction } from './SalaryAction';
+import { refreshFinances } from '../../lib/financialQueries';
 
 export function BankRecordDetail({record,onClose}:{record:FinancialRecord;onClose:()=>void}) {
   const client=useQueryClient();
@@ -17,7 +19,7 @@ export function BankRecordDetail({record,onClose}:{record:FinancialRecord;onClos
     try {
       await api(`/banking/entries/${record.bankEntryId}/visibility`,{method:'POST',body:json({version:record.bankEntryVersion,hidden:!record.hidden,reason})});
       onClose();
-      await Promise.all(['movementFeed','bankEntries','summary','budgets'].map(key=>client.invalidateQueries({queryKey:[key]})));
+      await refreshFinances(client);
     } catch(e) {setError((e as Error).message);} finally {setBusy(false);}
   }
   return <FormDialog title="Registro bancário" dirty={!!reason} busy={busy} onClose={onClose}
@@ -27,6 +29,7 @@ export function BankRecordDetail({record,onClose}:{record:FinancialRecord;onClos
       <Typography variant="h6" sx={{overflowWrap:'anywhere'}}>{record.description}</Typography>
       <Typography className="money">{money(record.amount)} · {civilDate(record.operationDate)}</Typography>
       <Typography>{record.bankProviderStatus==='POSTED'?'Efetivado no banco':'Pendente no banco · fora dos totais realizados'}</Typography>
+      <SalaryAction record={record} onChanged={onClose}/>
       {!record.hidden&&<BankAssistance record={record} onChanged={onClose}/>}
       {!record.hidden&&record.source==='BANK'&&<FinancialNature record={record} onChanged={onClose}/>}
       {record.status==='CANCELLED'&&<Alert severity="warning">O lançamento associado está cancelado nos relatórios. Restaurar a visibilidade não confirma esse lançamento.</Alert>}

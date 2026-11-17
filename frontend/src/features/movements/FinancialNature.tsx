@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery,useQueryClient } from '@tanstack/react-query';
 import { Alert,Button,Checkbox,FormControlLabel,Link,MenuItem,Stack,TextField,Typography } from '@mui/material';
 import { api,json } from '../../lib/api';
+import { refreshFinances } from '../../lib/financialQueries';
 import { Failure,Loading } from '../../components/Shared';
 import type { FinancialRecord } from '../../lib/types';
 interface Status {confirmedNature:string|null;instrument:string|null;positionId:string|null;changed:boolean;suggestion:{nature:string;instrument:string;explanation:string;sourceUrl:string}|null}
@@ -9,20 +10,22 @@ const names:Record<string,string>={ORDINARY:'Renda ou consumo comum',OWN_TRANSFE
 export function FinancialNature({record,onChanged}:{record:FinancialRecord;onChanged:()=>void}){
   const client=useQueryClient(),[choice,setChoice]=useState<string>(),[product,setProduct]=useState<string>(),[position,setPosition]=useState<string>(),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const status=useQuery({queryKey:['financialNature',record.bankEntryId],queryFn:()=>api<Status>(`/banking/entries/${record.bankEntryId}/nature`)});
-  const positions=useQuery({queryKey:['investments'],queryFn:()=>api<{positions:{id:string;name:string;instrument:string}[]}>('/investments')});
+  const selectedNature=choice??status.data?.confirmedNature??status.data?.suggestion?.nature??'ORDINARY';
+  const positions=useQuery({queryKey:['investmentPositions'],queryFn:()=>api<{id:string;name:string;instrument:string}[]>('/investments/positions'),enabled:selectedNature==='INVESTMENT_IN'||selectedNature==='INVESTMENT_OUT'});
   if(status.isPending)return <Loading/>;
   if(status.error)return <Failure error={status.error}/>;
   const data=status.data,nature=choice??data.confirmedNature??data.suggestion?.nature??'ORDINARY',instrument=product??(data.confirmedNature?data.instrument:data.suggestion?.instrument)??'OTHER';
   const investment=nature==='INVESTMENT_IN'||nature==='INVESTMENT_OUT';
   async function save(){setBusy(true);setError('');try{
     await api(`/banking/entries/${record.bankEntryId}/nature`,{method:'POST',body:json({version:record.bankEntryVersion,nature,instrument:investment?(instrument==='NONE'?'OTHER':instrument):'NONE',positionId:investment?((position??data.positionId)||null):null,confirmed})});
-    await Promise.all(['movementFeed','financialNature','summary','budgets','investments','goals'].map(key=>client.invalidateQueries({queryKey:[key]})));onChanged();
+    await refreshFinances(client);onChanged();
   }catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   return <Stack spacing={1.5}>
     <Typography variant="subtitle1" fontWeight={650}>Natureza financeira</Typography>
     {data.changed&&<Alert severity="warning">O banco mudou os dados. A confirmação anterior deixou de valer; confira novamente.</Alert>}
     {data.confirmedNature&&<Alert severity="success">Confirmado: {names[data.confirmedNature]}. {data.confirmedNature==='ORDINARY'?'Entra nos indicadores comuns.':'Fora dos indicadores de consumo e economia; permanece no extrato e no fluxo de caixa.'}</Alert>}
     {!data.confirmedNature&&data.suggestion&&<Alert severity="info">Identificação sugerida: {names[data.suggestion.nature]}. {data.suggestion.explanation} <Link href={data.suggestion.sourceUrl} target="_blank" rel="noreferrer">Fonte do contexto</Link></Alert>}
+    {nature==='CARD_PAYMENT'&&<Alert severity="warning">Confira a cobertura do cartão em Conexões bancárias. Excluir este pagamento sem ter as compras detalhadas pode subestimar o consumo; contar compras e pagamento juntos duplica o gasto. A confirmação é manual e pode ser revertida.</Alert>}
     <TextField select label="Natureza financeira do registro" value={nature} onChange={e=>{setChoice(e.target.value);setConfirmed(false);setPosition('');}} disabled={busy}>
       {Object.entries(names).map(([id,label])=><MenuItem key={id} value={id}>{label}</MenuItem>)}
     </TextField>
@@ -31,7 +34,7 @@ export function FinancialNature({record,onChanged}:{record:FinancialRecord;onCha
         <MenuItem value="RDB">RDB · renda fixa</MenuItem><MenuItem value="CDB">CDB · renda fixa</MenuItem><MenuItem value="OTHER">Outro investimento</MenuItem>
       </TextField>
       <TextField select label="Vincular a investimento cadastrado (opcional)" value={position??data.positionId??''} onChange={e=>setPosition(e.target.value)}>
-        <MenuItem value="">Sem vínculo</MenuItem>{positions.data?.positions.filter(p=>p.instrument===instrument).map(p=><MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
+        <MenuItem value="">Sem vínculo</MenuItem>{positions.data?.filter(p=>p.instrument===instrument).map(p=><MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
       </TextField>
     </>}
     <Typography variant="body2">A categoria organiza o gasto; esta confirmação decide se ele é renda/consumo. Não realiza transferência, compra, resgate ou alteração de saldo.</Typography>

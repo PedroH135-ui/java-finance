@@ -5,6 +5,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Paper, Stack, TextField, Typography } from '@mui/material';
 import { ContentCopy, EditOutlined } from '@mui/icons-material';
 import { api, json } from '../../lib/api';
+import { refreshFinances } from '../../lib/financialQueries';
 import { money, monthLabel, today } from '../../lib/format';
 import { Empty, Failure, FormDialog, Loading, MoneyInput, PageHeader } from '../../components/Shared';
 
@@ -29,11 +30,13 @@ export function Budgets() {
   const [editing, setEditing] = useState<BudgetRow | null>(null);
   const [copying, setCopying] = useState(false), [busy, setBusy] = useState(false);
   const [error, setError] = useState(''), [message, setMessage] = useState('');
+  const [showAll,setShowAll]=useState(false);
+  const visibleCategories=query.data?.categories.filter(row=>showAll||(!row.archived&&(row.limit!==null||Number(row.spent)!==0||Number(row.planned)!==0)))??[];
   async function copy() {
     setBusy(true); setError(''); setMessage('');
     try {
       const result = await api<{ copied: number; skipped: number }>(`/budgets/${month}/copy`, { method: 'POST', body: json({ sourceMonth: previousMonth(month) }) });
-      await client.invalidateQueries({ queryKey: ['budgets'] });
+      await refreshFinances(client);
       setMessage(result.copied === 0 ? 'Nenhum limite novo foi copiado. O mês anterior pode estar sem limites; os existentes e as categorias arquivadas são preservados.' : `${result.copied} limite(s) copiado(s). ${result.skipped} ignorado(s) por já existir ou estar arquivado.`);
       setCopying(false);
     } catch (e) { setError((e as Error).message); }
@@ -59,8 +62,9 @@ export function Budgets() {
       {(query.data.totals.unbudgetedSpent !== '0.00' || query.data.totals.unbudgetedPlanned !== '0.00') && <Alert severity="warning" sx={{ mb: 2 }}>
         Sem limite definido: {money(query.data.totals.unbudgetedSpent)} em gastos e {money(query.data.totals.unbudgetedPlanned)} previstos. Esses valores não estão nos totais com limite acima.
       </Alert>}
-      {query.data.categories.length === 0 ? <Paper variant="outlined"><Empty title="Comece pelas categorias de despesa" action={<Button component={Link} to="/categories">Cadastrar categoria</Button>}>Crie uma categoria e depois defina quanto pretende gastar nela por mês.</Empty></Paper> : <Stack spacing={2}>
-        {query.data.categories.map(row => <Paper component="section" aria-label={row.name} key={row.categoryId} variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
+      <Stack direction="row" gap={1} flexWrap="wrap" sx={{mb:2}}><Button onClick={()=>setShowAll(!showAll)}>{showAll?'Mostrar só categorias em uso':'Adicionar categoria ao orçamento / ver todas'}</Button><Button component={Link} to={`/movements?kind=EXPENSE&consumption=true&basis=competence&month=${month}&category=uncategorized`}>Conferir gastos sem categoria</Button></Stack>
+      {visibleCategories.length === 0 ? <Paper variant="outlined"><Empty title="Nenhuma categoria em uso neste mês" action={<Button onClick={()=>setShowAll(true)}>Planejar uma categoria</Button>}>Categorias com gasto, previsão ou limite definido aparecem aqui. As demais continuam disponíveis para planejar.</Empty></Paper> : <Stack spacing={2}>
+        {visibleCategories.map(row => <Paper component="section" aria-label={row.name} key={row.categoryId} variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1} mb={2}>
             <Box sx={{ minWidth: 0 }}><Typography component="h2" variant="h6" sx={{ overflowWrap: 'anywhere' }}>{row.name}</Typography>
               <Stack direction="row" gap={1} flexWrap="wrap">{row.essential && <Chip size="small" label="Essencial"/>}{row.archived && <Chip size="small" label="Arquivada"/>}
@@ -97,7 +101,7 @@ function BudgetForm({ row, month, onClose }: { row: BudgetRow; month: string; on
     setError('');
     try {
       await api(`/budgets/${month}/categories/${row.categoryId}`, { method: 'PUT', body: json({ amount: value.amount, version: row.version }) });
-      await client.invalidateQueries({ queryKey: ['budgets'] }); onClose();
+      await refreshFinances(client); onClose();
     } catch (e) { setError((e as Error).message); }
   });
   return <FormDialog title={`Limite de ${row.name}`} dirty={form.formState.isDirty} busy={form.formState.isSubmitting} onClose={onClose}

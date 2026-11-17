@@ -1,0 +1,73 @@
+import { test,expect,type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+test.use({serviceWorkers:'block'});
+test.skip(process.env.MODULE_REVIEW_E2E!=='1'||process.env.E2E_URL!=='http://127.0.0.1:8082','Only the guarded fictitious local application.');
+async function get(page:Page,path:string){return page.evaluate(async path=>{const r=await fetch('/api'+path);if(!r.ok)throw new Error('Local API '+r.status);return r.json();},path);}
+async function post(page:Page,path:string,body:unknown){return page.evaluate(async({path,body})=>{const csrf=await(await fetch('/api/auth/csrf')).json();const r=await fetch('/api'+path,{method:'POST',headers:{'Content-Type':'application/json',[csrf.headerName]:csrf.token},body:JSON.stringify(body)});if(!r.ok)throw new Error('Local synthetic POST '+r.status);},{path,body});}
+
+test('salário, regra, cartão, orçamento e investimentos vinculados sem mudar saldo',async({page},info)=>{
+ test.setTimeout(240000);
+ const fixture=JSON.parse(readFileSync(resolve('../.tools/local-review/modules-fixture.json'),'utf8'));
+ if(!fixture.syntheticOnly||!/^modules-[a-f0-9-]+@example\.test$/.test(fixture.email))throw new Error('Unexpected synthetic fixture.');
+ const errors:string[]=[],external:string[]=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/*',async route=>{const u=new URL(route.request().url());if(u.protocol.startsWith('http')&&u.hostname!=='127.0.0.1'){external.push(u.hostname);await route.abort();}else await route.continue();});
+ const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()),month=today.slice(0,7),from=new Date(new Date(today+'T12:00:00Z').getTime()-4*86400000).toISOString().slice(0,10);
+ const monthEnd=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10);
+ await page.goto('/');await page.getByLabel('E-mail').fill(fixture.email);await page.getByLabel('Senha').fill('DemoLocal123!');await page.getByRole('button',{name:'Entrar',exact:true}).click();
+ await expect(page.getByText(/Ambiente local de demonstração com dados fictícios/)).toBeVisible();
+ const reportPath='/reports/summary?month='+month,feedPath=`/movements/feed?from=${month}-01&to=${monthEnd}&size=100`;
+ const baseline=await get(page,reportPath);expect(baseline.balance).toBe('1000.00');expect((await get(page,'/goals/finances')).monthlySalary).toBeNull();
+ await page.goto('/#/movements?month='+month);
+ await page.getByRole('button',{name:'Detalhes de Transferência Recebida|EMPRESA DEMONSTRAÇÃO LTDA',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Registro bancário',exact:true});
+ await dialog.getByRole('button',{name:'É meu salário',exact:true}).click();
+ await dialog.getByLabel('Criar regra para próximos recebimentos com a mesma descrição nesta conta').check();
+ await dialog.getByRole('button',{name:'Confirmar salário recebido',exact:true}).click();await expect(dialog).not.toBeVisible();
+ expect((await get(page,'/banking/salary-rules')).length).toBe(1);expect((await get(page,'/goals/finances')).monthlySalary).toBeNull();
+ const marked=await get(page,reportPath);expect(marked.balance).toBe(baseline.balance);expect(marked.cashFlow).toBe(baseline.cashFlow);
+ // This launcher selects an in-memory BankProvider guarded to this synthetic user and loopback DB.
+ await post(page,`/banking/links/${fixture.linkId}/sync`,{from,to:today});
+ const feed=await get(page,feedPath);expect(feed.items.some((r:{categorySource:string})=>r.categorySource==='RULE')).toBe(true);
+ expect((await get(page,'/goals/finances')).monthlySalary).toBeNull();expect((await get(page,reportPath)).balance).toBe(baseline.balance);
+ await page.goto('/#/goals?month='+month);await page.getByLabel('Salário líquido mensal previsto').fill('3000');await page.getByLabel('Gastos mensais previstos (opcional)').fill('2700');
+ await page.getByRole('button',{name:'Salvar previsões do planejamento',exact:true}).click();await expect(page.getByText(/Previsões salvas/)).toBeVisible();expect((await get(page,'/goals/finances')).monthlySalary).toBe('3000.00');
+ await page.goto('/#/banking?month='+month);
+ await page.getByRole('button',{name:'Consultar cobertura e dados adicionais de Banco fictício',exact:true}).click();
+ const readDialog=page.getByRole('dialog',{name:'Consultar produtos adicionais',exact:true});
+ await expect(readDialog.getByLabel('Repetir esta leitura junto às próximas atualizações bancárias')).not.toBeChecked();
+ await readDialog.getByRole('button',{name:'Confirmar leitura adicional',exact:true}).click();await expect(readDialog).not.toBeVisible();
+ await expect(page.getByRole('heading',{name:'Cartão fictício',exact:true})).toBeVisible();
+ const beforeReconcile=await get(page,reportPath);expect((await get(page,'/banking/products')).positions[0].balance).toBe('2500.00');
+ await page.getByRole('button',{name:'Conferir fatura e pagamento',exact:true}).click();
+ const reconciliation=page.getByRole('dialog',{name:'Conferir fatura e pagamento',exact:true});
+ await reconciliation.getByLabel('Pagamento bancário correspondente').click();await page.getByRole('option',{name:/Pagamento de fatura/}).click();
+ await reconciliation.getByLabel('Conferi os detalhes, estornos e parcelas; a fatura está completa e este pagamento corresponde a ela').check();
+ await reconciliation.getByRole('button',{name:'Confirmar conciliação da fatura',exact:true}).click();await expect(reconciliation).not.toBeVisible();
+ const reconciled=await get(page,reportPath);expect(reconciled.competence.expenses).toBe(beforeReconcile.competence.expenses);expect(reconciled.cashFlow).toBe(beforeReconcile.cashFlow);expect(reconciled.balance).toBe(baseline.balance);
+ await page.goto('/#/movements?consumption=true&basis=competence&month='+month);
+ await page.getByRole('button',{name:'Detalhes de Mercado de demonstração',exact:true}).click();
+ const cardDialog=page.getByRole('dialog',{name:'Detalhe do cartão',exact:true});await cardDialog.getByLabel('Categoria do detalhe do cartão').click();await page.getByRole('option',{name:'Mercado',exact:true}).click();
+ await cardDialog.getByRole('button',{name:'Salvar categoria do detalhe',exact:true}).click();await expect(cardDialog).not.toBeVisible();
+ const budget=await get(page,'/budgets?month='+month);expect(budget.categories.find((r:{name:string})=>r.name==='Mercado').spent).toBe('400.00');
+ await page.goto('/#/budgets?month='+month);await expect(page.getByRole('heading',{name:'Mercado',exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Lazer',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Adicionar categoria ao orçamento / ver todas',exact:true}).click();await expect(page.getByRole('heading',{name:'Lazer',exact:true})).toBeVisible();
+ await page.goto('/#/investments?month='+month);await expect(page.getByText('RDB da demonstração',{exact:true})).toBeVisible();
+ await page.getByRole('link',{name:'Revisar este registro em Movimentações',exact:true}).click();
+ const natureDialog=page.getByRole('dialog',{name:'Registro bancário',exact:true});await expect(natureDialog.getByRole('heading',{name:'Aplicação RDB',exact:true})).toBeVisible();
+ await natureDialog.getByLabel('Confirmo a natureza escolhida e sua aplicação aos indicadores').check();await natureDialog.getByRole('button',{name:'Confirmar natureza financeira',exact:true}).click();await expect(natureDialog).not.toBeVisible();
+ expect((await get(page,reportPath)).competence.expenses).toBe('480.00');
+ await page.goto('/#/goals?month='+month);await expect(page.getByLabel('Salário líquido mensal previsto')).toHaveValue(/R\$\s3\.000,00/);
+ const planning=await get(page,'/goals/finances');expect(planning.monthlySalary).toBe('3000.00');expect(planning.currentConsumption).toBe('480.00');expect(planning.available).toBe('300.00');
+ await page.goto('/#/settings?month='+month);await expect(page.getByRole('heading',{name:'Regras de salário',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Pausar regra',exact:true}).click();await expect(page.getByRole('button',{name:'Ativar regra',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Ativar regra',exact:true}).click();await expect(page.getByRole('button',{name:'Pausar regra',exact:true})).toBeVisible();
+ expect((await get(page,'/banking/category-automation')).enabled).toBe(false);
+ expect((await get(page,reportPath)).balance).toBe(baseline.balance);const manual=await get(page,'/movements?from='+month+'-01&to='+monthEnd);expect(Array.isArray(manual)?manual:manual.items).toEqual([]);
+ expect(external).toEqual([]);expect(errors).toEqual([]);
+ await page.goto('/#/banking?month='+month);await expect(page.getByRole('heading',{name:'Cartão fictício',exact:true})).toBeVisible();
+ await page.screenshot({path:info.outputPath('modulos-integrados-ficticios.png'),fullPage:true});
+ await info.attach('invariants.json',{body:JSON.stringify({syntheticOnly:true,salaryMarked:true,futureRule:true,predictionManual:true,bankProductsRead:true,billReconciled:true,expenseNotDuplicated:true,cardCategoryCorrected:true,budgetFilters:true,investmentPosition:2500,confirmedContribution:800,consumption:480,balancePreserved:true,noManualMovements:true,aiOptOutPreserved:true,externalRequests:0,pageErrors:0}),contentType:'application/json'});
+});

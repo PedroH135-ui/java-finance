@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Box, Button, Chip, Divider, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { api, json } from '../../lib/api';
+import { refreshFinances } from '../../lib/financialQueries';
 import type { Category, FinancialRecord } from '../../lib/types';
 import { civilDate, money } from '../../lib/format';
 import { Failure, Loading } from '../../components/Shared';
@@ -25,7 +26,7 @@ export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChan
     try {
       await api(`/banking/entries/${record.bankEntryId}/${action}`,{method:'POST',body:json(body)});
       onChanged();
-      await Promise.all(['movementFeed','bankAssistance','bankEntries','summary','budgets'].map(key=>client.invalidateQueries({queryKey:[key]})));
+      await refreshFinances(client);
     } catch(e){setError((e as Error).message);} finally{setBusy(false);}
   }
   if(query.isPending)return <Loading/>;
