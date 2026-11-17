@@ -1,5 +1,15 @@
 # Contexto do Java Finance
 
+**Entrega local concluída — 17/11:** branch `codex/salario-modulos-integrados`:
+botão É meu salário/regra futura, previsão salarial exclusivamente manual,
+melhorias de desempenho/orçamento e integração read-only de cartão/faturas/posições.
+V17/V18 somente locais; Java150 testes, frontend6/lint/build e preservação no
+upgrade fictício aprovados; E2E integrado aprovado em29,1s, saldo preservado e
+zero requisições externas/erros JavaScript. Produção permanece V16,
+sem nova publicação, push, PR ou merge. Ler
+[implementação, limites, reprodução e rollback](../salario-modulos-integrados-local.md)
+e o topo do handoff; entradas seguintes são históricas.
+
 **Estado atual — 17/11, Production/V16:** salário, gastos e capacidade por meta publicados com autorização, backup V15 decriptado/restaurado e V16 aprovada na branch isolada. Java/Python UP; smoke autenticado sem salvar previsões ou meta fictícia; saldos, correções e preferências preservados. Ler [relatório e rollback](../publicacao-metas-renda-2026-11-17.md) e [implementação/testes](../metas-renda-mensal-local.md). Código e contexto enviados em `codex/metas-renda-mensal` e incorporados à [PR17](https://github.com/PedroH135-ui/java-finance/pull/17), sem merge; conferir os checks no HEAD da PR. As entradas abaixo são históricas, inclusive as referências à V16 somente local.
 
 **Pendência atual da PR:** segredos/privacidade aprovados, auditoria de dependências falhou por `picomatch` sem versão corrigida no aviso oficial consultado. Não mascarar o check nem fazer merge; [análise e exposição no build](../publicacao-metas-renda-2026-11-17.md). Produção e dependências foram preservadas durante a investigação.

@@ -1,5 +1,44 @@
 # Retomada da publicação da IA
 
+## Trabalho atual — 17/11: salário e módulos integrados, somente local
+
+- Usuário autorizou implementar/testar localmente salário/regra opcional e
+  melhorias dos módulos; confirmou incluir integração adicional de cartão e
+  posições. **Não autorizou nova publicação/push/PR/merge nesta etapa.**
+- Branch `codex/salario-modulos-integrados`, base de análise `1de0680`.
+  Commits funcionais locais: `b5d06c4` backend/migrações/testes e `0ce9b3f`
+  telas/laboratório/E2E; commit de documentação vem a seguir. Sem envio remoto.
+  Produção preservada V16; deployments da publicação anterior abaixo continuam
+  apenas referência, não foram revalidados na nuvem nesta entrega.
+- V17 regras futuras owner+conta+descrição, sem backfill, correções prioritárias.
+  Salário previsto só manual; IA/opt-out anterior preservados. V18 snapshots
+  de produtos, fila de categorias dos detalhes e conciliação manual de fatura
+  que troca a projeção de consumo, mantendo pagamento no caixa e saldo igual.
+- Java150 testes aprovados (44+106), frontend lint/seis testes/build integrado;
+  upgrade local fictício16→18 com fingerprints anteriores/projeções iguais.
+  E2E final aprovado29,1s: salário/regra, previsão manual, cartão/fatura sem
+  duplicidade, categoria no orçamento, posição/RDB e Configurações. Saldo1000,
+  consumo480, zero movimentos manuais/requisições externas/erros JavaScript.
+  Duas rodadas anteriores corrigiram seletores do teste (link/moeda formatada);
+  nova fixture a cada rodada, sem relaxar invariantes. Inspeção CUA local
+  confirmou planejamento3000−2700→300; sem tocar aba real/produção.
+- Local8082, Python8126 com modelo desligado, bancos Docker55434/55435. Novo
+  perfil guardado `-SyntheticProducts` usa provedores em memória, sem Pluggy/Groq.
+  Não usar wrapper que resemeia demo vetorial durante este teste.
+- Ler `docs/salario-modulos-integrados-local.md` e o teste
+  `frontend/e2e/modules-local.spec.ts`. Cobertura real Nubank de faturas/posições
+  ainda não foi consultada. Próximo rollout exige recuperação e teste Neon
+  isolado16→18; pendência anterior de CI picomatch não foi suprimida.
+- Varredura final:12 segredos/605 arquivos/recursos públicos e JAR, zero
+  correspondências; Gitleaks público1,57MB sem achados. Arquivos privados fora
+  do Git; evidências locais ficam privadas em `.tools`.
+  Amostra HTTP local aquecida (3/endpoint): medianas dashboard376ms,
+  orçamento186ms, planejamento254ms, produtos41ms; não é benchmark de produção.
+- `start-review-local.ps1` prepara Java internamente; executar em PowerShell
+  novo, sem dot-source prévio de enter-dev antes de invocar outro pwsh. No
+  Windows, parar somente o processo guardado de revisão antes de reempacotar
+  seu JAR aberto. Não confundir falha de rename de artefato aberto com teste falho.
+
 ## Análise posterior — integração dos módulos, sem alteração funcional
 
 17/11, branch local `codex/revisao-modulos-financeiros`: revisão do código e leitura da sessão real. Usuário quer salário só manual, gastos automáticos com IA quando necessária, menos lentidão e melhor integração de orçamento/investimentos/faturas. Ler `docs/plano-integracao-modulos-2026-11-17.md`: propostas, evidências, validação e ordem de entrega. Nenhum código funcional, preferência, categoria, natureza, migração ou produção alterados. Produção continua V16; fallback salarial histórico ainda existe até futura implementação. Não classificar ou confirmar registros reais por este documento.

@@ -1,5 +1,15 @@
 # Como LangChain e RAG funcionam hoje
 
+**Evolução local em17/11, ainda não publicada:**
+[salário e módulos integrados](salario-modulos-integrados-local.md). A regra
+opcional de salário é instrução exata no Java, sem RAG/LLM. Salário previsto
+é manual; gastos/metas são calculados com decimais no Java. Detalhes de cartão
+agora podem reutilizar a fila/classificador existente: correções e histórico
+privado primeiro, RAG e até uma chamada LLM quando necessário, respeitando opt-out.
+Python/modelos/embeddings não mudaram nesta entrega. Não há envio de posições,
+saldos, faturas completas ou salário previsto ao modelo. Testes de tela usam
+provedores fictícios e Python local com modelo desligado. Produção continua V16.
+
 **Produção em17/11, V16:** [planejador com salário/gastos](metas-renda-mensal-local.md), [publicação e rollback](publicacao-metas-renda-2026-11-17.md). LangChain interpreta objetivo e perguntas de resumo com RunnableLambda, sem chamar o LLM; Java obtém o contexto owner-scoped, separa salário de outras entradas, calcula gastos mensais e capacidade após compromissos/metas e mostra aporte/diferença/prazo. Valores dos relatórios não vão à Groq nem ao banco vetorial. O RAG de categorias continua separado, com prioridade humana e até uma chamada LLM quando necessária. As entradas abaixo sobre evolução somente local e V15 são históricas.
 
 **Produção mais recente, 16/11:** [organização publicada](publicacao-organizacao-2026-11-16.md), V15, Java/Python novos e verificados. IA default-on em novos cadastros/primeiro vínculo sem preferência anterior; opt-out e correções preservados. Regra PIX, histórico, RAG com dois exemplos fortes e até uma chamada LLM foram testados na nuvem com dados fictícios. Planejador guiado usa LangChain e cálculo Java sem LLM. Contexto público de RDB/CDB/fatura é tabela de regras, não vetores privados compartilhados. As seções locais/opt-in desligado abaixo são históricas.
