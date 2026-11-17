@@ -55,6 +55,12 @@ Fontes exportadas dos dois serviços e commits de saída verificados com Gitleak
 
 Código e relatório enviados em `codex/metas-renda-mensal` e incorporados à [PR17](https://github.com/PedroH135-ui/java-finance/pull/17), já aberta com a organização V15, por avanço normal da sua cabeça `codex/organizacao-financeira-local`. Inclui V16, contexto, testes e rollback, sem merge ou novo deploy pelo envio. O CI remoto testa segurança/privacidade e frontend; a suíte Java/Python e migração isolada têm evidências locais descritas acima. Verificar os checks do HEAD final da PR antes de qualquer merge futuro.
 
+**Pendência descoberta no CI após o envio:** segredos/privacidade aprovados, mas `npm audit --audit-level=moderate` falhou em `picomatch@4.0.7`, dependência transitiva de Vite/Vitest e ferramentas de análise. O [aviso GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), atualizado em17/11, afeta versões até4.0.7 e informa **nenhuma versão corrigida**. Não executamos `npm audit fix --force`, downgrade de Vite, exceção de advisory ou redução da auditoria. A PR permanece sem merge e com a pendência explícita; checks anteriores aprovados não representam esse HEAD.
+
+`npm ls picomatch` confirmou o uso local em ferramentas de desenvolvimento. O Dockerfile usa Node só no estágio de build; a imagem final é JRE21 com o JAR/arquivos estáticos, sem Vite/Vitest/node_modules. Isso delimita a exposição observada, sem afirmar que o aviso está corrigido. Não houve alteração de dependências ou novo deploy por essa investigação. Próximo passo: reconsultar uma correção oficial e atualizá-la com audit/lint/test/build, sem mascarar o check ou aceitar padrões glob não confiáveis no ambiente de build.
+
+Após a falha remota, lint, três testes e build foram repetidos localmente e aprovados; o aviso de bundle permaneceu. O `npm audit` local não concluiu e somente esse processo de consulta foi encerrado; o resultado de vulnerabilidade confirmado é o do GitHub Actions/aviso oficial, não um audit local aprovado. A investigação não mudou package.json, lockfile, workflow ou produção.
+
 ## Rollback
 
 Se houver regressão, revalidar a identidade/projetos e o impacto, então promover os deployments imediatamente anteriores:
