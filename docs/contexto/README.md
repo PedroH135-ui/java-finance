@@ -1,5 +1,11 @@
 # Contexto do Java Finance
 
+**17/11 — faturas:** diagnóstico detalhado `5aa621a` em produção, V18.
+Correção de total bancário original/V19 somente local e branch isolada;
+backup V18 restaurado, fingerprints preservados e testes aprovados.
+[Resultado, limites e próxima publicação](../faturas-total-original-v19.md).
+Sem autorização de publicar V19 por estes arquivos.
+
 **Produção V18 publicada — 17/11:** Java/React `dpl_2rzkbwNhztw62SrYXR8aspQFCH2b`,
 fonte funcional `2575d5d`. Backup V16 restaurado e V17/V18/rollback aprovados na
 branch Neon isolada, PostgreSQL18.7. Saúde/smoke/interface reais aprovados;

@@ -224,10 +224,10 @@ public class PluggyReadClient implements BankProvider {
         if(field.isTextual())throw invalidValue(BankReadException.Field.BILL_TOTAL_STRING);
         if(!field.isNumber())throw invalidValue(BankReadException.Field.BILL_TOTAL_STRUCTURE);
         BigDecimal value=bill.get("totalAmount").decimalValue().stripTrailingZeros();
-        if(value.signum()<0)throw invalidValue(BankReadException.Field.BILL_TOTAL_NEGATIVE);
-        if(value.scale()>2)throw invalidValue(BankReadException.Field.BILL_TOTAL_PRECISION);
-        try{return Money.parse(value.toPlainString());}
-        catch(ApiException invalid){throw invalidValue(BankReadException.Field.BILL_TOTAL_RANGE);}
+        // Provider snapshot, not an internal posting: retain sign and decimal precision.
+        if(value.scale()>64)throw invalidValue(BankReadException.Field.BILL_TOTAL_PRECISION);
+        if(value.abs().compareTo(new BigDecimal("999999999999999.99"))>0)throw invalidValue(BankReadException.Field.BILL_TOTAL_RANGE);
+        return value.setScale(Math.max(2,value.scale()));
     }
     private static String nextCursor(String next, UUID account, LocalDate from, LocalDate to) {
         // Never follow provider URLs. Extract only the cursor, keeping our host, account and dates fixed.

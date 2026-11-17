@@ -1,6 +1,28 @@
 import {test,expect} from '@playwright/test';
 test.use({serviceWorkers:'block'});
 test.skip(process.env.E2E_URL!=='http://127.0.0.1:4174','Fictitious local preview only');
+
+for(const total of ['1234.5600000000001','-4.1234567890123456789'])test(`total original ${total} sem arredondamento ou conciliação`,async({page})=>{
+ const writes:string[]=[];
+ await page.route('**/api/**',async route=>{
+  const req=route.request(),path=new URL(req.url()).pathname;
+  if(req.method()!=='GET'){writes.push(req.method());await route.abort();return;}
+  let body:unknown;
+  if(path==='/api/auth/me')body={id:'fictional',name:'Fictício',email:'demo@example.test'};
+  else if(path==='/api/banking/config')body={ready:true};
+  else if(path==='/api/banking/links')body=[];
+  else if(path==='/api/banking/products')body={connections:[],positions:[],payments:[{id:'payment',description:'Pagamento fictício',amount:'1234.56',date:'2026-11-17',version:0}],cards:[{id:'card',name:'Cartão fictício',checkedAt:'2026-11-17T12:00:00Z',billsAvailable:true,charges:[],bills:[{id:'bill',externalId:'bill',dueDate:'2026-11-17',total,detailedTotal:'1234.56',detailCount:1,pendingCount:0,revision:'123',reconciled:false}]}]};
+  else throw new Error('Unexpected local API '+path);
+  await route.fulfill({json:body});
+ });
+ await page.goto('/#/banking');
+ await expect(page.getByText(total.startsWith('-')?/-R\$ 4,1234567890123456789/:/R\$ 1\.234,5600000000001/)).toBeVisible();
+ await page.getByRole('button',{name:'Conferir fatura e pagamento',exact:true}).click();
+ await expect(page.getByText(/Total original informado pelo banco/)).toBeVisible();
+ await expect(page.getByRole('checkbox',{name:/Conferi os detalhes/})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Confirmar conciliação da fatura',exact:true})).toBeDisabled();
+ expect(writes).toEqual([]);
+});
 test('fatura parcial mantém conciliação bloqueada mesmo com pagamento e total compatíveis',async({page})=>{
  const writes:string[]=[];
  await page.route('**/api/**',async route=>{

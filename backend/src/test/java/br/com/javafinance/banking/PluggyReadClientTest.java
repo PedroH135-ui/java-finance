@@ -27,7 +27,7 @@ class PluggyReadClientTest {
         assertThat(output.getAll()).contains("stage=BILLS","field=CURRENCY").doesNotContain("private-card-name","private-bill","123.45","unsupported-private-currency","synthetic-token");
     }
     @Test void invalidBillTotalsAreNotRoundedOrReplacedAndValidBillsSurvive(CapturedOutput output) {
-        for(String total:List.of("-0.01","1.001","\"private-invalid-total\"","null","{}","1000000000000000")) {
+        for(String total:List.of("1e-65","\"private-invalid-total\"","null","{}","1000000000000000")) {
             responses.add("{\"apiKey\":\"synthetic-token\"}");
             responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"private-card\"}]}");
             responses.add("{\"results\":[{\"id\":\"bad\",\"dueDate\":\"2026-10-14\",\"totalAmount\":"+total+",\"totalAmountCurrencyCode\":\"BRL\"},{\"id\":\"good\",\"dueDate\":\"2026-10-14\",\"totalAmount\":500,\"totalAmountCurrencyCode\":\"BRL\"}]}");
@@ -37,7 +37,19 @@ class PluggyReadClientTest {
             assertThat(cards).hasSize(1);assertThat(cards.getFirst().billsAvailable()).isFalse();
             assertThat(cards.getFirst().bills()).hasSize(1);assertThat(cards.getFirst().bills().getFirst().id()).isEqualTo("good");assertThat(cards.getFirst().bills().getFirst().total()).isEqualByComparingTo("500.00");
         }
-        assertThat(output.getAll()).contains("stage=BILLS","field=BILL_TOTAL_NEGATIVE","field=BILL_TOTAL_PRECISION","field=BILL_TOTAL_STRING","field=BILL_TOTAL_MISSING","field=BILL_TOTAL_STRUCTURE","field=BILL_TOTAL_RANGE").doesNotContain("-0.01","1.001","private-invalid-total","private-card","synthetic-token");
+        assertThat(output.getAll()).contains("stage=BILLS","field=BILL_TOTAL_PRECISION","field=BILL_TOTAL_STRING","field=BILL_TOTAL_MISSING","field=BILL_TOTAL_STRUCTURE","field=BILL_TOTAL_RANGE").doesNotContain("-0.01","1.001","private-invalid-total","private-card","synthetic-token");
+    }
+    @Test void billSnapshotsPreserveSignedHighPrecisionAndDoNotLogValues(CapturedOutput output) {
+        for(String total:List.of("-0.01","1.001","1234.5600000000001","-4.1234567890123456789","0","999999999999999.99","1e-64")) {
+            responses.add("{\"apiKey\":\"synthetic-token\"}");
+            responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"private-card\"}]}");
+            responses.add("{\"results\":[{\"id\":\"bill\",\"dueDate\":\"2026-10-14\",\"totalAmount\":"+total+",\"totalAmountCurrencyCode\":\"BRL\"}]}");
+            responses.add("{\"results\":[],\"next\":null}");
+            var cards=new PluggyReadClient(config,new ObjectMapper(),http).cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));
+            assertThat(cards.getFirst().billsAvailable()).isTrue();
+            assertThat(cards.getFirst().bills().getFirst().total()).isEqualByComparingTo(total);
+        }
+        assertThat(output.getAll()).doesNotContain("1234.5600000000001","-4.1234567890123456789","private-card","synthetic-token");
     }
     @Test void additionalProductsUseReadOnlyAllowlistedPathsAndKeepOnlyNecessaryFields() {
         responses.add("{\"apiKey\":\"synthetic-token\"}");

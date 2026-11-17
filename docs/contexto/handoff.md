@@ -1,5 +1,20 @@
 # Retomada da publicação da IA
 
+## Mais recente — faturas, diagnóstico publicado e V19 isolada
+
+17/11: diagnóstico detalhado `5aa621a` publicado com autorização em
+`dpl_Ca6nozdgg7KSo5zCAcQnFWwsimWo`, produção V18; Python preservado.
+Leitura controlada confirmou rejeições por precisão/sinal, sem valores
+nos logs. Correção V19 preparada SOMENTE LOCAL e testada na branch isolada:
+total bancário original signed/preciso, texto decimal sem arredondamento,
+conciliação bloqueada para negativos/frações de centavo. Backup recente
+V18 DPAPI decriptado/restaurado em dois bancos novos, fingerprints preservados.
+Java47 unitários/frontend11/lint/build/quatro E2E e SQL isolado aprovados;
+suíte Docker completa continua não concluída. Nenhuma migração em produção.
+Ler `docs/faturas-total-original-v19.md`: limites, evidências, autorização
+necessária e rollback sem reduzir precisão. Sem push/PR/merge.
+Entradas abaixo são históricas, inclusive o leitor19a934d somente local.
+
 ## Mais recente — diagnóstico de cartões e filtro de posições
 
 17/11, branch `codex/corrige-cartoes-investimentos`: diagnóstico/filtro `dbf9f4c`

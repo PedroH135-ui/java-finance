@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Alert,Box,Button,Checkbox,FormControlLabel,MenuItem,Paper,Stack,TextField,Typography } from '@mui/material';
 import { api,json } from '../../lib/api';
 import { refreshFinances } from '../../lib/financialQueries';
+import { originalBillTotal,billCanReconcile } from './billTotal';
 import { sameMoney } from '../../lib/sameMoney';
 import { money,civilDate } from '../../lib/format';
 import { Failure,Loading,FormDialog } from '../../components/Shared';
@@ -26,7 +27,7 @@ export function BankProducts({links}:{links:Link[]}){
    {query.data.cards.map(card=><Paper variant="outlined" sx={{p:2}} key={card.id}><Stack spacing={1}>
     <Typography variant="h6" component="h3">{card.name}</Typography><Typography variant="caption">Consulta em {new Date(card.checkedAt).toLocaleString('pt-BR')}</Typography>
     {!card.billsAvailable&&<Alert severity="warning">Não foi possível validar todas as faturas desta leitura. Valores incompatíveis não foram substituídos ou estimados; dados anteriores podem estar desatualizados. A conciliação fica indisponível enquanto a cobertura estiver incompleta.</Alert>}
-    {card.bills.map(b=><Box key={b.id} sx={{borderTop:1,borderColor:'divider',pt:1}}><Typography>Fatura com vencimento em {civilDate(b.dueDate)} · {money(b.total)}</Typography><Typography>{b.detailCount} detalhes · soma líquida {money(b.detailedTotal)} · {b.pendingCount} pendentes · {b.reconciled?'Conciliada: consumo vem dos detalhes':'Não conciliada: detalhes ainda fora do consumo'}</Typography><Button onClick={()=>setBill({card,bill:b})}>Conferir fatura e pagamento</Button></Box>)}
+    {card.bills.map(b=><Box key={b.id} sx={{borderTop:1,borderColor:'divider',pt:1}}><Typography>Fatura com vencimento em {civilDate(b.dueDate)} · {originalBillTotal(b.total)}</Typography><Typography>{b.detailCount} detalhes · soma líquida {money(b.detailedTotal)} · {b.pendingCount} pendentes · {b.reconciled?'Conciliada: consumo vem dos detalhes':'Não conciliada: detalhes ainda fora do consumo'}</Typography><Button onClick={()=>setBill({card,bill:b})}>Conferir fatura e pagamento</Button></Box>)}
     <Box component="details"><Box component="summary" sx={{cursor:'pointer',py:1}}>Ver detalhes e parcelas do cartão ({card.charges.length})</Box><ChargeList card={card} onSelect={setCharge}/></Box>
    </Stack></Paper>)}
    <Typography>Posições de investimentos retornadas: {query.data.positions.length}. Consulte os valores e datas no módulo Investimentos; valores ausentes não serão estimados.</Typography>
@@ -47,12 +48,13 @@ function ChargeList({card,onSelect}:{card:Card;onSelect:(id:string)=>void}){
 }
 function ReconcileBill({card,bill,onClose}:{card:Card;bill:CardBill;onClose:()=>void}){
  const client=useQueryClient(),query=useBankProducts(),[payment,setPayment]=useState(''),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const candidates=query.data?.payments.filter(p=>sameMoney(p.amount,bill.total))??[];
+ const candidates=billCanReconcile(bill.total)?query.data?.payments.filter(p=>sameMoney(p.amount,bill.total))??[]:[];
  async function reconcile(){const entry=candidates.find(p=>p.id===payment);if(!entry)return;setBusy(true);setError('');try{await api(`/banking/card-bills/${bill.id}/reconcile`,{method:'POST',body:json({entryId:entry.id,entryVersion:entry.version,revision:bill.revision,confirmed})});await refreshFinances(client);onClose();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  async function undo(){setBusy(true);setError('');try{await api(`/banking/card-bills/${bill.id}/undo`,{method:'POST'});await refreshFinances(client);onClose();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
- const matches=card.billsAvailable&&bill.detailCount>0&&bill.pendingCount===0&&sameMoney(bill.detailedTotal,bill.total);
+ const matches=billCanReconcile(bill.total)&&card.billsAvailable&&bill.detailCount>0&&bill.pendingCount===0&&sameMoney(bill.detailedTotal,bill.total);
  return <FormDialog title="Conferir fatura e pagamento" dirty={confirmed} busy={busy} onClose={onClose} actions={bill.reconciled?<Button disabled={busy} onClick={()=>void undo()}>Desfazer conciliação</Button>:<Button disabled={busy||!confirmed||!payment||!matches} onClick={()=>void reconcile()}>Confirmar conciliação da fatura</Button>}>
-  <Stack spacing={2} pt={1}><Typography>{card.name} · vencimento {civilDate(bill.dueDate)} · total {money(bill.total)}</Typography>
+  <Stack spacing={2} pt={1}><Typography>{card.name} · vencimento {civilDate(bill.dueDate)} · total {originalBillTotal(bill.total)}</Typography>
+   {!billCanReconcile(bill.total)&&<Alert severity="warning">Total original informado pelo banco, com sinal e precisão preservados. Não será arredondado nem usado para conciliação.</Alert>}
    <Alert severity="info">Conciliar troca o pagamento pelos detalhes nos indicadores de consumo. O pagamento continua no fluxo de caixa e o saldo bancário permanece igual. A competência dos detalhes será o mês de vencimento da fatura.</Alert>
    {!matches&&<Alert severity="warning">A cobertura não está completa ou os totais não conferem. Não vamos conciliar pagamentos parciais, juros, tarifas ou compras ausentes por estimativa. Confira os detalhes antes de continuar.</Alert>}
    {!bill.reconciled&&<><TextField select label="Pagamento bancário correspondente" value={payment} onChange={e=>{setPayment(e.target.value);setConfirmed(false);}}><MenuItem value="">Escolha o pagamento</MenuItem>{candidates.map(p=><MenuItem key={p.id} value={p.id}>{p.description} · {civilDate(p.date)} · {money(p.amount)}</MenuItem>)}</TextField>
