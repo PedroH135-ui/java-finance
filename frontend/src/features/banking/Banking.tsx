@@ -35,7 +35,7 @@ export function Banking() {
   const selectedLink = links.data?.find(l => l.id === selectedId);
   const entries = useQuery({ queryKey: ['bankEntries', selectedId, page], queryFn: () => api<Entry[]>(`/banking/links/${selectedId}/entries?page=${page}`), enabled: ready && !!selectedId, refetchInterval: ready && !!selectedId ? 30000 : false });
   async function refresh() {
-    await Promise.all(['bankLinks', 'bankEntries', 'accounts', 'movements', 'movementFeed', 'summary', 'budgets'].map(key => client.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(['bankLinks', 'bankEntries', 'accounts', 'movements', 'movementFeed', 'summary', 'budgets', 'upcomingCommitments'].map(key => client.invalidateQueries({ queryKey: [key] })));
   }
   return <>
     <PageHeader title="Conexões bancárias" subtitle="Meu Pluggy pessoal · somente leitura · começando pela conta Nubank."

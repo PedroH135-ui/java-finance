@@ -8,6 +8,7 @@ import { api, json } from '../../lib/api';
 import { refreshFinances } from '../../lib/financialQueries';
 import { money, monthLabel, today } from '../../lib/format';
 import { Empty, Failure, FormDialog, Loading, MoneyInput, PageHeader } from '../../components/Shared';
+import { UpcomingCommitments } from './UpcomingCommitments';
 
 export interface BudgetRow {
   categoryId: string; name: string; archived: boolean; essential: boolean; limit: string | null;
@@ -47,6 +48,7 @@ export function Budgets() {
       action={<Button variant="outlined" startIcon={<ContentCopy/>} disabled={!validMonth || month === '1900-01' || query.isPending || !!query.error} onClick={() => { setError(''); setCopying(true); }}>Copiar mês anterior</Button>}/>
     <TextField label="Mês do orçamento" type="month" value={month} onChange={e => { if (e.target.value) { setParams({ month: e.target.value }); setMessage(''); setError(''); } }}
       slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: '1900-01', max: '2200-12' } }} sx={{ width: { xs: '100%', sm: 240 }, mb: 3 }}/>
+    <UpcomingCommitments/>
     {!validMonth ? <Alert severity="warning">Selecione um mês válido entre 1900 e 2200.</Alert> : query.isPending ? <Loading/> : query.error ? <Failure error={query.error} retry={() => void query.refetch()}/> : query.data && <>
       {message && <Alert severity="info" sx={{ mb: 2 }}>{message}</Alert>}
       <Alert severity="info" sx={{ mb: 3 }}>Limites não reservam dinheiro nem alteram o saldo. Gastos são despesas efetivadas; previstos aparecem separadamente e cancelados não entram no cálculo.</Alert>
