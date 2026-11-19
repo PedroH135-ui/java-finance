@@ -15,11 +15,16 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** Durable owner wake-ups; leased work and versioned writes survive duplicate delivery/restarts. */
 @Service
 public class CloudCategoryJobs {
+    private CardCategoryService cardCategories;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void cardCategories(CardCategoryService service){this.cardCategories=service;}
     public record Preference(boolean enabled,long version) {}
     private static final String CANDIDATE="""
         owner_id=? AND provider_status='POSTED' AND NOT hidden AND state<>'IGNORED'
         AND movement_id IS NULL AND transfer_id IS NULL AND NOT category_auto_blocked
         AND category_source IS DISTINCT FROM 'MANUAL'
+        AND NOT EXISTS(SELECT 1 FROM valid_financial_nature n WHERE n.entry_id=bank_entry.id AND n.owner_id=bank_entry.owner_id AND n.nature<>'ORDINARY')
+        AND category_auto_resolution IS DISTINCT FROM 'NO_CATEGORY'
         AND (category_id IS NULL OR category_description IS DISTINCT FROM description OR category_direction IS DISTINCT FROM direction)
         AND (category_auto_attempted_at IS NULL OR category_auto_attempted_at<now()-interval '15 minutes')
         """;
@@ -30,6 +35,13 @@ public class CloudCategoryJobs {
     private final URI queue;
     private final String token;
     private final ObjectMapper mapper;
+    private AutomaticCategoryScope local;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void localScope(AutomaticCategoryScope local){this.local=local;}
+    public void prepareForLink(UUID owner){
+        if(policy.enabled() || local!=null && local.availableFor(owner))
+            jdbc.update("INSERT INTO category_automation_preference(owner_id,enabled) VALUES (?,true) ON CONFLICT DO NOTHING",owner);
+    }
     private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).followRedirects(HttpClient.Redirect.NEVER).build();
     public CloudCategoryJobs(CloudCategoryPolicy policy,BankAssistanceService assistance,JdbcTemplate jdbc,
         PlatformTransactionManager manager,ObjectMapper mapper,
@@ -46,7 +58,7 @@ public class CloudCategoryJobs {
         return rows.isEmpty()?new Preference(false,0):rows.getFirst();
     }
     public void preference(UUID owner,boolean enabled,long expected){
-        if(!policy.enabled())throw ApiException.bad("A classificação automática não está disponível neste ambiente.");
+        if(!policy.enabled() && !(local!=null && local.availableFor(owner)))throw ApiException.bad("A classificação automática não está disponível neste ambiente.");
         tx.executeWithoutResult(s->{
             jdbc.update("INSERT INTO category_automation_preference(owner_id) VALUES (?) ON CONFLICT DO NOTHING",owner);
             int changed=jdbc.update("UPDATE category_automation_preference SET enabled=?,version=version+1,updated_at=now() WHERE owner_id=? AND version=?",enabled,owner,expected);
@@ -66,6 +78,10 @@ public class CloudCategoryJobs {
     public void afterRead(BankService.ReadCompleted event){
         // The banking transaction has already committed. AI infrastructure cannot fail the bank read.
         try{request(event.owner());}catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(getClass()).warn("category_enqueue_failed code=RETRY_ON_NEXT_SYNC");}
+    }
+    @org.springframework.context.event.EventListener
+    public void afterProductRead(BankProductsService.ReadCompleted event){
+        try{request(event.owner());}catch(RuntimeException error){org.slf4j.LoggerFactory.getLogger(getClass()).warn("card_category_enqueue_failed code=RETRY_ON_NEXT_SYNC");}
     }
     @org.springframework.transaction.event.TransactionalEventListener(phase=org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
     public void afterExplicitRetry(BankAssistanceService.CategoryWorkRequested event){
@@ -117,7 +133,8 @@ public class CloudCategoryJobs {
                 var result=assistance.automaticSuggestion(owner,id);
                 assistance.applyAutomatic(owner,id,result.entryVersion(),result.categorySuggestion());
             }
-            boolean more=policy.activeFor(owner) && Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM bank_entry WHERE "+CANDIDATE+")",Boolean.class,owner));
+            if(ids.size()<3)cardCategories.process(owner,3-ids.size());
+            boolean more=policy.activeFor(owner) && (Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM bank_entry WHERE "+CANDIDATE+")",Boolean.class,owner))||cardCategories.pending(owner));
             jdbc.update("UPDATE category_automation_job SET completed_version=CASE WHEN ? THEN completed_version ELSE ? END,last_run=now() WHERE owner_id=? AND lease_token=?",more,generation,owner,lease);
             success=true;
             return more || Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM category_automation_job WHERE owner_id=? AND requested_version>completed_version)",Boolean.class,owner));

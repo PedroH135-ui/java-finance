@@ -1,6 +1,202 @@
 # Retomada da publicação da IA
 
+## Mais recente — Próximos compromissos V20
+
+19/11/2026. A publicação autorizada de `39d71e7` ocorreu após recuperação V19
+e validação V20 isolada. Domínio principal serve `dpl_5oWxo8PZ748x3pna7beuu6n53dt1`.
+V20 preservou os registros protegidos. O fluxo do Pluggy com dados fictícios
+foi exercitado em teste Java e a tela local abriu o lançamento original.
+Em produção, saúde, bundle e proteção da API foram conferidos. Python preservado.
+Ver `docs/publicacao-proximos-compromissos-2026-11-19.md`. Evidências privadas em
+`.tools/commitments-release`. A cópia de recuperação V19 está somente leitura.
+A PR #17 é o destino da atualização de código e contexto.
+
+## Mais recente — faturas V19 publicadas e leitura concluída
+
+17/11: usuário autorizou expressamente `f5eb86e`/V19 e uma leitura.
+Publicado `dpl_3H445zcqzbverFqALxaiZKc3YqDy` no domínio principal,
+Python `dpl_FAfZ4jeHmEXjfJSmSuqBThAeQ9Ji`/configurações preservados.
+Backup V18 DPAPI revalidado e restaurado em dois bancos isolados; V19
+aprovada antes do candidato. Candidato UP, fingerprints preservados antes
+de promover; leitura real trouxe faturas com cobertura disponível, sinal e
+precisão originais. Conferência posterior preservou saldos, registros,
+correções humanas e preferências; zero conciliações/importações.
+Totais com frações de centavo/negativos continuam bloqueados para conciliar.
+Leituras adicionais automáticas continuam desligadas. Não houve mudança
+no agendamento bancário existente. Java47 unitários/frontend11/lint/build/
+quatro E2E e SQL isolado aprovados; suíte Docker completa não concluída.
+Ler `docs/faturas-total-original-v19.md` e preservar `.tools/card-fix/v19`
+privado (recuperação read-only/teste existentes, não sobrescrever/apagar).
+Rollback não deve reduzir precisão nem promover UI antiga que trunque totais.
+Sem push/PR/merge. Esta autorização não cobre nova publicação.
+Entradas abaixo são históricas, inclusive a V19 somente local.
+
+## Mais recente — faturas, diagnóstico publicado e V19 isolada
+
+17/11: diagnóstico detalhado `5aa621a` publicado com autorização em
+`dpl_Ca6nozdgg7KSo5zCAcQnFWwsimWo`, produção V18; Python preservado.
+Leitura controlada confirmou rejeições por precisão/sinal, sem valores
+nos logs. Correção V19 preparada SOMENTE LOCAL e testada na branch isolada:
+total bancário original signed/preciso, texto decimal sem arredondamento,
+conciliação bloqueada para negativos/frações de centavo. Backup recente
+V18 DPAPI decriptado/restaurado em dois bancos novos, fingerprints preservados.
+Java47 unitários/frontend11/lint/build/quatro E2E e SQL isolado aprovados;
+suíte Docker completa continua não concluída. Nenhuma migração em produção.
+Ler `docs/faturas-total-original-v19.md`: limites, evidências, autorização
+necessária e rollback sem reduzir precisão. Sem push/PR/merge.
+Entradas abaixo são históricas, inclusive o leitor19a934d somente local.
+
+## Mais recente — diagnóstico de cartões e filtro de posições
+
+17/11, branch `codex/corrige-cartoes-investimentos`: diagnóstico/filtro `dbf9f4c`
+publicado com autorização específica em `dpl_H7WCSzgNP2iD3py5mE7ufbkaxDaL`, V18,
+Python preservado. Leitura controlada localizou **BILLS / AMOUNT**; saldos,
+correções e demais registros protegidos preservados. Filtro Ativos e rótulo de
+resgate total conferidos em produção. Correção adicional para isolar faturas
+não validáveis e sinalizar cobertura parcial está **somente local**,21 testes
+do cliente e frontend9/lint/build/dois E2E aprovados. Regressão completa bloqueada
+por Docker local sem resposta; não foi aprovada. Ler
+`docs/correcao-cartoes-investimentos-2026-11-17.md` antes de nova publicação.
+Autorização anterior foi específica ao diagnóstico/filtro; não inferir nova
+publicação pelo documento. Sem push, merge ou migração nesta etapa.
+
+## Mais recente — 17/11: módulos publicados com V17/V18
+
+- Usuário autorizou publicar após backup e migrações isoladas e depois atualizar
+  GitHub. Publicado Java/React `dpl_2rzkbwNhztw62SrYXR8aspQFCH2b`, fonte `2575d5d`,
+  domínio estável conferido; Python `dpl_FAfZ4jeHmEXjfJSmSuqBThAeQ9Ji` preservado.
+  Ler `docs/publicacao-modulos-integrados-2026-11-17.md`. Entradas abaixo sobre
+  produção V16/somente local descrevem etapas anteriores.
+- Backup atual V16 criptografado e novamente decriptado/digest conferido;
+  restauração validada nos bancos novos `modules_recovery_20261117_v16` (read-only)
+  e `modules_verify_20261117_v18` da branch existente `br-round-hall-b668ttqy`,
+  sem expiração. Não apagar/redefinir a branch ou recuperações anteriores.
+- V17 em2227ms, V18 em2604ms, PostgreSQL18.7/Flyway11.20.3, validação e repetição
+  zero. SQL canônico do Git comparado ao artefato local, sem repair. Rollback
+  compatível testado com fixture fictícia dentro de transação revertida.
+- Gates reais antes/depois da promoção/inspeção: schema18, constraints válidas,
+  fingerprints financeiros/correções/preferências iguais, novas tabelas vazias.
+  Não foram marcados salários reais, criadas regras/previsões, acionadas consultas
+  Pluggy/LLM ou confirmadas faturas durante a verificação.
+- Sessão real mantida; Configurações/regras, previsão manual, novos filtros,
+  consulta adicional e posições bancárias conferidos por leitura. Tela deixada
+  em Conexões. SaúdeUP, autenticação401/CSRF403 e bundles novos aprovados.
+  Candidato protegido conferido via sessão Vercel existente, sem novo bypass ou
+  Trusted Sources. Logs error/fatal zero no intervalo pontual registrado.
+- GitHub: atualização autorizada da PR17 por avanço normal de
+  `codex/organizacao-financeira-local`, recebendo os commits desenvolvidos na
+  branch local `codex/salario-modulos-integrados`, sem force-push/merge/deploy pelo push.
+  Dependência picomatch continua sem correção oficial; não mascarar audit.
+- Rollback Java anterior `dpl_F99qaevGVVfwhbkkfAwmQieTqVM6` exige antes a projeção
+  `docs/sql/rollback-v18-consumption.sql`, testada; manter V17/V18 e todos os
+  dados humanos. Não promover V16 cegamente sobre a origem CARD nem apagar
+  tabelas ou recriar o banco. Python não mudou.
+- Evidências e backup privados `.tools/modules-production`; não versionar.
+  Houve falta de espaço local no fechamento. Removidas somente69 bibliotecas
+  JAR regeneráveis extraídas nessa pasta; backup preservado e revalidado, gate
+  de banco repetido com sucesso. `migrate_isolated.py` reextrai libs se necessário.
+  Não limpar outros arquivos/volumes por inferência; disco ainda com pouco espaço.
+
+## Trabalho atual — 17/11: salário e módulos integrados, somente local
+
+- Usuário autorizou implementar/testar localmente salário/regra opcional e
+  melhorias dos módulos; confirmou incluir integração adicional de cartão e
+  posições. **Não autorizou nova publicação/push/PR/merge nesta etapa.**
+- Branch `codex/salario-modulos-integrados`, base de análise `1de0680`.
+  Commits funcionais locais: `b5d06c4` backend/migrações/testes e `0ce9b3f`
+  telas/laboratório/E2E; commit de documentação vem a seguir. Sem envio remoto.
+  Produção preservada V16; deployments da publicação anterior abaixo continuam
+  apenas referência, não foram revalidados na nuvem nesta entrega.
+- V17 regras futuras owner+conta+descrição, sem backfill, correções prioritárias.
+  Salário previsto só manual; IA/opt-out anterior preservados. V18 snapshots
+  de produtos, fila de categorias dos detalhes e conciliação manual de fatura
+  que troca a projeção de consumo, mantendo pagamento no caixa e saldo igual.
+- Java150 testes aprovados (44+106), frontend lint/seis testes/build integrado;
+  upgrade local fictício16→18 com fingerprints anteriores/projeções iguais.
+  E2E final aprovado29,1s: salário/regra, previsão manual, cartão/fatura sem
+  duplicidade, categoria no orçamento, posição/RDB e Configurações. Saldo1000,
+  consumo480, zero movimentos manuais/requisições externas/erros JavaScript.
+  Duas rodadas anteriores corrigiram seletores do teste (link/moeda formatada);
+  nova fixture a cada rodada, sem relaxar invariantes. Inspeção CUA local
+  confirmou planejamento3000−2700→300; sem tocar aba real/produção.
+- Local8082, Python8126 com modelo desligado, bancos Docker55434/55435. Novo
+  perfil guardado `-SyntheticProducts` usa provedores em memória, sem Pluggy/Groq.
+  Não usar wrapper que resemeia demo vetorial durante este teste.
+- Ler `docs/salario-modulos-integrados-local.md` e o teste
+  `frontend/e2e/modules-local.spec.ts`. Cobertura real Nubank de faturas/posições
+  ainda não foi consultada. Próximo rollout exige recuperação e teste Neon
+  isolado16→18; pendência anterior de CI picomatch não foi suprimida.
+- Varredura final:12 segredos/605 arquivos/recursos públicos e JAR, zero
+  correspondências; Gitleaks público1,57MB sem achados. Arquivos privados fora
+  do Git; evidências locais ficam privadas em `.tools`.
+  Amostra HTTP local aquecida (3/endpoint): medianas dashboard376ms,
+  orçamento186ms, planejamento254ms, produtos41ms; não é benchmark de produção.
+- `start-review-local.ps1` prepara Java internamente; executar em PowerShell
+  novo, sem dot-source prévio de enter-dev antes de invocar outro pwsh. No
+  Windows, parar somente o processo guardado de revisão antes de reempacotar
+  seu JAR aberto. Não confundir falha de rename de artefato aberto com teste falho.
+
+## Análise posterior — integração dos módulos, sem alteração funcional
+
+17/11, branch local `codex/revisao-modulos-financeiros`: revisão do código e leitura da sessão real. Usuário quer salário só manual, gastos automáticos com IA quando necessária, menos lentidão e melhor integração de orçamento/investimentos/faturas. Ler `docs/plano-integracao-modulos-2026-11-17.md`: propostas, evidências, validação e ordem de entrega. Nenhum código funcional, preferência, categoria, natureza, migração ou produção alterados. Produção continua V16; fallback salarial histórico ainda existe até futura implementação. Não classificar ou confirmar registros reais por este documento.
+
+Achados: histórico do dashboard faz ao menos12 consultas sequenciais; polling ocioso e bundle único; falta invalidar planningFinances em alterações relacionadas; orçamento lista categorias ativas zeradas; fatura/RDB são abstidos pelo classificador comum e têm natureza sugerida separada. Integração Pluggy aceita só BANK: não excluir fatura sem tratar a ausência das compras do cartão. Posições continuam manuais e fluxos dependem de confirmação. Contagens, contrapartes e valores reais não entram no relatório público. Sem nova consulta ao banco/Pluggy, deploy, push, PR ou merge nesta análise.
+
+## Estado atual — 17/11: salário e gastos publicados, V16
+
+- Usuário autorizou publicar Java/Python após backup e V16 isolada, mantendo correções e saldos, e atualizar GitHub. Concluído em Production: Java `dpl_F99qaevGVVfwhbkkfAwmQieTqVM6`, Python `dpl_FAfZ4jeHmEXjfJSmSuqBThAeQ9Ji`. Código funcional `645d04b`, exportação `767bb95`. Ler `docs/publicacao-metas-renda-2026-11-17.md`; as entradas seguintes sobre somente local são históricas.
+- Backup V15 criptografado/decriptação verificada e restaurado em bancos novos `planning_recovery_20261117` e `planning_verify_20261117`, branch isolada existente `br-round-hall-b668ttqy`, sem expiração. Recuperações antigas preservadas; não excluir a branch. Migração15→16 em2.285ms, validação e repetição zero, PostgreSQL18.7/Flyway11.20.3, mesmas migrações Git canônicas. Nenhum `repair`.
+- Gates finais: schema16, constraints válidas, hashes de saldos/linhas financeiras/correções/preferências/usuários/metas/orçamentos/investimentos iguais; perfil novo vazio. Smoke real leu contexto e calculou meta fictícia3000/600/6→400/mês, sem salvar. Salário ausente permanece desconhecido; não inventar previsões em usuário real para testar. Perguntas de resumo/Python sem LLM aprovadas. Metadados Vercel preservados e error/fatal zero no intervalo consultado.
+- Base local aprovada: Java131, Python46, frontend lint/três/build, E2E completo e upgrade V15→16 fictício. Nenhuma nova alteração funcional foi necessária no rollout. IA default-on em novos cadastros/primeiro vínculo sem preferência, opt-out e correções prioritários; cadastro continua fechado. Contexto financeiro calculado no Java, sem envio à Groq/embeddings.
+- Código e contexto enviados em `codex/metas-renda-mensal` e incorporados à PR17 por avanço normal da cabeça `codex/organizacao-financeira-local`, base `feat/fundacao-financeira`, com V16 e relatório. Varredura final12segredos/496recursos, zero correspondências; Gitleaks sem achados. Verificar o HEAD e checks remotos antes de qualquer merge, que **não foi autorizado**. Não criar deploy por causa do push.
+- **CI posterior falhou na auditoria de dependências:** `picomatch@4.0.7`, GHSA-fc5q-39xc-vjpf, sem versão corrigida no aviso oficial consultado em17/11. Segredos/privacidade passaram; manter PR sem merge, não usar audit fix --force, downgrade ou exceção para deixar verde. Node é só build; container final JRE/estáticos não inclui essas ferramentas. Ler a pendência e fonte oficial no relatório. Nenhuma dependência, proteção ou produção foi alterada por essa investigação.
+- Lint, três testes e build frontend repetidos após a falha do CI e aprovados; alerta de bundle existente permanece. Consulta audit local não concluiu e foi encerrada; não registrar como audit aprovado. O check remoto permanece bloqueado pelo advisory, documentado na PR.
+- Rollback da aplicação: Java `dpl_HzvgiTtJqCrbY2RRmZg2iNa9ys58`, Python `dpl_CQ2R7PSbVpFA2219vPnntCRZi6JW`, ambos imediatamente anteriores. Manter tabela V16/previsões; não apagar dados nem promover Python com chave revogada. Backup DPAPI não acompanha o Git; restauração Neon verificada permite recuperação sem copiar segredos para outro computador.
+
+## Mais recente — PR17 enviada; salário e gastos implementados/testados localmente
+
+- Usuário autorizou push/PR da versão já publicada. Branch `codex/organizacao-financeira-local` enviada; [PR17](https://github.com/PedroH135-ui/java-finance/pull/17), base `feat/fundacao-financeira`, com contexto, testes, deployments, recuperação e rollback. Seis commits de saída, Gitleaks sem achados, 12segredos/469recursos sem correspondências, arquivos privados fora do Git. Checks remotos de segurança/frontend aprovados. Sem merge ou novo deploy.
+- Pedido adicional: planejador deve conhecer salário e gastos mensais para calcular capacidade e necessidade da meta. Separado na branch local `codex/metas-renda-mensal`, commit funcional `645d04b`, **não enviado nem publicado**. V16 e `PlanningFinanceService`, perfil informativo e contexto financeiro no Java, previsão de aporte/diferença/prazo com orçamento e outras metas. Nenhum dado financeiro das consultas vai para a Groq. Ler `docs/metas-renda-mensal-local.md`.
+- Java131 (seteIT novos) e Python46 aprovados; frontend lint/três testes/build; migração V15→V16 testada adicionalmente com dados fictícios existentes, sem mudanças financeiras. E2E local aprovado: salário3000−gastos2700→capacidade300, meta3000/reserva600/6meses→aporte400, diferença100/prazo8. Nenhuma meta/receita/despesa criada, saldos/fluxo iguais; zero erros JavaScript e requisições externas. Docker fictício foi iniciado após verificação de labels/portas; não tocar containers de outros projetos. Cadastro continua fechado; seed_planning cria só usuário fictício no banco guardado. Produção continua V15 e não foi alterada nesta etapa.
+- Varredura nova local: 12segredos/495recursos sem correspondências, Gitleaks sem achados; arquivos privados ignorados. Não enviar essa evolução à PR17 ou publicar V16 por inferência: a PR é a versão já publicada V15, e a evolução nova foi separada para revisão local.
+
+## Mais recente — organização publicada e testada em Production
+
+Usuário confirmou publicação e testes Production, backup e migrações isoladas antes. Última preferência: **ativada por padrão para novos usuários**, controle individual/opt-out e correções preservados. Commit funcional `c4135e9`. Ler `docs/publicacao-organizacao-2026-11-16.md`: recuperação V13 restaurada e sem expiração em branch isolada existente; V14/V15 aprovadas no PostgreSQL18.7; Java/Python publicados e testados, hashes financeiros e preferências preservados. Sem push, PR ou merge.
+
+- Java ativo `dpl_HzvgiTtJqCrbY2RRmZg2iNa9ys58`; Python ativo `dpl_CQ2R7PSbVpFA2219vPnntCRZi6JW`; domínios estáveis promovidos e UP. V15, constraints válidas. Nenhuma alteração de saldo, lançamento, categoria real ou preferência pelo smoke.
+- Neon recusou outra branch por limite Free. Não apagamos branches: backup DPAPI privado + restauração V13 em `organization_recovery_20261116`, e teste V15 em `organization_verify_20261116`, ambos na branch existente `br-round-hall-b668ttqy`. Recuperação read-only por padrão e branch sem expiração. **Não excluir como teste antigo**. Outras recuperações preservadas.
+- Testes novos: Java124 aprovados, frontend lint/três testes/build. Cloud real com textos fictícios provou RULE/HISTORY/RAG sem LLM, UNKNOWN→NONE e uma tentativa Groq em empresa sem contexto; vetores fictícios removidos. Navegador autenticado comprovou preferência ativa preservada, controle em Configurações, aviso de Movimentações ajustado e confirmação de RDB obrigatória. Planejador retornou400/mês para meta fictícia3000/reserva600/6meses, sem salvar; conversa limpa. Metas ficou aberta.
+- Metadados de segredos/configuração dos dois projetos preservados. `vercel curl`65.15.0 criou bypass persistente inesperado no Python; exclusivamente essa chave foi revogada e a proteção preservada. Não repetir sem considerar esse efeito. Usar navegador com autenticação existente ou testar após promoção autorizada.
+- Consultas CLI error/fatal de15min retornaram zero registros em ambos deployments; não configura monitoramento contínuo. Cadastro real continua desabilitado; default-on no cadastro provado localmente. Tipo PERSON/BUSINESS de registros antigos depende de próxima leitura normal, que não foi acionada pelo smoke.
+- Rollback Java `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`, Python `dpl_5mmPrfrZkJmuKDXTnUbC3nebHGUV` (chave atual). Manter schema aditivo, sem downgrade/apagamento. Não promover Python antigo com chave revogada. Código/documentação ainda apenas na branch local para futuro envio autorizado.
+
+## Etapa atual — organização financeira local
+
+- Branch `codex/organizacao-financeira-local`, base `1976c2f`, implementação registrada no commit local `1fc9179`. Herda também a melhoria local de sessão expirada e o relatório de auditoria; não presumir que estejam em produção.
+- Implementação completa e limites: `docs/organizacao-financeira-local.md`. V14/V15 somente em bancos descartáveis/fictícios locais, sem conexão Neon. Produção não foi tocada ou revalidada nesta etapa.
+- PIX PERSON usa categoria PIX, BUSINESS usa contexto antes de no máximo uma chamada LLM. UNKNOWN não vira empresa pelo nome. Sem números de documentos persistidos. Correções humanas têm prioridade, inclusive para reanalisar abstenção de descrição idêntica. NO_CATEGORY não volta a consumir modelo por simples polling.
+- Ao vincular banco: padrões idempotentes, primeira janela de leitura limitada, ativação inicial apenas se não existe preferência salva. Desligado continua desligado. Controle em Configurações; aviso superior removido de Movimentações. Contas antigas recebem padrões na próxima leitura bem-sucedida.
+- Natureza financeira requer clique e confirmação; investimentos/faturas/transferências próprias confirmados saem da projeção de consumo. Extrato/fluxo de caixa e saldos preservados. Dados alterados pelo banco invalidam a confirmação. V15 protege contra pareamento/cancelamento posterior sem reescrever V14 local.
+- Investimentos: posições manuais informativas, sugestões de natureza e fluxos confirmados. Metas: Java → Python/LangChain com interpretação determinística, zero LLM, conta decimal e salvamento explícito. Ainda não é chatbot geral nem simulador completo de compromissos.
+- Rodar `scripts/start-review-vector-ai.ps1 -Build -AutomaticCategories` em PowerShell7 no ambiente fictício preparado, abrir localhost8082. Não usar `-UseGroq` para repetir o teste sem consumir API. Banco app55434, Python8126, pgvector55435.
+- Usuário pediu mostrar testes e resultado antes de publicar. Não há autorização nova de push, PR, merge ou deploy. Antes de futura publicação: recuperação correta + migrações isoladas Neon + Python compatível primeiro. Nenhum documento autoriza migrar ao iniciar com conexão real.
+- Validação encerrada: XML Java41unit+83IT sem falhas/erros, últimos35IT afetados repetidos aprovados; Python45+1legado, pgvector real10, frontend lint/três testes/build e E2E completo repetido aprovados. Tela provou PIX, abstenção UNKNOWN, exclusão manual de aplicação300, posição800 informativa e meta3000/reserva600/6meses=400/mês, sem alterar saldo/fluxo/lançamentos. Groq desligado; máximo uma chamada testado com modelo simulado. Gitleaks/fontes e comparação12segredos sem achados; logs/capturas só ignorados. Bundle grande permanece como aviso, não foi tratado nesta entrega.
+
+
 Atualizado em 16/11/2026.
+
+## Mais recente — IA real ativa e conferência de módulos
+
+- Usuário autorizou ativar/testar no próprio perfil; a sessão já mostrou preferência ativa e classificações AUTO. Mantida, sem toggle desnecessário. Uma retomada pela interface concluiu geração da fila; hashes financeiros/saldos/correções/transferências preservados. Não criar escolhas manuais artificiais no perfil real para testar prioridade.
+- Usuário esclareceu: **disponível para todos, cada usuário ativa**. Não alterar para ativação obrigatória/global ou compartilhar exemplos entre perfis.
+- Métodos LLM e MEMORY observados; pendências semânticas separam-se de falha de fila. Movimentações, Visão geral, Contas, Orçamentos e Conexões bancárias conferidos. Ler `docs/validacao-ia-real-e-modulos.md` para limitações: natureza financeira nos relatórios, limites ainda não definidos, período do contador e rótulo Revisar legado em Conexões.
+- Contagens/descrições/valores reais não entram na documentação pública; evidências privadas em `.tools/real-category-validation`. Sem deploy, importação, alterações de saldo ou preferências de outros usuários. Mensagem de sessão expirada `dc91de0` segue local; branch `codex/corrige-categorias-padrao`. As afirmações abaixo de IA desligada são históricas.
+
+## Mais recente — sessão expirada no botão, resolvida sem deploy
+
+- PR #16 integrada com checks aprovados, merge `34c2098`; deployments Java/Python preservados. O POST do botão retornou 401 com sessão inválida; após renovação, uma tentativa adicionou 14 categorias reais. Hashes financeiros/opt-in/correções/transferências antes/depois preservados. Não ativamos IA nem importamos ou alteramos saldos.
+- Branch local `codex/corrige-categorias-padrao`: aviso específico para 401/403, bloqueio de repetição em sessão expirada e ação de reconsulta do perfil. Nenhuma mudança de autenticação/Java/configuração; sem push, PR ou deploy dessa melhoria. Ler `docs/categorias-padrao-sessao-expirada.md`. Entradas abaixo são históricas, inclusive a afirmação de categorias reais ainda vazias.
 
 ## Última etapa — categorias padrão publicadas, envio ao GitHub autorizado
 

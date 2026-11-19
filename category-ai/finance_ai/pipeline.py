@@ -27,17 +27,18 @@ class Example(BaseModel):
 
 
 class Request(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
     description: str = Field(max_length=200)
     categories: list[Category] = Field(max_length=100)
     history: list[Example] = Field(max_length=100)
+    counterparty_type: Literal['PERSON','BUSINESS','UNKNOWN'] = Field(default='UNKNOWN',alias='counterpartyType')
 
 
 class Suggestion(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
     category_id: str | None = Field(default=None, alias="categoryId")
     confidence: Literal["HIGH", "MEDIUM", "LOW", "NONE"] = "NONE"
-    method: Literal["HISTORY", "RULE", "LLM", "NONE"] = "NONE"
+    method: Literal["HISTORY", "RULE", "RAG", "LLM", "NONE"] = "NONE"
     reason: str = "Sem evidência suficiente. Escolha uma categoria."
     evidence_count: int = Field(default=0, alias="evidenceCount", ge=0, le=100)
     model_used: bool = Field(default=False, alias="modelUsed")
@@ -87,18 +88,26 @@ def build_pipeline(model: Callable[[dict], ModelChoice] | None = None, provider:
         normalized = normalize(request.description)
         terms = set(normalized.split())
         allowed = {c.id for c in request.categories}
-        if not allowed or not terms or terms & FINANCIAL or "mercado pago" in normalized:
+        forbidden=FINANCIAL-({'transferencia'} if 'pix' in terms and request.counterparty_type in {'PERSON','BUSINESS'} else set())
+        if not allowed or not terms or terms & forbidden or "mercado pago" in normalized:
             return Suggestion()
-        strong = [e for e in examples if e["score"] >= 0.8]
+        exact=[e for e in request.history if normalize(e.description)==normalized and e.category_id in allowed]
+        if exact:
+            ids={e.category_id for e in exact}
+            if len(ids)==1:return Suggestion(categoryId=exact[0].category_id,confidence='HIGH',method='HISTORY',reason='Correção exata do perfil.',evidenceCount=len(exact))
+            return Suggestion(reason='Histórico exato conflitante; escolha manualmente.')
+        if 'pix' in terms and request.counterparty_type=='PERSON':
+            pix=[c for c in request.categories if normalize(c.name)=='pix']
+            return Suggestion(categoryId=pix[0].id,confidence='HIGH',method='RULE',reason='PIX com pessoa identificada pelo provedor, sem LLM.') if len(pix)==1 else Suggestion()
+        strong = [e for e in examples if e.get('similarity',e['score']) >= 0.88]
         if strong:
             ids = {e["categoryId"] for e in strong}
-            if len(ids) == 1:
+            if len(ids) == 1 and len(strong)>=2:
                 return Suggestion(categoryId=strong[0]["categoryId"], confidence="HIGH" if len(strong) >= 3 else "MEDIUM",
-                                  method="HISTORY", reason="Histórico semelhante deste perfil.", evidenceCount=len(strong))
-            return Suggestion(reason="O histórico contém classificações conflitantes; escolha a categoria.")
+                                  method="RAG", reason="Exemplos semelhantes e consistentes do perfil; sem LLM.", evidenceCount=len(strong))
+            if len(ids)>1:return Suggestion(reason="O histórico contém classificações conflitantes; escolha a categoria.")
         # A person's PIX name alone provides no evidence of spending purpose. Do not pay a model to guess.
-        merchant_signals=set().union(*(signals for signals,names in RULES)) | {'delivery','pizza','restaurante','lanchonete','clinica','posto','assinatura'}
-        if 'pix' in terms and not terms & merchant_signals:
+        if 'pix' in terms and request.counterparty_type!='BUSINESS':
             return Suggestion(reason="PIX sem finalidade identificável; escolha a categoria quando souber o motivo.")
         choices = set()
         for signals, names in RULES:

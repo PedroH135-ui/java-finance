@@ -85,10 +85,10 @@ public class BankAssistanceService {
             JOIN category c ON c.id=f.category_id AND c.owner_id=f.owner_id
             LEFT JOIN bank_entry b ON b.id=f.bank_entry_id AND b.owner_id=f.owner_id
             WHERE f.owner_id=? AND f.kind=? AND f.status='CONFIRMED' AND NOT f.hidden AND NOT c.archived
-              AND b.category_source IS DISTINCT FROM 'AUTO'
+              AND b.category_source IS DISTINCT FROM 'AUTO' AND b.category_source IS DISTINCT FROM 'RULE'
             ORDER BY f.operation_date DESC,f.id LIMIT 100
             """,(rs,n)->new CategoryAdvisor.Example(rs.getString("description"),rs.getString("category_id")),owner,kind);
-        var request=new CategoryAdvisor.Request((String)e.get("description"),categories,history);
+        var request=new CategoryAdvisor.Request((String)e.get("description"),categories,history,(String)e.get("counterparty_type"));
         // Only original, still-valid LLM decisions qualify. Reused copies cannot recursively train themselves.
         var remembered=forAutomatic?jdbc.query("""
             SELECT b.description,b.category_id FROM bank_entry b
@@ -127,10 +127,14 @@ public class BankAssistanceService {
         jdbc.update("UPDATE bank_entry SET category_id=?,category_description=?,category_direction=?,category_source='MANUAL',category_auto_blocked=true,category_auto_method=null,category_auto_confidence=null,version=version+1 WHERE id=? AND owner_id=?",
             input.categoryId(),input.categoryId()==null?null:e.get("description"),input.categoryId()==null?null:e.get("direction"),id,owner);
         audit.record(owner,id,"BANK_CATEGORY_CHANGED",input.categoryId()==null?"Categoria removida pelo usuário, sem alterar saldo.":"Categoria escolhida pelo usuário, sem criar lançamento ou alterar saldo.");
-        if(input.categoryId()!=null)jdbc.update("""
+        if(input.categoryId()!=null){jdbc.update("""
             INSERT INTO category_correction(owner_id,direction,description_key,category_id) VALUES (?,?,?,?)
             ON CONFLICT(owner_id,direction,description_key) DO UPDATE SET category_id=EXCLUDED.category_id,updated_at=now()
             """,owner,e.get("direction"),CategoryAdvisor.memoryKey((String)e.get("description")),input.categoryId());
+            // New human context can resolve identical unknown records without paying for another model call.
+            jdbc.update("UPDATE bank_entry SET category_auto_resolution=null,category_auto_attempted_at=null,version=version+1 WHERE owner_id=? AND direction=? AND category_auto_resolution='NO_CATEGORY' AND category_source IS DISTINCT FROM 'MANUAL' AND NOT category_auto_blocked AND lower(regexp_replace(btrim(description),'\\s+',' ','g'))=?",owner,e.get("direction"),CategoryAdvisor.memoryKey((String)e.get("description")));
+            if(events!=null)events.publishEvent(new CategoryWorkRequested(owner));
+        }
     }
     @Transactional public boolean applyAutomatic(UUID owner,UUID id,long expected,CategoryAdvisor.Suggestion suggestion) {
         if(automatic.cloudEnabled()) {
@@ -139,18 +143,18 @@ public class BankAssistanceService {
         var e=lockEntries(owner,List.of(id)).get(id);
         boolean current=e.get("category_id")!=null && Objects.equals(e.get("category_description"),e.get("description")) && Objects.equals(e.get("category_direction"),e.get("direction"));
         if(version(e)!=expected || !eligible(e) || current || Boolean.TRUE.equals(e.get("category_auto_blocked")) || "MANUAL".equals(e.get("category_source")))return false;
-        jdbc.update("UPDATE bank_entry SET category_auto_attempted_at=? WHERE id=? AND owner_id=?",java.sql.Timestamp.from(clock.instant()),id,owner);
+        jdbc.update("UPDATE bank_entry SET category_auto_attempted_at=?,category_auto_resolution='NO_CATEGORY' WHERE id=? AND owner_id=?",java.sql.Timestamp.from(clock.instant()),id,owner);
         // A correction on another record may have committed while the LLM was responding.
         var latestCorrection=jdbc.query("""
             SELECT x.category_id FROM category_correction x JOIN category c ON c.id=x.category_id AND c.owner_id=x.owner_id
             WHERE x.owner_id=? AND x.direction=? AND x.description_key=? AND NOT c.archived AND c.kind=?
             """,(rs,n)->rs.getString(1),owner,e.get("direction"),CategoryAdvisor.memoryKey((String)e.get("description")),"DEBIT".equals(e.get("direction"))?"EXPENSE":"INCOME");
         if(!latestCorrection.isEmpty())suggestion=new CategoryAdvisor.Suggestion(latestCorrection.getFirst(),"HIGH","HISTORY","Usou sua correção mais recente, sem nova chamada ao LLM.",1,false);
-        if(suggestion==null || suggestion.categoryId()==null || !Set.of("HISTORY","RULE","LLM","MEMORY").contains(suggestion.method()) || !Set.of("HIGH","MEDIUM","LOW").contains(suggestion.confidence()))return false;
+        if(suggestion==null || suggestion.categoryId()==null || !Set.of("HISTORY","RULE","RAG","LLM","MEMORY").contains(suggestion.method()) || !Set.of("HIGH","MEDIUM","LOW").contains(suggestion.confidence()))return false;
         UUID category=UUID.fromString(suggestion.categoryId());
         var categories=jdbc.queryForList("SELECT kind,archived FROM category WHERE id=? AND owner_id=? FOR UPDATE",category,owner);
         if(categories.isEmpty() || Boolean.TRUE.equals(categories.getFirst().get("archived")) || !Objects.equals(categories.getFirst().get("kind"),"DEBIT".equals(e.get("direction"))?"EXPENSE":"INCOME"))return false;
-        jdbc.update("UPDATE bank_entry SET category_id=?,category_description=?,category_direction=?,category_source='AUTO',category_auto_method=?,category_auto_confidence=?,version=version+1 WHERE id=? AND owner_id=?",
+        jdbc.update("UPDATE bank_entry SET category_id=?,category_description=?,category_direction=?,category_source='AUTO',category_auto_method=?,category_auto_confidence=?,category_auto_resolution='MATCHED',version=version+1 WHERE id=? AND owner_id=?",
             category,e.get("description"),e.get("direction"),suggestion.method(),suggestion.confidence(),id,owner);
         audit.record(owner,id,"BANK_CATEGORY_AUTO","Categoria automática revisável; método "+suggestion.method()+". Sem criar lançamento ou alterar saldo.");
         return true;
@@ -160,7 +164,7 @@ public class BankAssistanceService {
         var e=lockEntries(owner,List.of(id)).get(id);checkVersion(e,expected);
         boolean valid=e.get("category_id")!=null && Objects.equals(e.get("category_description"),e.get("description")) && Objects.equals(e.get("category_direction"),e.get("direction"));
         if(!eligible(e) || valid)throw ApiException.bad("Remova a categoria antes de permitir nova classificação automática.");
-        jdbc.update("UPDATE bank_entry SET category_id=null,category_description=null,category_direction=null,category_source=null,category_auto_blocked=false,category_auto_attempted_at=null,category_auto_method=null,category_auto_confidence=null,version=version+1 WHERE id=? AND owner_id=?",id,owner);
+        jdbc.update("UPDATE bank_entry SET category_id=null,category_description=null,category_direction=null,category_source=null,category_auto_blocked=false,category_auto_attempted_at=null,category_auto_resolution=null,category_auto_method=null,category_auto_confidence=null,version=version+1 WHERE id=? AND owner_id=?",id,owner);
         audit.record(owner,id,"BANK_CATEGORY_AUTO_ALLOWED","Usuário permitiu nova classificação automática local, sem alterar saldo.");
         if(events!=null)events.publishEvent(new CategoryWorkRequested(owner));
     }

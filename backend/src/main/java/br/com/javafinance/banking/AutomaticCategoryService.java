@@ -10,11 +10,15 @@ import org.springframework.stereotype.Service;
 @Service
 @EnableScheduling
 public class AutomaticCategoryService {
+    private CardCategoryService cards;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void cards(CardCategoryService cards){this.cards=cards;}
     public record Status(boolean enabled,boolean running,long categorized,long awaiting,Instant lastRun,boolean available,long version) {}
     private static final String CANDIDATE="""
         owner_id=? AND provider_status='POSTED' AND NOT hidden AND state<>'IGNORED'
         AND movement_id IS NULL AND transfer_id IS NULL AND NOT category_auto_blocked
         AND category_source IS DISTINCT FROM 'MANUAL'
+        AND NOT EXISTS(SELECT 1 FROM valid_financial_nature n WHERE n.entry_id=bank_entry.id AND n.owner_id=bank_entry.owner_id AND n.nature<>'ORDINARY')
         AND (category_id IS NULL OR category_description IS DISTINCT FROM description OR category_direction IS DISTINCT FROM direction)
         """;
     private final AutomaticCategoryScope scope;
@@ -32,7 +36,7 @@ public class AutomaticCategoryService {
         try {
             UUID owner=scope.owner();
             var ids=jdbc.query("SELECT id FROM bank_entry WHERE "+CANDIDATE+
-                " AND (category_auto_attempted_at IS NULL OR category_auto_attempted_at<?) ORDER BY date DESC,id LIMIT 3",
+                " AND category_auto_resolution IS DISTINCT FROM 'NO_CATEGORY' AND (category_auto_attempted_at IS NULL OR category_auto_attempted_at<?) ORDER BY date DESC,id LIMIT 3",
                 (rs,n)->rs.getObject("id",UUID.class),owner,java.sql.Timestamp.from(clock.instant().minusSeconds(900)));
             for(UUID id:ids) {
                 try {
@@ -43,14 +47,15 @@ public class AutomaticCategoryService {
                     org.slf4j.LoggerFactory.getLogger(getClass()).warn("automatic_category_failed code=LOCAL_BATCH");
                 }
             }
+            if(ids.size()<3)cards.process(owner,3-ids.size());
         }finally{lastRun=clock.instant();running.set(false);}
     }
     public Status status(UUID owner) {
         boolean available=scope.availableFor(owner),active=scope.activeFor(owner);
-        long preferenceVersion=scope.cloudEnabled()?jdbc.query("SELECT version FROM category_automation_preference WHERE owner_id=?",(rs,n)->rs.getLong(1),owner).stream().findFirst().orElse(0L):0;
+        long preferenceVersion=jdbc.query("SELECT version FROM category_automation_preference WHERE owner_id=?",(rs,n)->rs.getLong(1),owner).stream().findFirst().orElse(0L);
         if(!active)return new Status(false,false,0,0,null,available,preferenceVersion);
-        long categorized=jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE owner_id=? AND category_source='AUTO' AND category_id IS NOT NULL",Long.class,owner);
-        long awaiting=jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE "+CANDIDATE,Long.class,owner);
+        long categorized=jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE owner_id=? AND category_source='AUTO' AND category_id IS NOT NULL",Long.class,owner)+cards.categorizedCount(owner);
+        long awaiting=jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE "+CANDIDATE,Long.class,owner)+cards.awaitingCount(owner);
         if(scope.cloudEnabled()){
             var rows=jdbc.queryForList("SELECT last_run,lease_until>now() running FROM category_automation_job WHERE owner_id=?",owner);
             var row=rows.isEmpty()?Map.<String,Object>of():rows.getFirst();

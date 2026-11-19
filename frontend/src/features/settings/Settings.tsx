@@ -6,12 +6,16 @@ import { api,json } from '../../lib/api';
 import type { Profile } from '../../lib/types';
 import { PageHeader,Panel } from '../../components/Shared';
 import { MobileApp } from '../../components/MobileApp';
+import { CategoryAutomationNotice } from '../movements/CategoryAutomationNotice';
+import { SalaryRules } from './SalaryRules';
 export function Settings({profile}:{profile:Profile}) {
   const client=useQueryClient(),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const form=useForm({defaultValues:{name:profile.name}});
   const password=useForm({defaultValues:{currentPassword:'',newPassword:'',confirmation:''}});
   return <>
     <PageHeader title="Configurações" subtitle="Seu perfil e a segurança do seu espaço."/>
+    <CategoryAutomationNotice/>
+    <SalaryRules/>
     {error&&<Alert severity="error" sx={{mb:2}}>{error}</Alert>}{notice&&<Alert severity="success" sx={{mb:2}}>{notice}</Alert>}
     <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',md:'1fr 1fr'},gap:3}}>
       <Panel title="Perfil" subtitle={profile.email}><form onSubmit={form.handleSubmit(async values=>{setError('');try{await api('/auth/me',{method:'PATCH',body:json(values)});await client.invalidateQueries({queryKey:['me']});setNotice('Perfil atualizado.');form.reset(values);}catch(e){setError((e as Error).message);}})}>

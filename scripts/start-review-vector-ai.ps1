@@ -54,3 +54,10 @@ if($Build){$financeVectorArgs+='-Build'}
 if($AutomaticCategories){$financeVectorArgs+='-AutomaticCategories'}
 & pwsh @financeVectorArgs
 if($LASTEXITCODE -ne 0){throw 'The local Java application did not start.'}
+# Organization fixtures require the locally migrated V14 schema. Reuse the same synthetic-only guards.
+$financeOrganizationPreviousPath=$env:PYTHONPATH
+try {
+    $env:PYTHONPATH=(Join-Path $financeVectorRoot 'vector-lab')+';'+(Join-Path $financeVectorRoot 'category-ai')
+    & $financeVectorPython -X utf8 -m finance_vector.seed_ui --root $financeVectorRoot --organization-demo
+    if($LASTEXITCODE -ne 0){throw 'The guarded organization fixtures failed.'}
+} finally { $env:PYTHONPATH=$financeOrganizationPreviousPath }

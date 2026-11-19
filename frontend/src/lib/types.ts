@@ -1,7 +1,7 @@
 export interface Profile { id: string; email: string; name: string }
 export interface BankConfig { ready: boolean; userId: string; items: string[]; provider: string; automaticRead?: boolean }
 export interface BankLink {
-  id: string; name: string; accountId: string; importFrom: string; active: boolean;
+  id: string; itemId: string; name: string; accountId: string; importFrom: string; active: boolean;
   lastCheckedAt: string | null; providerUpdatedAt: string | null; reportedBalance: string | null;
   autoCheckedThrough?: string | null; autoErrorAt?: string | null;
 }
@@ -15,6 +15,7 @@ export interface Movement {
 }
 export interface Summary {
   month: string; today: string; balance: string | null; balanceComplete?: boolean; unclassifiedBankRecords?: number;
+  excludedBankRecords?:number;
   competence: { income: string; expenses: string; result: string; savingsRate: string | null };
   cashFlow: string; categories: { id: string | null; name: string; total: string }[];
   evolution: { month: string; income: string; expenses: string; records: number }[];
@@ -27,6 +28,7 @@ export interface MovementPage { items: Movement[]; total: number; page: number; 
 export interface FinancialRecord extends Omit<Movement, 'externalReference' | 'batchId' | 'createdAt'> {
   bankEntryId: string | null; bankLinkId: string | null; bankEntryVersion: number | null;
   bankProviderStatus: string | null; bankState: string | null; hidden: boolean;
-    categorySource?: 'AUTO' | 'MANUAL' | null;
+    categorySource?: 'AUTO' | 'MANUAL' | 'RULE' | null;
+    financialNature?:string|null;categoryResolution?:string|null;suggestedNature?:string|null;categoryPendingReason?:string|null;
 }
 export interface FinancialRecordPage { items: FinancialRecord[]; total: number; page: number; size: number; pages: number }

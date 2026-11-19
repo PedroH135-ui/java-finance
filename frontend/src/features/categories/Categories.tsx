@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert, Box, Button, Chip, FormControlLabel, MenuItem, Paper, Stack, Switch, TextField, Typography } from '@mui/material';
 import { Add, EditOutlined } from '@mui/icons-material';
-import { api, json } from '../../lib/api';
+import { api, ApiError, json } from '../../lib/api';
 import type { Category } from '../../lib/types';
 import { Empty, Failure, FormDialog, Loading, PageHeader } from '../../components/Shared';
 interface Values {name:string;kind:string;essential:boolean;archived:boolean}
@@ -11,15 +11,20 @@ export function Categories() {
   const client=useQueryClient();
   const query=useQuery({queryKey:['categories'],queryFn:()=>api<Category[]>('/categories')});
   const defaults=useMutation({mutationFn:()=>api<{added:number;existing:number}>('/categories/defaults',{method:'POST'}),onSuccess:()=>client.invalidateQueries({queryKey:['categories']})});
+  const expired=defaults.error instanceof ApiError&&defaults.error.status===401;
+  const denied=defaults.error instanceof ApiError&&defaults.error.status===403;
   const [editing,setEditing]=useState<Category|null|undefined>(undefined);
   return <>
     <PageHeader title="Categorias" subtitle="Entenda de onde vem e para onde vai seu dinheiro." action={<Button variant="contained" startIcon={<Add/>} onClick={()=>setEditing(null)}>Nova categoria</Button>}/>
     <Alert severity="info" sx={{mb:2}}>
       Comece com categorias padrão de despesas e receitas. Adicionamos apenas as que faltam, sem modificar ou reativar as existentes. Você pode editar depois. Isso não ativa a IA nem altera saldos.
-      <Button disabled={defaults.isPending||query.isPending||query.isError} onClick={()=>defaults.mutate()}>{defaults.isPending?'Adicionando…':'Adicionar categorias padrão'}</Button>
+      <Button disabled={defaults.isPending||query.isPending||query.isError||expired} onClick={()=>defaults.mutate()}>{defaults.isPending?'Adicionando…':'Adicionar categorias padrão'}</Button>
     </Alert>
     {defaults.isSuccess&&<Alert severity="success" sx={{mb:2}} role="status">{defaults.data.added>0?`${defaults.data.added} categoria(s) adicionada(s).`:'Todas as categorias padrão já estão presentes.'} Nenhuma categoria existente foi alterada.</Alert>}
-    {defaults.isError&&<Alert severity="error" sx={{mb:2}}>Não foi possível adicionar. Tente novamente; categorias existentes serão preservadas.</Alert>}
+    {defaults.isError&&<Alert severity="error" sx={{mb:2}}>
+      {expired?'Sua sessão expirou. Entre novamente para adicionar as categorias.':denied?'Não foi possível validar esta ação. Atualize a página e tente novamente.':'Não foi possível adicionar. Tente novamente; categorias existentes serão preservadas.'}
+      {expired&&<Button onClick={()=>void client.invalidateQueries({queryKey:['me']})}>Entrar novamente</Button>}
+    </Alert>}
     {query.isPending?<Loading/>:query.error?<Failure error={query.error}/>:query.data.length===0?<Paper variant="outlined"><Empty title="Dê nome aos seus gastos e receitas" action={<Button onClick={()=>setEditing(null)}>Criar categoria</Button>}>Comece com Salário, Alimentação ou Moradia. Você escolhe o que é essencial.</Empty></Paper>:
       <Stack spacing={1.5}>{query.data.map(c=><Paper key={c.id} variant="outlined" sx={{p:2}}>
         <Stack direction={{xs:'column',sm:'row'}} gap={1.5} alignItems={{sm:'center'}}>

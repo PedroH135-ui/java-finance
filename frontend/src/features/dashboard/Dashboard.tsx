@@ -17,9 +17,9 @@ export function Dashboard() {
   const d=query.data;
   const metrics=[
     {title:'Saldo das contas',value:d.balance,caption:'Saldo bancário nas vinculadas · calculado nas manuais',icon:<AccountBalanceWalletOutlined/>,color:'#174bbd',link:'/accounts'},
-    {title:'Entradas do mês',value:d.competence.income,caption:'Registros efetivados · competência',icon:<ArrowUpward/>,color:'#16734f',link:'/movements?kind=INCOME&basis=competence&status=CONFIRMED&month='+month},
-    {title:'Saídas do mês',value:d.competence.expenses,caption:'Registros efetivados · competência',icon:<ArrowDownward/>,color:'#b33440',link:'/movements?kind=EXPENSE&basis=competence&status=CONFIRMED&month='+month},
-    {title:'Resultado do mês',value:d.competence.result,caption:'Entradas menos saídas · competência',icon:<TrendingUp/>,color:'#174bbd',link:'/movements?basis=competence&status=CONFIRMED&month='+month},
+    {title:'Entradas consideradas',value:d.competence.income,caption:'Após naturezas confirmadas · competência',icon:<ArrowUpward/>,color:'#16734f',link:'/movements?kind=INCOME&basis=competence&status=CONFIRMED&consumption=true&month='+month},
+    {title:'Consumo considerado',value:d.competence.expenses,caption:'Após naturezas confirmadas · competência',icon:<ArrowDownward/>,color:'#b33440',link:'/movements?kind=EXPENSE&basis=competence&status=CONFIRMED&consumption=true&month='+month},
+    {title:'Resultado do mês',value:d.competence.result,caption:'Entradas menos saídas · competência',icon:<TrendingUp/>,color:'#174bbd',link:'/movements?basis=competence&status=CONFIRMED&consumption=true&month='+month},
   ];
   // Number é usado somente para coordenadas dos gráficos. Os totais vêm prontos do backend.
   const chart=d.evolution.map(m=>({month:monthLabel(m.month),Entradas:m.records?Number(m.income):null,Saídas:m.records?Number(m.expenses):null}));
@@ -29,7 +29,8 @@ export function Dashboard() {
       <Box><Typography variant="overline" color="primary">VISÃO GERAL</Typography><Typography variant="body2" color="text.secondary">BRL · Saldos das contas e registros recebidos</Typography></Box>
       <TextField label="Mês de competência" type="month" value={month} onChange={e=>{if(e.target.value)setParams({month:e.target.value});}} slotProps={{inputLabel:{shrink:true}}} sx={{width:{xs:'100%',sm:220}}}/>
     </Stack>
-    {(d.unclassifiedBankRecords??0)>0&&<Alert severity="info" sx={{mb:2}}>Os totais incluem {d.unclassifiedBankRecords} registro(s) bancário(s) efetivado(s) sem categoria. Entradas e saídas não representam necessariamente renda e consumo: oculte transferências próprias ou valores que não devem entrar nos relatórios.</Alert>}
+    {(d.unclassifiedBankRecords??0)>0&&<Alert severity="info" sx={{mb:2}}>Os totais incluem {d.unclassifiedBankRecords} registro(s) bancário(s) efetivado(s) sem categoria. Registros sem natureza confirmada podem distorcer renda e consumo. Confirme transferências próprias, faturas e investimentos nos detalhes.</Alert>}
+    {(d.excludedBankRecords??0)>0&&<Alert severity="success" sx={{mb:2}}>{d.excludedBankRecords} registro(s) fora do consumo por natureza confirmada; continuam no extrato e nos saldos bancários.</Alert>}
     {d.accountCount===0&&<BankOverview/>}
     {d.balanceComplete===false&&<Alert severity="warning" sx={{mb:3}}>Há uma conta vinculada sem saldo bancário disponível. O total fica indisponível até receber esse saldo, sem substituí-lo por um valor calculado.</Alert>}
     {d.accountCount===0&&<Alert severity="info" sx={{mb:3}} action={<Button component={Link} to="/accounts">Cadastrar conta</Button>}>Seu espaço está pronto. Comece cadastrando uma conta com o saldo que você já possui.</Alert>}
@@ -56,7 +57,7 @@ export function Dashboard() {
       <Panel title="Saídas por categoria" subtitle={monthLabel(month)+' · despesas efetivadas'}>
         {d.categories.length===0?<Empty title="Sem despesas neste mês">Suas categorias aparecerão aqui conforme você registrar gastos.</Empty>:
           <Stack divider={<Divider/>}>{d.categories.map(c=><Stack key={c.id??'uncategorized'} direction="row" justifyContent="space-between" gap={2} py={1.5}>
-            <Typography component={Link} to={'/movements?category='+(c.id??'uncategorized')+'&basis=competence&status=CONFIRMED&kind=EXPENSE&month='+month} variant="body2" sx={{overflowWrap:'anywhere'}}>{c.name}</Typography><Typography className="money" variant="body2" fontWeight={650}>{money(c.total)}</Typography>
+            <Typography component={Link} to={'/movements?category='+(c.id??'uncategorized')+'&basis=competence&status=CONFIRMED&kind=EXPENSE&consumption=true&month='+month} variant="body2" sx={{overflowWrap:'anywhere'}}>{c.name}</Typography><Typography className="money" variant="body2" fontWeight={650}>{money(c.total)}</Typography>
           </Stack>)}</Stack>}
       </Panel>
     </Box>
@@ -73,7 +74,7 @@ export function Dashboard() {
         <Typography variant="h4" mt={1}>{d.competence.savingsRate===null?'Indisponível':d.competence.savingsRate.replace('.',',')+'%'}</Typography>
         <Typography variant="body2" color="text.secondary" mt={1}>{d.competence.savingsRate===null?'É preciso ter receita positiva no período para calcular a taxa.':'Resultado dividido pelas receitas elegíveis do mês. Pode ser negativo.'}</Typography>
         <Divider sx={{my:2}}/><Typography variant="body2" fontWeight={600}>Fluxo de caixa do mês: {money(d.cashFlow)}</Typography>
-        <Typography variant="body2" color="text.secondary" mt={1}>Considera a data de efetivação. Exclui saldo inicial e transferências próprias; inclui ajustes de saldo.</Typography>
+        <Typography variant="body2" color="text.secondary" mt={1}>Entradas e saídas efetivadas, inclusive aplicações e faturas. Não representa consumo nem dinheiro livre para gastar.</Typography>
         <Typography variant="caption" color="text.secondary" sx={{display:'block',mt:2}}>O saldo não representa seu patrimônio líquido. Cartões, investimentos e dívidas ainda não fazem parte desta etapa.</Typography>
       </Panel>
     </Box>

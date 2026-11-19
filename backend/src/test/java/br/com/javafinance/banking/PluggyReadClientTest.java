@@ -17,6 +17,57 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(OutputCaptureExtension.class)
 class PluggyReadClientTest {
+    @Test void cardFailureKeepsSafeBillFieldWithoutFinancialPayload(CapturedOutput output) {
+        responses.add("{\"apiKey\":\"synthetic-token\"}");
+        responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"private-card-name\"}]}");
+        responses.add("{\"results\":[{\"id\":\"private-bill\",\"totalAmount\":123.45,\"totalAmountCurrencyCode\":\"unsupported-private-currency\"}]}");
+        responses.add("{\"next\":null,\"results\":[]}");
+        var result=client.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));
+        assertThat(result).hasSize(1);assertThat(result.getFirst().billsAvailable()).isFalse();assertThat(result.getFirst().bills()).isEmpty();
+        assertThat(output.getAll()).contains("stage=BILLS","field=CURRENCY").doesNotContain("private-card-name","private-bill","123.45","unsupported-private-currency","synthetic-token");
+    }
+    @Test void invalidBillTotalsAreNotRoundedOrReplacedAndValidBillsSurvive(CapturedOutput output) {
+        for(String total:List.of("1e-65","\"private-invalid-total\"","null","{}","1000000000000000")) {
+            responses.add("{\"apiKey\":\"synthetic-token\"}");
+            responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"private-card\"}]}");
+            responses.add("{\"results\":[{\"id\":\"bad\",\"dueDate\":\"2026-10-14\",\"totalAmount\":"+total+",\"totalAmountCurrencyCode\":\"BRL\"},{\"id\":\"good\",\"dueDate\":\"2026-10-14\",\"totalAmount\":500,\"totalAmountCurrencyCode\":\"BRL\"}]}");
+            responses.add("{\"results\":[],\"next\":null}");
+            var reader=new PluggyReadClient(config,new ObjectMapper(),http);
+            var cards=reader.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));
+            assertThat(cards).hasSize(1);assertThat(cards.getFirst().billsAvailable()).isFalse();
+            assertThat(cards.getFirst().bills()).hasSize(1);assertThat(cards.getFirst().bills().getFirst().id()).isEqualTo("good");assertThat(cards.getFirst().bills().getFirst().total()).isEqualByComparingTo("500.00");
+        }
+        assertThat(output.getAll()).contains("stage=BILLS","field=BILL_TOTAL_PRECISION","field=BILL_TOTAL_STRING","field=BILL_TOTAL_MISSING","field=BILL_TOTAL_STRUCTURE","field=BILL_TOTAL_RANGE").doesNotContain("-0.01","1.001","private-invalid-total","private-card","synthetic-token");
+    }
+    @Test void billSnapshotsPreserveSignedHighPrecisionAndDoNotLogValues(CapturedOutput output) {
+        for(String total:List.of("-0.01","1.001","1234.5600000000001","-4.1234567890123456789","0","999999999999999.99","1e-64")) {
+            responses.add("{\"apiKey\":\"synthetic-token\"}");
+            responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"private-card\"}]}");
+            responses.add("{\"results\":[{\"id\":\"bill\",\"dueDate\":\"2026-10-14\",\"totalAmount\":"+total+",\"totalAmountCurrencyCode\":\"BRL\"}]}");
+            responses.add("{\"results\":[],\"next\":null}");
+            var cards=new PluggyReadClient(config,new ObjectMapper(),http).cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));
+            assertThat(cards.getFirst().billsAvailable()).isTrue();
+            assertThat(cards.getFirst().bills().getFirst().total()).isEqualByComparingTo(total);
+        }
+        assertThat(output.getAll()).doesNotContain("1234.5600000000001","-4.1234567890123456789","private-card","synthetic-token");
+    }
+    @Test void additionalProductsUseReadOnlyAllowlistedPathsAndKeepOnlyNecessaryFields() {
+        responses.add("{\"apiKey\":\"synthetic-token\"}");
+        responses.add("{\"page\":1,\"totalPages\":1,\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"Cartão fictício\",\"number\":\"never-copy-card-number\"}]}");
+        responses.add("{\"results\":[{\"id\":\"bill\",\"dueDate\":\"2026-10-14T00:00:00Z\",\"totalAmount\":500,\"totalAmountCurrencyCode\":\"BRL\"}]}");
+        responses.add("{\"next\":null,\"results\":[{\"id\":\"charge\",\"accountId\":\""+account+"\",\"description\":\"Mercado fictício\",\"amount\":500,\"date\":\"2026-10-12\",\"type\":\"DEBIT\",\"status\":\"POSTED\",\"currencyCode\":\"BRL\",\"creditCardMetadata\":{\"billId\":\"bill\",\"installmentNumber\":1,\"totalInstallments\":2,\"cardNumber\":\"never-copy-card-number\"}}]}");
+        var cards=client.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));
+        assertThat(cards).hasSize(1);assertThat(cards.getFirst().charges().getFirst().billId()).isEqualTo("bill");assertThat(cards.toString()).doesNotContain("never-copy-card-number");
+        UUID investment=UUID.randomUUID();responses.add("{\"results\":[{\"id\":\""+investment+"\",\"itemId\":\""+item+"\",\"name\":\"RDB fictício\",\"type\":\"FIXED_INCOME\",\"subtype\":\"RDB\",\"balance\":500,\"currencyCode\":\"BRL\",\"date\":\"2026-10-14\"}]}");
+        assertThat(client.investments(item).getFirst().profit()).isNull();
+        assertThat(requests.stream().skip(1)).allSatisfy(request->{assertThat(request.method()).isEqualTo("GET");assertThat(request.uri().getHost()).isEqualTo("api.pluggy.ai");assertThat(request.uri().getPath()).doesNotContain("payments","refresh");});
+    }
+    @Test void unavailableBillsDoNotPreventCardDetailsAndUnlistedProductsNeverReachNetwork() {
+        assertThatThrownBy(()->client.investments(UUID.randomUUID())).isInstanceOf(ApiException.class);verifyNoInteractions(http);
+        responses.add("{\"apiKey\":\"synthetic-token\"}");responses.add("{\"results\":[{\"id\":\""+account+"\",\"itemId\":\""+item+"\",\"type\":\"CREDIT\",\"subtype\":\"CREDIT_CARD\",\"currencyCode\":\"BRL\",\"name\":\"Cartão fictício\"}]}");
+        responses.add("{\"sensitive\":\"never-log-provider-body\"}");responses.add("{\"next\":null,\"results\":[]}");statusCodes.addAll(List.of(200,200,403,200));
+        var result=client.cards(item,LocalDate.of(2026,10,1),LocalDate.of(2026,10,15));assertThat(result.getFirst().billsAvailable()).isFalse();assertThat(result.getFirst().charges()).isEmpty();
+    }
     HttpClient http; BankProperties config; PluggyReadClient client;
     UUID item=UUID.randomUUID(), account=UUID.randomUUID();
     List<HttpRequest> requests; Queue<String> responses;
@@ -30,6 +81,17 @@ class PluggyReadClientTest {
             when(response.body()).thenReturn(new ByteArrayInputStream(responses.remove().getBytes(StandardCharsets.UTF_8))); return response;
         });
         client=new PluggyReadClient(config,new ObjectMapper().findAndRegisterModules(),http);
+    }
+    @Test void counterpartyUsesOnlyDocumentTypeAndNeverGuessesFromPersonName(CapturedOutput output) {
+        responses.add("{\"apiKey\":\"synthetic-token\"}");
+        String base="{\"id\":\"%s\",\"accountId\":\""+account+"\",\"description\":\"PIX nome fictício\",\"amount\":10,\"date\":\"2026-10-12\",\"type\":\"%s\",\"status\":\"POSTED\",\"currencyCode\":\"BRL\",\"paymentData\":%s}";
+        String person="{\"receiver\":{\"documentNumber\":{\"type\":\"CPF\",\"value\":\"synthetic-document-not-for-output\"}}}";
+        String business="{\"payer\":{\"documentNumber\":{\"type\":\"CNPJ\",\"value\":\"synthetic-document-not-for-output\"}}}";
+        responses.add("{\"next\":null,\"results\":["+base.formatted("person","DEBIT",person)+","+base.formatted("business","CREDIT",business)+","+base.formatted("unknown","DEBIT","{}")+"]}");
+        var entries=client.transactions(account,LocalDate.of(2026,10,1),LocalDate.of(2026,10,14));
+        assertThat(entries).extracting(BankProvider.RemoteEntry::counterpartyType).containsExactly("PERSON","BUSINESS","UNKNOWN");
+        assertThat(entries.toString()).doesNotContain("synthetic-document-not-for-output");
+        assertThat(output.getAll()).doesNotContain("synthetic-document-not-for-output");
     }
     @Test void onlyAuthenticationPostAndReadOnlyFinancialGetsAreUsed() {
         responses.add("{\"apiKey\":\"synthetic-token\"}");

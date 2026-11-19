@@ -70,6 +70,9 @@ def create_app(embeddings=None,model=None,retriever_factory=CloudRetriever):
     def job_auth(credentials:HTTPAuthorizationCredentials|None=Depends(bearer)):
         authorize(os.environ.get('CATEGORY_AI_JOB_TOKEN',''),credentials)
 
+    from .planning import install_planning
+    install_planning(app,auth)
+
     @app.exception_handler(RequestValidationError)
     async def invalid(request,exc):return JSONResponse(status_code=422,content={'detail':'Entrada inválida.'})
 

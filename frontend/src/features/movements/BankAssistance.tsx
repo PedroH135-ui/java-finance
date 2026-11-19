@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Box, Button, Chip, Divider, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { api, json } from '../../lib/api';
+import { refreshFinances } from '../../lib/financialQueries';
 import type { Category, FinancialRecord } from '../../lib/types';
 import { civilDate, money } from '../../lib/format';
 import { Failure, Loading } from '../../components/Shared';
@@ -25,7 +26,7 @@ export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChan
     try {
       await api(`/banking/entries/${record.bankEntryId}/${action}`,{method:'POST',body:json(body)});
       onChanged();
-      await Promise.all(['movementFeed','bankAssistance','bankEntries','summary','budgets'].map(key=>client.invalidateQueries({queryKey:[key]})));
+      await refreshFinances(client);
     } catch(e){setError((e as Error).message);} finally{setBusy(false);}
   }
   if(query.isPending)return <Loading/>;
@@ -50,7 +51,7 @@ export function BankAssistance({record,onChanged}:{record:FinancialRecord;onChan
     </>:<Typography variant="body2" color="text.secondary">Nenhum par disponível. Para identificar um par, precisamos dos registros das duas contas vinculadas. Uma descrição de PIX sozinha não comprova uma transferência própria.</Typography>}
     <Divider/><Typography variant="subtitle1" fontWeight={650}>{data.currentCategoryId?'Categoria do registro':'Categoria sugerida'}</Typography>
     {!data.canCategorize?<Typography variant="body2">{data.unavailableReason}</Typography>:<>
-      {data.currentCategoryId&&data.categoryState.source==='AUTO'&&<Alert severity="info">Categoria aplicada automaticamente ({data.categoryState.method==='MEMORY'?'decisão anterior da IA, sem nova chamada ao LLM':data.categoryState.method==='HISTORY'?'histórico':data.categoryState.method==='RULE'?'regra de descrição':'LLM'}). Você pode corrigir; sua escolha terá prioridade. A classificação pode errar.</Alert>}
+      {data.currentCategoryId&&data.categoryState.source==='AUTO'&&<Alert severity="info">Categoria aplicada automaticamente ({data.categoryState.method==='MEMORY'?'decisão anterior da IA, sem nova chamada ao LLM':data.categoryState.method==='HISTORY'?'histórico':data.categoryState.method==='RAG'?'exemplos semelhantes, sem LLM':data.categoryState.method==='RULE'?'regra de descrição':'LLM'}). Você pode corrigir; sua escolha terá prioridade. A classificação pode errar.</Alert>}
       {data.categoryState.automaticBlocked&&<Alert severity="success">{data.currentCategoryId?'Categoria escolhida por você. A automação não vai sobrescrevê-la.':'Classificação automática pausada neste registro. Sua escolha manual tem prioridade.'}</Alert>}
       {!data.currentCategoryId&&data.categoryState.automaticEnabled&&!data.categoryState.automaticBlocked&&<Alert severity="info">A classificação automática roda em segundo plano. Casos sem informação suficiente continuam sem categoria. Você também pode escolher manualmente.</Alert>}
       {!data.currentCategoryId&&!data.categoryState.automaticEnabled&&<Box>

@@ -7,20 +7,23 @@ import org.springframework.http.HttpStatus;
 
 /** Only allow-listed diagnostics; never attach provider bodies, URLs or exception causes. */
 public final class BankReadException extends ApiException {
-    public enum Stage { AUTH, ITEM, ACCOUNTS, TRANSACTIONS, STORAGE }
+    public enum Stage { AUTH, ITEM, ACCOUNTS, TRANSACTIONS, STORAGE, CARDS, BILLS, CARD_TRANSACTIONS, INVESTMENTS }
     public enum Code { AUTH_DENIED, ACCESS_DENIED, RATE_LIMIT, HTTP_ERROR, TIMEOUT, NETWORK,
         INVALID_RESPONSE, ITEM_NOT_READY, RESULT_LIMIT, ACCOUNT_NOT_FOUND, STORAGE_ERROR }
-    public enum Field { NONE, RESPONSE, ACCOUNT_ID, CURRENCY, DATE, ID, NAME, DESCRIPTION, AMOUNT, STATUS }
+    public enum Field { NONE, RESPONSE, ACCOUNT_ID, CURRENCY, DATE, ID, NAME, DESCRIPTION, AMOUNT, STATUS,
+        BILL_TOTAL_MISSING, BILL_TOTAL_STRING, BILL_TOTAL_STRUCTURE,
+        BILL_TOTAL_NEGATIVE, BILL_TOTAL_PRECISION, BILL_TOTAL_RANGE }
     public final Stage stage;
     public final Code code;
     public final String reference;
+    public final int providerStatus;
 
     private BankReadException(Stage stage, Code code, int providerStatus, String reference, Field field) {
         super(code == Code.ITEM_NOT_READY || code == Code.RESULT_LIMIT ? HttpStatus.BAD_REQUEST : HttpStatus.BAD_GATEWAY,
             message(stage, code) + " Código: " + stage + "_" + code
             + (providerStatus > 0 ? " (HTTP " + providerStatus + ")" : "")
             + ". Referência: " + reference + ". Nenhum lançamento foi confirmado.");
-        this.stage = stage; this.code = code; this.reference = reference;
+        this.stage = stage; this.code = code; this.reference = reference;this.providerStatus=providerStatus;
         LoggerFactory.getLogger(BankReadException.class).warn(
             "bank_read_failed stage={} code={} provider_status={} reference={} field={}", stage, code, providerStatus, reference, field);
     }
@@ -33,6 +36,10 @@ public final class BankReadException extends ApiException {
     }
     private static String message(Stage stage, Code code) {
         String step = switch (stage) {
+            case CARDS -> "Consulta dos cartões";
+            case BILLS -> "Consulta das faturas";
+            case CARD_TRANSACTIONS -> "Consulta dos detalhes de cartão";
+            case INVESTMENTS -> "Consulta dos investimentos";
             case AUTH -> "Autenticação no Meu Pluggy";
             case ITEM -> "Consulta da conexão";
             case ACCOUNTS -> "Consulta das contas";

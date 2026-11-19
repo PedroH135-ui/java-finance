@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useDebounced } from '../../lib/useDebounced';
+import { recordNature,categoryNote } from './recordLabels';
+import { CardChargeEditor } from '../banking/CardChargeEditor';
+import type { FinancialRecord } from '../../lib/types';
 import { Add,FilterAltOff } from '@mui/icons-material';
 import { Alert,Box,Button,Chip,MenuItem,Paper,Stack,Tab,Tabs,Table,TableBody,TableCell,TableContainer,TableHead,TableRow,TextField,Typography } from '@mui/material';
 import { api } from '../../lib/api';
@@ -10,34 +14,41 @@ import { Empty,Failure,Loading,PageHeader } from '../../components/Shared';
 import { MovementForm } from './MovementForm';
 import { MovementDetail } from './MovementDetail';
 import { BankRecordDetail } from './BankRecordDetail';
-import { CategoryAutomationNotice } from './CategoryAutomationNotice';
+import { CategoryAutomationSync } from './CategoryAutomationNotice';
 export function Movements() {
   const [params,setParams]=useSearchParams();
   const hidden=params.get('hidden')==='true';
   return <>
     <PageHeader title="Movimentações" subtitle="Registros do banco e lançamentos manuais, juntos e sem aprovação prévia." action={<Button variant="contained" startIcon={<Add/>} onClick={()=>setParams(previous=>{const next=new URLSearchParams(previous);next.delete('hidden');next.set('new','1');return next;})}>Nova movimentação</Button>}/>
-    <CategoryAutomationNotice/>
+    <CategoryAutomationSync/>
     <Alert severity="info" sx={{mb:2}}>Registros efetivados do banco entram automaticamente nos relatórios como entradas e saídas. As categorias organizam esses registros. Pendentes não entram nos totais realizados. Você pode ocultar algo incorreto e restaurar depois, sem alterar o saldo bancário.</Alert>
     <Tabs value={hidden?'hidden':'all'} onChange={(_,value:string)=>setParams(previous=>{const next=new URLSearchParams(previous);next.delete('tab');next.delete('detail');next.delete('page');if(value==='hidden')next.set('hidden','true');else next.delete('hidden');return next;})} aria-label="Visibilidade das movimentações" sx={{mb:3}} variant="scrollable" scrollButtons="auto">
       <Tab value="all" label="Todas as movimentações"/>
       <Tab value="hidden" label="Ocultas"/>
     </Tabs>
+    {!hidden&&<Button sx={{mb:2}} onClick={()=>setParams(p=>{const n=new URLSearchParams(p);n.set('category','uncategorized');n.delete('page');return n;})}>Mostrar sem categoria</Button>}
     <MovementRecords/>
   </>;
 }
 function MovementRecords() {
   const [params,setParams]=useSearchParams(),[notice,setNotice]=useState('');
   const [bankDetail,setBankDetail]=useState<FinancialRecordPage['items'][number]|null>(null);
+  const [cardDetail,setCardDetail]=useState<string|null>(null);
+  const linkedId=params.get('entry');
+  const linkedRecord=useQuery({queryKey:['linkedBankRecord',linkedId],queryFn:({signal})=>api<FinancialRecord>(`/banking/entries/${linkedId}/record`,{signal}),enabled:!!linkedId});
   const month=params.get('month')??today().slice(0,7),page=Number(params.get('page')??0);
+  const search=useDebounced(params.get('text')??'');
   const queryParams=new URLSearchParams({...monthBounds(month),page:String(page),size:'20',hidden:String(params.get('hidden')==='true')});
-  ['account','category','kind','status','text','sort','direction','basis'].forEach(k=>{if(params.get(k))queryParams.set(k,params.get(k)!);});
-  const query=useQuery({queryKey:['movementFeed',queryParams.toString()],queryFn:()=>api<FinancialRecordPage>('/movements/feed?'+queryParams),refetchInterval:30000});
+  ['account','category','kind','status','text','sort','direction','basis','consumption'].forEach(k=>{if(params.get(k))queryParams.set(k,params.get(k)!);});
+  if(search)queryParams.set('text',search);else queryParams.delete('text');
+  const query=useQuery({queryKey:['movementFeed',queryParams.toString()],queryFn:({signal})=>api<FinancialRecordPage>('/movements/feed?'+queryParams,{signal}),refetchInterval:60000});
   const accounts=useQuery({queryKey:['accounts'],queryFn:()=>api<Account[]>('/accounts')});
   const categories=useQuery({queryKey:['categories'],queryFn:()=>api<Category[]>('/categories')});
   const set=(key:string,value:string)=>setParams(p=>{const n=new URLSearchParams(p);if(value)n.set(key,value);else n.delete(key);if(key!=='page')n.delete('page');return n;},{replace:true});
   const active=['account','category','kind','status','text'].filter(k=>params.has(k));
   const closeForm=()=>set('new','');
   return <>
+    {params.get('consumption')==='true'&&<Button onClick={()=>set('consumption','')}>Ver extrato completo, incluindo investimentos e faturas</Button>}
     {notice&&<Alert severity="success" onClose={()=>setNotice('')} sx={{mb:2}}>{notice}</Alert>}
     <Paper variant="outlined" sx={{p:2,mb:2}}>
       <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'1fr 1fr',md:'repeat(4,minmax(0,1fr))'},gap:2}}>
@@ -57,14 +68,14 @@ function MovementRecords() {
       {query.data.items.length===0?<Empty title="Nenhuma movimentação neste período">Ajuste os filtros. Registros bancários recebidos aparecem aqui automaticamente. Na aba Ocultas você pode restaurar o que retirou.</Empty>:<>
         <TableContainer sx={{display:{xs:'none',md:'block'}}}><Table aria-label="Movimentações"><TableHead><TableRow><TableCell>Descrição / conta</TableCell><TableCell>Operação</TableCell><TableCell>Natureza</TableCell><TableCell>Situação</TableCell><TableCell align="right">Valor</TableCell><TableCell>Detalhes</TableCell></TableRow></TableHead>
           <TableBody>{query.data.items.map(m=><TableRow key={m.id} hover>
-            <TableCell sx={{maxWidth:260,overflowWrap:'anywhere'}}><Typography fontWeight={600} variant="body2">{m.description}</Typography><Typography variant="caption" color="text.secondary">{accounts.data?.find(a=>a.id===m.accountId)?.name}{m.bankEntryId?' · Banco':''}</Typography><Typography variant="caption" display="block">{m.categoryId?categories.data?.find(c=>c.id===m.categoryId)?.name:['INCOME','EXPENSE'].includes(m.kind)?'Sem categoria':''}{m.categoryId&&m.categorySource==='AUTO'?' · Automática':''}</Typography></TableCell>
-            <TableCell>{civilDate(m.operationDate)}</TableCell><TableCell>{m.source==='BANK'?(m.kind==='TRANSFER'?'Transferência própria':m.kind==='EXPENSE'?'Saída no banco':'Entrada no banco'):kindLabels[m.kind]}</TableCell><TableCell><Chip size="small" variant="outlined" label={m.status==='CANCELLED'?'Cancelado nos relatórios':m.bankProviderStatus?(m.bankProviderStatus==='POSTED'?'Efetivado no banco':'Pendente no banco'):statusLabels[m.status]} color={m.status==='CONFIRMED'?'success':m.status==='PLANNED'?'warning':'default'}/></TableCell>
-            <TableCell align="right" className="money">{money(m.amount)}</TableCell><TableCell><Button onClick={()=>m.bankEntryId?setBankDetail(m):set('detail',m.id)} aria-label={'Detalhes de '+m.description}>Ver</Button></TableCell>
+            <TableCell sx={{maxWidth:260,overflowWrap:'anywhere'}}><Typography fontWeight={600} variant="body2">{m.description}</Typography><Typography variant="caption" color="text.secondary">{accounts.data?.find(a=>a.id===m.accountId)?.name}{m.bankEntryId?' · Banco':''}</Typography><Typography variant="caption" display="block">{m.categoryId?categories.data?.find(c=>c.id===m.categoryId)?.name:['INCOME','EXPENSE'].includes(m.kind)?'Sem categoria':''}{categoryNote(m)}</Typography></TableCell>
+            <TableCell>{civilDate(m.operationDate)}</TableCell><TableCell>{recordNature(m)??kindLabels[m.kind]}</TableCell><TableCell><Chip size="small" variant="outlined" label={m.status==='CANCELLED'?'Cancelado nos relatórios':m.bankProviderStatus?(m.bankProviderStatus==='POSTED'?'Efetivado no banco':'Pendente no banco'):statusLabels[m.status]} color={m.status==='CONFIRMED'?'success':m.status==='PLANNED'?'warning':'default'}/></TableCell>
+            <TableCell align="right" className="money">{money(m.amount)}</TableCell><TableCell><Button onClick={()=>m.source==='CARD'?setCardDetail(m.id):m.bankEntryId?setBankDetail(m):set('detail',m.id)} aria-label={'Detalhes de '+m.description}>Ver</Button></TableCell>
           </TableRow>)}</TableBody></Table></TableContainer>
         <Stack sx={{display:{md:'none'}}} divider={<Box sx={{borderBottom:1,borderColor:'divider'}}/>}>{query.data.items.map(m=><Box key={m.id} p={2}>
-          <Typography fontWeight={650} sx={{overflowWrap:'anywhere'}}>{m.description}</Typography><Typography variant="body2" color="text.secondary">{civilDate(m.operationDate)} · {m.source==='BANK'?(m.kind==='TRANSFER'?'Transferência própria':m.kind==='EXPENSE'?'Saída no banco':'Entrada no banco'):kindLabels[m.kind]}</Typography>
-          <Typography variant="caption">{m.categoryId?categories.data?.find(c=>c.id===m.categoryId)?.name:'Sem categoria'}{m.categoryId&&m.categorySource==='AUTO'?' · Automática':''}</Typography>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} mt={1}><Typography className="money" fontWeight={650}>{money(m.amount)}</Typography><Chip size="small" label={m.status==='CANCELLED'?'Cancelado nos relatórios':m.bankProviderStatus?(m.bankProviderStatus==='POSTED'?'Efetivado no banco':'Pendente no banco'):statusLabels[m.status]}/><Button onClick={()=>m.bankEntryId?setBankDetail(m):set('detail',m.id)}>Detalhes</Button></Stack>
+          <Typography fontWeight={650} sx={{overflowWrap:'anywhere'}}>{m.description}</Typography><Typography variant="body2" color="text.secondary">{civilDate(m.operationDate)} · {recordNature(m)??kindLabels[m.kind]}</Typography>
+          <Typography variant="caption">{m.categoryId?categories.data?.find(c=>c.id===m.categoryId)?.name:'Sem categoria'}{categoryNote(m)}</Typography>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} mt={1}><Typography className="money" fontWeight={650}>{money(m.amount)}</Typography><Chip size="small" label={m.status==='CANCELLED'?'Cancelado nos relatórios':m.bankProviderStatus?(m.bankProviderStatus==='POSTED'?'Efetivado no banco':'Pendente no banco'):statusLabels[m.status]}/><Button onClick={()=>m.source==='CARD'?setCardDetail(m.id):m.bankEntryId?setBankDetail(m):set('detail',m.id)}>Detalhes</Button></Stack>
         </Box>)}</Stack>
       </>}
       <Stack direction="row" justifyContent="space-between" alignItems="center" p={2} gap={1} flexWrap="wrap">
@@ -73,7 +84,10 @@ function MovementRecords() {
       </Stack>
     </Paper>}
     {params.has('new')&&<MovementForm onClose={closeForm} onSuccess={()=>{closeForm();setNotice('Movimentação salva com sucesso.');}}/>}
-    {bankDetail&&<BankRecordDetail record={bankDetail} onClose={()=>setBankDetail(null)}/>}
+    {linkedId&&linkedRecord.isPending&&<Loading/>}
+    {linkedId&&linkedRecord.error&&<Failure error={linkedRecord.error}/>}
+    {(bankDetail||linkedRecord.data&&linkedId)&&<BankRecordDetail record={(bankDetail??linkedRecord.data)!} onClose={()=>{setBankDetail(null);if(linkedId)set('entry','');}}/>}
+    {cardDetail&&<CardChargeEditor id={cardDetail} onClose={()=>setCardDetail(null)}/>}
     {params.get('detail')&&<MovementDetail id={params.get('detail')!} onClose={()=>set('detail','')}/>}
   </>;
 }

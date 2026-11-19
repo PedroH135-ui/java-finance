@@ -15,6 +15,7 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--root',type=Path,required=True)
     parser.add_argument('--automatic-test-id',type=UUID)
     parser.add_argument('--automatic-repeat-of',type=UUID)
+    parser.add_argument('--organization-demo',action='store_true')
     args=parser.parse_args();root=args.root
     if args.automatic_repeat_of and not args.automatic_test_id:raise RuntimeError('A repeat requires a new synthetic test id.')
     private=root/'.tools/local-review'
@@ -58,6 +59,21 @@ def main():
         add('history-offset','Recomposição fictícia do histórico vetorial',str(len(EXAMPLES)),'CREDIT','2026-10-15')
         targets={key:add('target-'+key,description,'10.00','DEBIT','2026-11-14') for key,description in TARGETS}
         add('targets-offset','Recomposição fictícia do cenário vetorial',str(10*len(TARGETS)),'CREDIT','2026-11-14')
+        if args.organization_demo:
+            if not conn.execute("SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='bank_entry' AND column_name='counterparty_type')").fetchone()[0]:
+                raise RuntimeError('Start the local Java with V14 before seeding organization examples.')
+            for kind in ('EXPENSE','INCOME'):
+                conn.execute("INSERT INTO category(id,owner_id,name,kind,essential) SELECT %s,%s,'PIX',%s,false WHERE NOT EXISTS(SELECT 1 FROM category WHERE owner_id=%s AND kind=%s AND lower(name)='pix')",(uuid5(NAMESPACE_URL,f'organization-pix|{owner}|{kind}'),owner,kind,owner,kind))
+            cases=[('person','PIX enviado para pessoa fictícia','35','DEBIT','PERSON'),
+                ('business','PIX enviado MERCADO FICTÍCIO LTDA','80','DEBIT','BUSINESS'),
+                ('unknown','PIX destinatário não identificado fictício','15','DEBIT','UNKNOWN'),
+                ('application','Aplicação automática RDB fictícia','300','DEBIT','UNKNOWN'),
+                ('redemption','Resgate RDB fictício','50','CREDIT','UNKNOWN'),
+                ('card','Pagamento de fatura fictícia','200','DEBIT','UNKNOWN')]
+            for key,description,amount,direction,party in cases:
+                eid=add('organization-'+key,description,amount,direction,'2026-11-16')
+                conn.execute("UPDATE bank_entry SET counterparty_type=%s WHERE id=%s AND owner_id=%s AND counterparty_type<>%s",(party,UUID(eid),owner,party))
+            add('organization-offset','Recomposição fictícia do cenário de organização','580','CREDIT','2026-11-16')
         automatic=None
         if args.automatic_test_id:
             key=str(args.automatic_test_id)

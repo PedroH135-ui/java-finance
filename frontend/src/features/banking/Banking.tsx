@@ -8,6 +8,7 @@ import { api, json } from '../../lib/api';
 import type { Account, Category, BankConfig as Config, BankLink } from '../../lib/types';
 import { civilDate, money, today } from '../../lib/format';
 import { Empty, Failure, FormDialog, Loading, PageHeader, Panel } from '../../components/Shared';
+import { BankProducts } from './BankProducts';
 
 interface Candidate { id: string; description: string; amount: string; date: string; kind: string }
 interface Entry { id: string; linkId: string; accountName: string; description: string; amount: string; date: string; direction: string; providerStatus: string; state: string; movementId: string | null; version: number; candidates: Candidate[] }
@@ -34,12 +35,12 @@ export function Banking() {
   const selectedLink = links.data?.find(l => l.id === selectedId);
   const entries = useQuery({ queryKey: ['bankEntries', selectedId, page], queryFn: () => api<Entry[]>(`/banking/links/${selectedId}/entries?page=${page}`), enabled: ready && !!selectedId, refetchInterval: ready && !!selectedId ? 30000 : false });
   async function refresh() {
-    await Promise.all(['bankLinks', 'bankEntries', 'accounts', 'movements', 'movementFeed', 'summary', 'budgets'].map(key => client.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(['bankLinks', 'bankEntries', 'accounts', 'movements', 'movementFeed', 'summary', 'budgets', 'upcomingCommitments'].map(key => client.invalidateQueries({ queryKey: [key] })));
   }
   return <>
     <PageHeader title="Conexões bancárias" subtitle="Meu Pluggy pessoal · somente leitura · começando pela conta Nubank."
       action={<Button variant="contained" startIcon={<AddLink/>} disabled={!ready} onClick={() => setBinding(true)}>Vincular conta</Button>}/>
-    <Alert severity="info" sx={{ mb: 3 }}>Não fazemos pagamentos nem transferências bancárias. O saldo exibido vem do banco; registros efetivados entram nos relatórios automaticamente, sem novos descontos. Categorizar é opcional. Cartões e faturas não estão incluídos nesta etapa.</Alert>
+    <Alert severity="info" sx={{ mb: 3 }}>Não fazemos pagamentos nem transferências bancárias. O saldo exibido vem do banco; registros efetivados entram nos relatórios automaticamente, sem novos descontos. Categorizar é opcional. Cartões, faturas e posições de investimentos têm consulta adicional abaixo, conforme a cobertura da conexão.</Alert>
     {config.isPending ? <Loading/> : config.error ? <Failure error={config.error} retry={() => void config.refetch()}/> : config.data && !ready ? <Panel title="Configuração inicial pendente" subtitle="Nenhuma conexão real foi ativada.">
       <Stack spacing={2}>
         <Typography>1. Crie sua conta no Meu Pluggy e autorize a conta do Nubank por lá. Não informe sua senha bancária neste sistema ou no chat.</Typography>
@@ -81,6 +82,7 @@ export function Banking() {
         </Box>}
       </>}
     </>}
+    <BankProducts links={ready?links.data??[]:[]}/>
     {bindingRequested && ready && config.data && <LinkForm config={config.data} onClose={closeBinding} onUpdated={refresh}/>}
     {review && <ReviewForm entry={review.entry} action={review.action} onClose={() => setReview(null)} onUpdated={refresh}/>}
   </>;
@@ -136,6 +138,7 @@ function LinkForm({ config, onClose, onUpdated }: { config: Config; onClose: () 
           {accounts.data?.filter(a => !a.archived && ['CHECKING', 'SAVINGS', 'WALLET', 'OTHER'].includes(a.kind)).map(account => <MenuItem key={account.id} value={account.id}>{account.name}</MenuItem>)}</TextField>}/>
       </>}
       <Button component={RouterLink} to="/accounts">Consultar ou cadastrar conta local</Button>
+      <Alert severity="info">Ao vincular, criamos categorias padrão e consultamos os registros automaticamente. Descrições são organizadas pela IA na nuvem, sem valores nem documentos. Gerencie em Configurações; uma desativação salva é respeitada. Naturezas financeiras exigem confirmação.</Alert>
       <TextField type="date" label="Data inicial dos registros" required {...form.register('importFrom', { required: true })} slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: shift(today(), 1) } }}/>
       <Controller name="confirmedBaseline" control={form.control} rules={{ validate: value => value || 'Confira a data e os registros existentes antes de continuar.' }} render={({ field, fieldState }) => <Box><FormControlLabel control={<Checkbox checked={field.value} onChange={event => field.onChange(event.target.checked)}/>} label="Conferi a data e os registros existentes para evitar duplicidade nos relatórios."/>{fieldState.error && <Typography color="error">{fieldState.error.message}</Typography>}</Box>}/>
     </Stack></form>

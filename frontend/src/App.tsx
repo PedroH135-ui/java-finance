@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy,Suspense,useState } from 'react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AccountBalanceWalletOutlined, DashboardOutlined, SwapHoriz, AccountBalanceOutlined, CategoryOutlined, SettingsOutlined, PieChartOutlined, LinkOutlined, Menu, Logout, ChevronRight } from '@mui/icons-material';
@@ -6,15 +6,17 @@ import { Alert, AppBar, Avatar, Box, Button, Divider, Drawer, IconButton, List, 
 import { api, ApiError } from './lib/api';
 import type { Profile } from './lib/types';
 import { AuthPage } from './features/auth/AuthPage';
-import { Dashboard } from './features/dashboard/Dashboard';
-import { Accounts } from './features/accounts/Accounts';
-import { Categories } from './features/categories/Categories';
-import { Movements } from './features/movements/Movements';
-import { Settings } from './features/settings/Settings';
-import { Budgets } from './features/budgets/Budgets';
-import { Banking } from './features/banking/Banking';
+const Dashboard=lazy(()=>import('./features/dashboard/Dashboard').then(m=>({default:m.Dashboard})));
+const Accounts=lazy(()=>import('./features/accounts/Accounts').then(m=>({default:m.Accounts})));
+const Categories=lazy(()=>import('./features/categories/Categories').then(m=>({default:m.Categories})));
+const Movements=lazy(()=>import('./features/movements/Movements').then(m=>({default:m.Movements})));
+const Settings=lazy(()=>import('./features/settings/Settings').then(m=>({default:m.Settings})));
+const Budgets=lazy(()=>import('./features/budgets/Budgets').then(m=>({default:m.Budgets})));
+const Banking=lazy(()=>import('./features/banking/Banking').then(m=>({default:m.Banking})));
+const Investments=lazy(()=>import('./features/investments/Investments').then(m=>({default:m.Investments})));
+const Goals=lazy(()=>import('./features/goals/Goals').then(m=>({default:m.Goals})));
 import { Failure, Loading } from './components/Shared';
-const links=[{path:'/',label:'Visão geral',icon:<DashboardOutlined/>},{path:'/movements',label:'Movimentações',icon:<SwapHoriz/>},{path:'/accounts',label:'Contas',icon:<AccountBalanceOutlined/>},{path:'/categories',label:'Categorias',icon:<CategoryOutlined/>},{path:'/budgets',label:'Orçamentos',icon:<PieChartOutlined/>},{path:'/banking',label:'Conexões bancárias',icon:<LinkOutlined/>},{path:'/settings',label:'Configurações',icon:<SettingsOutlined/>}];
+const links=[{path:'/',label:'Visão geral',icon:<DashboardOutlined/>},{path:'/movements',label:'Movimentações',icon:<SwapHoriz/>},{path:'/accounts',label:'Contas',icon:<AccountBalanceOutlined/>},{path:'/categories',label:'Categorias',icon:<CategoryOutlined/>},{path:'/budgets',label:'Orçamentos',icon:<PieChartOutlined/>},{path:'/banking',label:'Conexões bancárias',icon:<LinkOutlined/>},{path:'/investments',label:'Investimentos',icon:<AccountBalanceWalletOutlined/>},{path:'/goals',label:'Metas e planejamento',icon:<PieChartOutlined/>},{path:'/settings',label:'Configurações',icon:<SettingsOutlined/>}];
 export function App() {
   const me=useQuery({queryKey:['me'],queryFn:()=>api<Profile>('/auth/me'),staleTime:0});
   const client=useQueryClient(),location=useLocation(),navigate=useNavigate();
@@ -23,11 +25,12 @@ export function App() {
   if(me.error){if(me.error instanceof ApiError&&me.error.status===401)return <AuthPage/>;return <Box p={4}><Failure error={me.error} retry={()=>void me.refetch()}/></Box>;}
   if(!me.data)return null;
   const profile=me.data,current=links.find(l=>l.path===location.pathname)??links[0];
+  const period=new URLSearchParams(location.search).get('month');
   async function logout(){try{await api('/auth/logout',{method:'POST'});client.clear();navigate('/');window.location.reload();}catch(e){setLogoutError(e as Error);}}
   const nav=<Box sx={{height:'100%',display:'flex',flexDirection:'column',p:2}}>
     <Stack direction="row" alignItems="center" spacing={1.5} sx={{p:1.5,mb:3}}><Box sx={{bgcolor:'primary.main',color:'#fff',p:1,borderRadius:2,display:'flex'}}><AccountBalanceWalletOutlined/></Box><Typography variant="h6">Java Finance</Typography></Stack>
     <Typography variant="overline" color="text.secondary" sx={{px:2}}>Seu dia a dia</Typography>
-    <List>{links.map(l=><Box key={l.path}>{l.path==='/settings'&&<Divider sx={{my:2}}/>}<ListItemButton component={RouterLink} to={l.path} selected={location.pathname===l.path} onClick={()=>setDrawer(false)} sx={{borderRadius:2,mb:0.5,'&.Mui-selected':{color:'primary.main',bgcolor:'#eaf0fc'}}}>
+    <List>{links.map(l=><Box key={l.path}>{l.path==='/settings'&&<Divider sx={{my:2}}/>}<ListItemButton component={RouterLink} to={l.path+(period?'?month='+encodeURIComponent(period):'')} selected={location.pathname===l.path} onClick={()=>setDrawer(false)} sx={{borderRadius:2,mb:0.5,'&.Mui-selected':{color:'primary.main',bgcolor:'#eaf0fc'}}}>
       <ListItemIcon sx={{minWidth:38,color:'inherit'}}>{l.icon}</ListItemIcon><ListItemText primary={l.label} slotProps={{primary:{fontSize:14,fontWeight:600}}}/></ListItemButton></Box>)}</List>
     <Box sx={{mt:'auto',p:2,bgcolor:'#f4f7fc',borderRadius:2}}><Typography variant="body2" fontWeight={650}>Seu controle começa aqui</Typography><Typography variant="caption" color="text.secondary">Cadastre suas contas e registre a primeira movimentação. Seus registros ficam separados por perfil.</Typography></Box>
   </Box>;
@@ -48,7 +51,7 @@ export function App() {
       <Box component="main" id="main-content" tabIndex={-1} sx={{maxWidth:1440,mx:'auto',p:{xs:2,sm:3,md:4}}}>
         {import.meta.env.VITE_LOCAL_REVIEW==='true'&&<Alert severity="warning" sx={{mb:3}}>Ambiente local de demonstração com dados fictícios. Alterações independentes da produção. Conexão com o Nubank desativada.</Alert>}
         {logoutError&&<Failure error={logoutError}/>}
-        {location.pathname==='/'?<Dashboard/>:location.pathname==='/accounts'?<Accounts/>:location.pathname==='/categories'?<Categories/>:location.pathname==='/movements'?<Movements/>:location.pathname==='/budgets'?<Budgets/>:location.pathname==='/banking'?<Banking/>:location.pathname==='/settings'?<Settings profile={profile}/>:<Box>Página não encontrada. <RouterLink to="/">Voltar à visão geral</RouterLink></Box>}
+        <Suspense fallback={<Loading/>}>{location.pathname==='/'?<Dashboard/>:location.pathname==='/accounts'?<Accounts/>:location.pathname==='/categories'?<Categories/>:location.pathname==='/movements'?<Movements/>:location.pathname==='/budgets'?<Budgets/>:location.pathname==='/banking'?<Banking/>:location.pathname==='/investments'?<Investments/>:location.pathname==='/goals'?<Goals/>:location.pathname==='/settings'?<Settings profile={profile}/>:<Box>Página não encontrada. <RouterLink to="/">Voltar à visão geral</RouterLink></Box>}</Suspense>
       </Box>
     </Box>
   </Box>;

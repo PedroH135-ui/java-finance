@@ -15,7 +15,7 @@ public class FinancialRecordController {
         @RequestParam(required=false) Movement.Status status,@RequestParam(defaultValue="") String text,
         @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="operationDate") String sort,
         @RequestParam(defaultValue="desc") String direction,@RequestParam(defaultValue="operationDate") String basis,
-        @RequestParam(defaultValue="false") boolean hidden) {
-        return service.list(p.id(),from,to,account,category,kind,status,text,page,size,sort,direction,basis,hidden);
+        @RequestParam(defaultValue="false") boolean hidden,@RequestParam(defaultValue="false") boolean consumption) {
+        return service.list(p.id(),from,to,account,category,kind,status,text,page,size,sort,direction,basis,hidden,consumption);
     }
 }

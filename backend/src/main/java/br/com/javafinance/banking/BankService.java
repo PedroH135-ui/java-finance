@@ -31,6 +31,16 @@ public class BankService {
     private final BankProperties config; private final BankProvider provider; private final JdbcTemplate jdbc;
     private final MovementService movements; private final AuditService audit; private final Clock clock; private final TransactionTemplate tx;
     private org.springframework.context.ApplicationEventPublisher events;
+    private br.com.javafinance.categories.CategoryService categories;
+    private CloudCategoryJobs categoryJobs;
+    private SalaryService salaries;
+    private BankProductsService products;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void products(BankProductsService products){this.products=products;}
+    @org.springframework.beans.factory.annotation.Autowired
+    public void salaryRules(SalaryService salaries){this.salaries=salaries;}
+    @org.springframework.beans.factory.annotation.Autowired
+    public void organization(br.com.javafinance.categories.CategoryService categories,CloudCategoryJobs jobs){this.categories=categories;this.categoryJobs=jobs;}
     public record ReadCompleted(UUID owner) {}
     @org.springframework.beans.factory.annotation.Autowired
     public void events(org.springframework.context.ApplicationEventPublisher events){this.events=events;}
@@ -61,9 +71,11 @@ public class BankService {
         if(!input.confirmedBaseline()) throw ApiException.bad("Confirme a data inicial e revise os registros existentes antes de vincular a conta.");
         var snapshot=discover(owner,input.itemId());
         var external=snapshot.accounts().stream().filter(a->a.id().equals(input.externalAccountId()) && a.type().equals("BANK") && a.currency().equals("BRL")).findFirst().orElseThrow(ApiException::missing);
-        tx.executeWithoutResult(status->{
+        UUID linked=tx.execute(status->{
             // Lock order: personal owner -> link -> account. Reconnection never resets review history.
             jdbc.queryForObject("SELECT id FROM app_user WHERE id=? FOR UPDATE",UUID.class,owner);
+            categories.addDefaults(owner);
+            categoryJobs.prepareForLink(owner);
             var account=jdbc.queryForList("SELECT * FROM account WHERE owner_id=? AND id=? FOR UPDATE",owner,input.accountId());
             if(account.isEmpty()) throw ApiException.missing();
             var local=account.getFirst();
@@ -76,7 +88,12 @@ public class BankService {
             jdbc.update("INSERT INTO bank_link(id,owner_id,item_id,external_account_id,account_id,name,import_from,provider_updated_at,reported_balance) VALUES (?,?,?,?,?,?,?,?,?)",
                 id,owner,input.itemId(),external.id(),input.accountId(),external.name(),input.importFrom(),timestamp(snapshot.updatedAt()),external.balance());
             audit.record(owner,id,"BANK_LINKED","Conta vinculada para leitura; saldo principal informado pelo banco. Nenhum registro classificado automaticamente.");
+            return id;
         });
+        // First read is automatic, after commit. A provider outage never loses an already created link.
+        LocalDate firstTo=input.importFrom().plusDays(92).isBefore(LocalDate.now(clock))?input.importFrom().plusDays(92):LocalDate.now(clock);
+        try{if(!input.importFrom().isAfter(firstTo))sync(owner,linked,new Sync(input.importFrom(),firstTo));}
+        catch(RuntimeException ex){LoggerFactory.getLogger(BankService.class).warn("initial_bank_read_deferred code=RETRY_DAILY");}
     }
     public int sync(UUID owner, UUID id, Sync input) {
         long started = System.nanoTime();
@@ -85,6 +102,7 @@ public class BankService {
         try {
             int read = read(owner, id, input);
             completed = true;
+            try{products.readIfEnabled(owner,id);}catch(RuntimeException error){LoggerFactory.getLogger(getClass()).warn("optional_products_deferred code=RETRY_NEXT_READ");}
             if(events!=null)events.publishEvent(new ReadCompleted(owner));
             return read;
         } catch (BankReadException ex) {
@@ -112,18 +130,29 @@ public class BankService {
         var external=snapshot.accounts().stream().filter(a->a.id().equals(link.externalAccountId())).findFirst().orElseThrow(ApiException::missing);
         List<BankProvider.RemoteEntry> entries=provider.transactions(link.externalAccountId(),input.from(),input.to());
         if(entries.size()>2000) throw ApiException.bad("Reduza o período da consulta.");
+        // Commit the owner-scoped catalog separately, before acquiring link/entry locks.
+        categories.addDefaults(owner);
         return tx.execute(status->{
             lockLink(owner,id);
+            var salaryRules=salaries.rulesForRead(owner,id);
             for(var entry:entries) {
                 if(entry.date().isBefore(input.from()) || entry.date().isAfter(input.to())) throw ApiException.bad("O provedor retornou dados fora do período solicitado.");
-                int inserted=jdbc.update("INSERT INTO bank_entry(id,owner_id,link_id,external_id,description,amount,date,direction,provider_status) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(link_id,external_id) DO NOTHING",
-                    UUID.randomUUID(),owner,id,entry.id(),entry.description(),entry.amount(),entry.date(),entry.direction(),entry.status());
-                if(inserted==0) jdbc.update("""
+                UUID newId=UUID.randomUUID();
+                int inserted=jdbc.update("INSERT INTO bank_entry(id,owner_id,link_id,external_id,description,amount,date,direction,provider_status,counterparty_type) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(link_id,external_id) DO NOTHING",
+                    newId,owner,id,entry.id(),entry.description(),entry.amount(),entry.date(),entry.direction(),entry.status(),entry.counterpartyType());
+                int updated=0;
+                if(inserted==0) updated=jdbc.update("""
                     UPDATE bank_entry SET description=?,amount=?,date=?,direction=?,provider_status=?,
-                      state=CASE WHEN state='REVIEW' THEN 'REVIEW' ELSE 'CHANGED' END,version=version+1
+                      state=CASE WHEN state='REVIEW' THEN 'REVIEW' ELSE 'CHANGED' END,version=version+1,category_auto_attempted_at=null,category_auto_resolution=null
                     WHERE owner_id=? AND link_id=? AND external_id=?
                       AND (description,amount,date,direction,provider_status) IS DISTINCT FROM (?,?,?,?,?)
                     """,entry.description(),entry.amount(),entry.date(),entry.direction(),entry.status(),owner,id,entry.id(),entry.description(),entry.amount(),entry.date(),entry.direction(),entry.status());
+                if(inserted==0)jdbc.update("UPDATE bank_entry SET counterparty_type=?,category_auto_attempted_at=null,category_auto_resolution=null,version=version+1 WHERE owner_id=? AND link_id=? AND external_id=? AND counterparty_type<>?",entry.counterpartyType(),owner,id,entry.id(),entry.counterpartyType());
+                if(inserted>0)salaries.applyNew(owner,newId,entry,salaryRules);
+                else if(updated>0&&!salaryRules.isEmpty()){
+                    UUID existing=jdbc.queryForObject("SELECT id FROM bank_entry WHERE owner_id=? AND link_id=? AND external_id=?",UUID.class,owner,id,entry.id());
+                    salaries.applyNew(owner,existing,entry,salaryRules);
+                }
             }
             jdbc.update("UPDATE bank_link SET last_checked_at=?,provider_updated_at=?,reported_balance=? WHERE id=? AND owner_id=?",timestamp(clock.instant()),timestamp(snapshot.updatedAt()),external.balance(),id,owner);
             audit.record(owner,id,"BANK_READ","Dados consultados para revisão, sem confirmação automática."); return entries.size();

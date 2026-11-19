@@ -1,5 +1,30 @@
 # Como LangChain e RAG funcionam hoje
 
+**Produção V18,17/11:** [publicação de salário e módulos integrados](publicacao-modulos-integrados-2026-11-17.md).
+Regras pessoais de salário rodam no Java sem LLM e não mudam o salário previsto,
+que permanece manual. Detalhes de cartão reutilizam a fila/RAG/classificador
+existentes, com preferência individual, prioridade humana e até uma chamada
+LLM quando necessária. Python/embeddings/modelo preservados; nenhum dado real
+foi categorizado ou enviado ao LLM por esta verificação de publicação. Valores
+de salário/planejamento, saldo e posições continuam fora do prompt de categorias.
+Entradas abaixo sobre essa evolução apenas local são históricas.
+
+**Evolução local em17/11, ainda não publicada:**
+[salário e módulos integrados](salario-modulos-integrados-local.md). A regra
+opcional de salário é instrução exata no Java, sem RAG/LLM. Salário previsto
+é manual; gastos/metas são calculados com decimais no Java. Detalhes de cartão
+agora podem reutilizar a fila/classificador existente: correções e histórico
+privado primeiro, RAG e até uma chamada LLM quando necessário, respeitando opt-out.
+Python/modelos/embeddings não mudaram nesta entrega. Não há envio de posições,
+saldos, faturas completas ou salário previsto ao modelo. Testes de tela usam
+provedores fictícios e Python local com modelo desligado. Produção continua V16.
+
+**Produção em17/11, V16:** [planejador com salário/gastos](metas-renda-mensal-local.md), [publicação e rollback](publicacao-metas-renda-2026-11-17.md). LangChain interpreta objetivo e perguntas de resumo com RunnableLambda, sem chamar o LLM; Java obtém o contexto owner-scoped, separa salário de outras entradas, calcula gastos mensais e capacidade após compromissos/metas e mostra aporte/diferença/prazo. Valores dos relatórios não vão à Groq nem ao banco vetorial. O RAG de categorias continua separado, com prioridade humana e até uma chamada LLM quando necessária. As entradas abaixo sobre evolução somente local e V15 são históricas.
+
+**Produção mais recente, 16/11:** [organização publicada](publicacao-organizacao-2026-11-16.md), V15, Java/Python novos e verificados. IA default-on em novos cadastros/primeiro vínculo sem preferência anterior; opt-out e correções preservados. Regra PIX, histórico, RAG com dois exemplos fortes e até uma chamada LLM foram testados na nuvem com dados fictícios. Planejador guiado usa LangChain e cálculo Java sem LLM. Contexto público de RDB/CDB/fatura é tabela de regras, não vetores privados compartilhados. As seções locais/opt-in desligado abaixo são históricas.
+
+**Versão local posterior, ainda não publicada:** [organização financeira](organizacao-financeira-local.md). PIX identificado por tipo do provedor, prioridade humana, RAG forte sem modelo e até uma chamada LLM, abstenção terminal para controlar custo. Planejador de metas usa LangChain RunnableLambda para interpretar comandos e Java para cálculo decimal, **zero LLM**. Contexto público RDB/CDB/fatura fica em tabela de regras versionadas, não vetorizada; exemplos privados de categorias continuam com embeddings384/pgvector e isolamento por usuário. As descrições publicadas abaixo são históricas em relação a esta implementação local.
+
 Atualizado em 16/11/2026. Este documento distingue a implementação principal da integração vetorial local, sem prometer funcionalidades futuras.
 
 **Etapa mais recente: publicada em Production em 16/11/2026**, após autorização, recuperação e testes. RAG vetorial/LangChain com pgvector Neon, fila cloud, opt-in individual desligado por padrão e correções duráveis. LLM somente quando necessário; sem alteração de saldos. [Estado publicado, testes e rollback](publicacao-rag-producao-2026-11-16.md). As etapas local/Preview descritas abaixo são históricas.

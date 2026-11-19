@@ -1,6 +1,52 @@
 # Contexto do Java Finance
 
+**19/11 — Próximos compromissos V20 publicados.** Fonte `39d71e7`, Java
+`dpl_5oWxo8PZ748x3pna7beuu6n53dt1`. Recuperação V19 confirmada por duas
+restaurações isoladas e V20 aplicada no banco de teste antes da produção.
+A janela do Orçamento usa o extrato do Pluggy e retira vínculos identificados
+do total previsto. [Resultado, testes e retorno de versão](../publicacao-proximos-compromissos-2026-11-19.md).
+
+**17/11 — faturas V19 publicadas:** fonte `f5eb86e`, Java/React
+`dpl_3H445zcqzbverFqALxaiZKc3YqDy`, após autorização específica,
+backup V18 restaurado/revalidado e V19 isolada aprovada. Leitura controlada
+retornou faturas com cobertura disponível; totais originais preservados,
+conciliação de valores incompatíveis bloqueada, saldos/correções intactos.
+[Resultado, testes e rollback](../faturas-total-original-v19.md). Python preservado;
+sem push/PR/merge nesta etapa. Entradas seguintes são históricas.
+
+**Produção V18 publicada — 17/11:** Java/React `dpl_2rzkbwNhztw62SrYXR8aspQFCH2b`,
+fonte funcional `2575d5d`. Backup V16 restaurado e V17/V18/rollback aprovados na
+branch Neon isolada, PostgreSQL18.7. Saúde/smoke/interface reais aprovados;
+fingerprints financeiros, correções e preferências preservados. Python anterior
+mantido. Ler [publicação, testes e rollback](../publicacao-modulos-integrados-2026-11-17.md).
+Atualização do GitHub autorizada para PR17; sem merge ou supressão da pendência
+de audit/picomatch. As entradas seguintes de somente local/V16 são históricas.
+
+**Entrega local concluída — 17/11:** branch `codex/salario-modulos-integrados`:
+botão É meu salário/regra futura, previsão salarial exclusivamente manual,
+melhorias de desempenho/orçamento e integração read-only de cartão/faturas/posições.
+V17/V18 somente locais; Java150 testes, frontend6/lint/build e preservação no
+upgrade fictício aprovados; E2E integrado aprovado em29,1s, saldo preservado e
+zero requisições externas/erros JavaScript. Produção permanece V16,
+sem nova publicação, push, PR ou merge. Ler
+[implementação, limites, reprodução e rollback](../salario-modulos-integrados-local.md)
+e o topo do handoff; entradas seguintes são históricas.
+
+**Estado atual — 17/11, Production/V16:** salário, gastos e capacidade por meta publicados com autorização, backup V15 decriptado/restaurado e V16 aprovada na branch isolada. Java/Python UP; smoke autenticado sem salvar previsões ou meta fictícia; saldos, correções e preferências preservados. Ler [relatório e rollback](../publicacao-metas-renda-2026-11-17.md) e [implementação/testes](../metas-renda-mensal-local.md). Código e contexto enviados em `codex/metas-renda-mensal` e incorporados à [PR17](https://github.com/PedroH135-ui/java-finance/pull/17), sem merge; conferir os checks no HEAD da PR. As entradas abaixo são históricas, inclusive as referências à V16 somente local.
+
+**Pendência atual da PR:** segredos/privacidade aprovados, auditoria de dependências falhou por `picomatch` sem versão corrigida no aviso oficial consultado. Não mascarar o check nem fazer merge; [análise e exposição no build](../publicacao-metas-renda-2026-11-17.md). Produção e dependências foram preservadas durante a investigação.
+
+**17/11 — GitHub e evolução local:** [PR17](https://github.com/PedroH135-ui/java-finance/pull/17) aberta com a versão Production/V15, testes e rollback; checks aprovados, sem merge/deploy novo e segredos novamente verificados. Branch atual `codex/metas-renda-mensal` prepara **somente localmente** salário, histórico de gastos e capacidade por meta, V16 aditiva. Ler [implementação e limites](../metas-renda-mensal-local.md) e o topo do handoff. Não presumir que essa evolução local está na PR ou em produção.
+
+**Publicação mais recente concluída:** Java/Python e V14/V15 em Production, commit funcional `c4135e9`, recuperação restaurada e teste isolado aprovados, hashes financeiros/preferências preservados. IA **ativada por padrão nos novos cadastros/primeiro vínculo**, opt-out anterior e correções preservados; cadastro real continua desabilitado. [Relatório e rollback](../publicacao-organizacao-2026-11-16.md). Sem push/PR/merge nesta etapa. Entradas abaixo são históricas.
+
+**Etapa local mais recente (16/11):** branch `codex/organizacao-financeira-local`: natureza financeira confirmada separa consumo, PIX por tipo de contraparte, até três etapas/uma chamada LLM, padrões+organização ao vincular com opt-out respeitado, controle em Configurações, Investimentos e planejador de metas. Apenas dados fictícios e bancos Docker locais; sem push, PR, merge ou deploy. Ler [implementação e limites](../organizacao-financeira-local.md) e o topo do handoff. Produção continua V13 conforme última publicação registrada; esta etapa não a revalidou. As entradas abaixo são históricas.
+
 Atualizado em 16/11/2026. Java 21 e Spring Boot 3.5.16, React/Vite e PostgreSQL no Neon. Java/React usam container na Vercel; o serviço Python FastAPI/LangChain é separado e usa Groq. Preserve essa arquitetura.
+
+**Última validação em produção:** usuário autorizou teste da IA com dados reais; preferência já estava ligada ao abrir a sessão e foi mantida. Retomada controlada da fila concluída e módulos conferidos, saldos preservados. O recurso segue disponível para todos, cada usuário ativa (preferência explicitamente confirmada pelo usuário). Ler [resultado e melhorias pendentes](../validacao-ia-real-e-modulos.md). Dados financeiros reais ficam somente nas evidências privadas, não no Git. Não houve deploy nesta etapa; mensagem de sessão expirada continua somente local.
+
+**Diagnóstico posterior:** PR #16 integrada (`34c2098`), sem novo deploy. Falha ao adicionar foi POST 401/sessão expirada; após renovação, uma tentativa adicionou 14 categorias ao perfil real, sem alteração financeira ou de opt-in. Melhoria de mensagem 401/403 em trabalho local na branch `codex/corrige-categorias-padrao`, ainda não publicada/enviada. Ler [diagnóstico e resolução](../categorias-padrao-sessao-expirada.md). As afirmações anteriores de PR aberta/nenhuma categoria real adicionada abaixo são históricas.
 
 **Última publicação autorizada:** categorias padrão do commit `e9137ce` em Production, Java `dpl_8PAoHDgMV7uwXmwCFHQMj5kWSHZV`. Python e V13 preservados, nenhum usuário ativado ou categoria real adicionada por este rollout. Ler [publicação e rollback das categorias padrão](../publicacao-categorias-padrao-2026-11-16.md). As referências abaixo à etapa local registram o momento anterior.
 

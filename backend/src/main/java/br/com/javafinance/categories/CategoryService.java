@@ -13,8 +13,8 @@ public class CategoryService {
     public record View(UUID id,String name,Category.Kind kind,boolean essential,boolean archived,long version) {}
     public record Defaults(int added,int existing) {}
     private static final Map<Category.Kind,List<String>> DEFAULTS=Map.of(
-        Category.Kind.EXPENSE,List.of("Mercado","Restaurantes e delivery","Moradia","Transporte","Saúde","Educação","Assinaturas","Lazer","Compras","Outros gastos"),
-        Category.Kind.INCOME,List.of("Salário","Trabalho extra","Rendimentos","Outras receitas"));
+        Category.Kind.EXPENSE,List.of("Mercado","Restaurantes e delivery","Moradia","Transporte","Saúde","Educação","Assinaturas","Lazer","Compras","Outros gastos","PIX"),
+        Category.Kind.INCOME,List.of("Salário","Trabalho extra","Rendimentos","Outras receitas","PIX"));
     private final CategoryRepository categories; private final AuditService audit; private final JdbcTemplate jdbc;
     public CategoryService(CategoryRepository categories,AuditService audit,JdbcTemplate jdbc) { this.categories=categories; this.audit=audit; this.jdbc=jdbc; }
     /** Serialized per owner; archived/customized categories are never modified or reactivated. */

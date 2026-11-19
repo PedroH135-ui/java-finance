@@ -20,11 +20,12 @@ public class UserService {
     private final AuditService audit;
     private final boolean registrationEnabled;
     private final br.com.javafinance.categories.CategoryService categories;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     public boolean isRegistrationEnabled() { return registrationEnabled; }
     public UserService(UserRepository users, PasswordEncoder encoder, Clock clock, AuditService audit,
-        @Value("${app.registration-enabled}") boolean enabled, br.com.javafinance.categories.CategoryService categories) {
+        @Value("${app.registration-enabled}") boolean enabled, br.com.javafinance.categories.CategoryService categories,org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.users=users; this.encoder=encoder; this.clock=clock; this.audit=audit; registrationEnabled=enabled;
-        this.categories=categories;
+        this.categories=categories;this.jdbc=jdbc;
     }
     @Transactional
     public Profile register(Registration input) {
@@ -34,6 +35,7 @@ public class UserService {
             input.name().strip(), encoder.encode(input.password()), clock.instant()));
         audit.record(user.id,user.id,"REGISTER","Conta criada.");
         categories.addDefaults(user.id);
+        jdbc.update("INSERT INTO category_automation_preference(owner_id,enabled) VALUES (?,true)",user.id);
         return profile(user);
     }
     public Profile me(UUID id) { return profile(get(id)); }

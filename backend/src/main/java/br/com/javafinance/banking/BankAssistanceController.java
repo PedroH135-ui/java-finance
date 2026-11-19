@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController @RequestMapping("/api/banking/entries/{id}")
 public class BankAssistanceController {
     private final BankAssistanceService service;
-    public BankAssistanceController(BankAssistanceService service) {this.service=service;}
+    private final br.com.javafinance.movements.FinancialRecordService records;
+    public BankAssistanceController(BankAssistanceService service,br.com.javafinance.movements.FinancialRecordService records) {this.service=service;this.records=records;}
+    @GetMapping("/record") br.com.javafinance.movements.FinancialRecordService.Record record(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id){return records.entry(p.id(),id);}
     @GetMapping("/assistance") BankAssistanceService.Assistance assistance(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id) {return service.assistance(p.id(),id);}
     @PostMapping("/category") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     void category(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id,@Valid @RequestBody BankAssistanceService.CategoryChange input) {service.category(p.id(),id,input);}
