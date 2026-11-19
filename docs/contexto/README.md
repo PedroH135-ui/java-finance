@@ -1,5 +1,11 @@
 # Contexto do Java Finance
 
+**19/11 — Próximos compromissos V20 publicados.** Fonte `39d71e7`, Java
+`dpl_5oWxo8PZ748x3pna7beuu6n53dt1`. Recuperação V19 confirmada por duas
+restaurações isoladas e V20 aplicada no banco de teste antes da produção.
+A janela do Orçamento usa o extrato do Pluggy e retira vínculos identificados
+do total previsto. [Resultado, testes e retorno de versão](../publicacao-proximos-compromissos-2026-11-19.md).
+
 **17/11 — faturas V19 publicadas:** fonte `f5eb86e`, Java/React
 `dpl_3H445zcqzbverFqALxaiZKc3YqDy`, após autorização específica,
 backup V18 restaurado/revalidado e V19 isolada aprovada. Leitura controlada

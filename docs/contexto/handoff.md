@@ -1,5 +1,16 @@
 # Retomada da publicação da IA
 
+## Mais recente — Próximos compromissos V20
+
+19/11/2026. A publicação autorizada de `39d71e7` ocorreu após recuperação V19
+e validação V20 isolada. Domínio principal serve `dpl_5oWxo8PZ748x3pna7beuu6n53dt1`.
+V20 preservou os registros protegidos. O fluxo do Pluggy com dados fictícios
+foi exercitado em teste Java e a tela local abriu o lançamento original.
+Em produção, saúde, bundle e proteção da API foram conferidos. Python preservado.
+Ver `docs/publicacao-proximos-compromissos-2026-11-19.md`. Evidências privadas em
+`.tools/commitments-release`. A cópia de recuperação V19 está somente leitura.
+A PR #17 é o destino da atualização de código e contexto.
+
 ## Mais recente — faturas V19 publicadas e leitura concluída
 
 17/11: usuário autorizou expressamente `f5eb86e`/V19 e uma leitura.
