@@ -35,6 +35,34 @@ class BankingIT {
     @MockitoBean BankProvider provider;
     UUID owner,item,external; UserPrincipal principal; AccountService.View account;
     LocalDate today,date; BankProvider.Snapshot snapshot;
+    @Test void createsAndLinksAnAccountWithoutOpeningMovementOrDuplicate() throws Exception {
+        long movementsBefore = jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=?", Long.class, owner);
+        long postingsBefore = jdbc.queryForObject("SELECT count(*) FROM posting WHERE owner_id=?", Long.class, owner);
+        when(provider.transactions(external,date,today)).thenReturn(List.of());
+        String body = """
+            {"itemId":"%s","externalAccountId":"%s","importFrom":"%s","confirmedBaseline":true}
+            """.formatted(item,external,date);
+        mvc.perform(post("/api/banking/links/new-account").with(user(principal)).contentType("application/json").content(body))
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/api/banking/links/new-account").with(user(principal)).with(csrf())
+            .contentType("application/json").content(body)).andExpect(status().isCreated());
+        var link=bank.links(owner).getFirst();
+        var created=accounts.list(owner).stream().filter(a->a.id().equals(link.accountId())).findFirst().orElseThrow();
+        assertThat(created.name()).isEqualTo("Conta Nubank fictícia");
+        assertThat(created.openingDate()).isEqualTo(date.minusDays(1));
+        assertThat(created.balance()).isEqualByComparingTo("950.00");
+        assertThat(created.balanceSource()).isEqualTo(AccountBalanceService.Source.BANK);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM movement WHERE owner_id=?", Long.class, owner)).isEqualTo(movementsBefore);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM posting WHERE owner_id=?", Long.class, owner)).isEqualTo(postingsBefore);
+
+        mvc.perform(post("/api/banking/links/new-account").with(user(principal)).with(csrf())
+            .contentType("application/json").content(body)).andExpect(status().isConflict());
+        mvc.perform(post("/api/banking/links/new-account").with(user(principal)).with(csrf())
+            .contentType("application/json").content(body.replace(external.toString(),UUID.randomUUID().toString())))
+            .andExpect(status().isNotFound());
+        assertThat(bank.links(owner)).hasSize(1);
+        assertThat(accounts.list(owner)).hasSize(2);
+    }
     @BeforeEach void setup() {
         owner=users.register(new UserService.Registration(UUID.randomUUID()+"@example.test","Banco fictício","UmaSenhaSegura123!")).id();
         principal=new UserPrincipal(owner,"",0); item=UUID.randomUUID(); external=UUID.randomUUID(); today=LocalDate.now(clock); date=today.minusDays(2);

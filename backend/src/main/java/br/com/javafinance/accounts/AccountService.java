@@ -30,11 +30,21 @@ public class AccountService {
     @Transactional public View create(UUID owner, Create input) {
         if(input.openingDate().isAfter(LocalDate.now(clock))) throw ApiException.bad("O saldo inicial não pode ter data futura.");
         var balance=Money.parse(input.openingBalance());
-        Account a=new Account(); a.id=UUID.randomUUID(); a.ownerId=owner; a.name=input.name().strip();
-        a.institution=input.institution()==null?"":input.institution().strip(); a.kind=input.kind(); a.openingDate=input.openingDate();
-        accounts.saveAndFlush(a); ledger.opening(a,balance);
+        var a=persist(owner,input.name(),input.institution(),input.kind(),input.openingDate());
+        ledger.opening(a,balance);
         audit.record(owner,a.id,"ACCOUNT_CREATED","Conta e saldo inicial registrados.");
         return view(a);
+    }
+    @Transactional(propagation=org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public UUID createForBankLink(UUID owner,String name,LocalDate openingDate) {
+        var account=persist(owner,name,"",Account.Kind.CHECKING,openingDate);
+        audit.record(owner,account.id,"ACCOUNT_CREATED","Conta criada para receber o saldo informado pelo banco.");
+        return account.id;
+    }
+    private Account persist(UUID owner,String name,String institution,Account.Kind kind,LocalDate openingDate) {
+        Account a=new Account(); a.id=UUID.randomUUID(); a.ownerId=owner; a.name=name.strip();
+        a.institution=institution==null?"":institution.strip(); a.kind=kind; a.openingDate=openingDate;
+        return accounts.saveAndFlush(a);
     }
     @Transactional public View edit(UUID owner,UUID id,Edit input) {
         Account a=accounts.lock(id,owner).orElseThrow(ApiException::missing);

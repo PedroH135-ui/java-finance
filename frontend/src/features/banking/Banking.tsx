@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
-import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Alert, Box, Button, Checkbox, Chip, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { AddLink, Refresh } from '@mui/icons-material';
 import { api, json } from '../../lib/api';
@@ -39,16 +39,20 @@ export function Banking() {
   }
   return <>
     <PageHeader title="Conexões bancárias" subtitle="Meu Pluggy pessoal · somente leitura · começando pela conta Nubank."
-      action={<Button variant="contained" startIcon={<AddLink/>} disabled={!ready} onClick={() => setBinding(true)}>Vincular conta</Button>}/>
+      action={<Button variant="contained" startIcon={<AddLink/>} disabled={!ready || !links.data} onClick={() => setBinding(true)}>Vincular conta</Button>}/>
     <Alert severity="info" sx={{ mb: 3 }}>Não fazemos pagamentos nem transferências bancárias. O saldo exibido vem do banco; registros efetivados entram nos relatórios automaticamente, sem novos descontos. Categorizar é opcional. Cartões, faturas e posições de investimentos têm consulta adicional abaixo, conforme a cobertura da conexão.</Alert>
-    {config.isPending ? <Loading/> : config.error ? <Failure error={config.error} retry={() => void config.refetch()}/> : config.data && !ready ? <Panel title="Configuração inicial pendente" subtitle="Nenhuma conexão real foi ativada.">
+    {config.isPending ? <Loading/> : config.error ? <Failure error={config.error} retry={() => void config.refetch()}/> : config.data && !ready ? <Panel title="Prepare sua conexão bancária" subtitle="Autorize seu banco no Meu Pluggy e volte para vincular a conta.">
       <Stack spacing={2}>
-        <Typography>1. Crie sua conta no Meu Pluggy e autorize a conta do Nubank por lá. Não informe sua senha bancária neste sistema ou no chat.</Typography>
-        <Typography>2. No Dashboard da Pluggy, utilize o conector MeuPluggy da aplicação pessoal, não o conector direto do banco e nem um plano comercial.</Typography>
-        <Typography>3. As credenciais e os identificadores permitidos serão configurados somente no servidor. O código já está preparado; não cole chaves nesta tela.</Typography>
-        <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>Identificador deste perfil para a configuração: {config.data.userId}</Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}><Button component="a" href="https://meu.pluggy.ai/api-guide" target="_blank" rel="noopener noreferrer" variant="outlined">Guia oficial do Meu Pluggy</Button>
-          <Button startIcon={<Refresh/>} onClick={() => void config.refetch()}>Verificar configuração</Button></Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
+          <Button component="a" href="https://meu.pluggy.ai/" target="_blank" rel="noopener noreferrer" variant="contained">Abrir Meu Pluggy</Button>
+          <Button startIcon={<Refresh/>} onClick={() => void config.refetch()}>Verificar se posso vincular</Button>
+        </Stack>
+        <Typography variant="body2">Se o banco já foi autorizado e não aparece, a conexão precisa ser liberada para seu perfil no Java Finance.</Typography>
+        <Box component="details">
+          <Box component="summary" sx={{ cursor: 'pointer' }}>Informações para configuração</Box>
+          <Typography variant="body2" sx={{ mt: 1, overflowWrap: 'anywhere' }}>Seu identificador no Java Finance: {config.data.userId}</Typography>
+          <Button component="a" href="https://meu.pluggy.ai/api-guide" target="_blank" rel="noopener noreferrer">Guia oficial do Meu Pluggy</Button>
+        </Box>
       </Stack>
     </Panel> : <>
       {config.data?.automaticRead && <Alert severity="success" sx={{ mb: 2 }}>Atualização automática ativa: recebemos os avisos do Meu Pluggy e fazemos uma verificação diária de segurança, mesmo com o site fechado. O saldo exibido acompanha o banco. Registros efetivados aparecem nas movimentações e relatórios; as categorias podem ser organizadas depois.</Alert>}
@@ -83,7 +87,7 @@ export function Banking() {
       </>}
     </>}
     <BankProducts links={ready?links.data??[]:[]}/>
-    {bindingRequested && ready && config.data && <LinkForm config={config.data} onClose={closeBinding} onUpdated={refresh}/>}
+    {bindingRequested && ready && config.data && links.data && <LinkForm config={config.data} links={links.data} onClose={closeBinding} onUpdated={refresh}/>}
     {review && <ReviewForm entry={review.entry} action={review.action} onClose={() => setReview(null)} onUpdated={refresh}/>}
   </>;
 }
@@ -116,31 +120,83 @@ function LinkCard({ link, automaticRead, onUpdated }: { link: BankLink; automati
   </Panel>;
 }
 
-function LinkForm({ config, onClose, onUpdated }: { config: Config; onClose: () => void; onUpdated: () => Promise<void> }) {
+function LinkForm({ config, links, onClose, onUpdated }: {
+  config: Config; links: BankLink[]; onClose: () => void; onUpdated: () => Promise<void>;
+}) {
   const [item, setItem] = useState(config.items[0] ?? ''), [error, setError] = useState('');
+  const [source, setSource] = useState(''), [destination, setDestination] = useState('');
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api<Account[]>('/accounts') });
-  const remote = useQuery({ queryKey: ['bankDiscover', item], queryFn: () => api<{ accounts: { id: string; name: string; balance: string }[] }>(`/banking/items/${item}/accounts`), enabled: !!item });
-  const form = useForm({ defaultValues: { externalAccountId: '', accountId: '', importFrom: today(), confirmedBaseline: false } });
-  const submit = form.handleSubmit(async value => {
-    setError('');
-    try { await api('/banking/links', { method: 'POST', body: json({ ...value, itemId: item }) }); await onUpdated(); onClose(); }
-    catch (e) { setError((e as Error).message); }
+  const remote = useQuery({
+    queryKey: ['bankDiscover', item],
+    queryFn: ({ signal }) => api<{ accounts: { id: string; name: string; type: string; currency: string }[] }>(
+      `/banking/items/${item}/accounts`, { signal }),
+    enabled: !!item,
   });
-  return <FormDialog title="Vincular conta bancária" dirty={form.formState.isDirty} busy={form.formState.isSubmitting} onClose={onClose}
-    actions={<Button form="bank-link-form" type="submit" variant="contained" disabled={form.formState.isSubmitting || remote.isPending || !!remote.error || !!accounts.error}>Vincular para leitura</Button>}>
+  const localChoices = accounts.data?.filter(a => !a.archived && a.currency === 'BRL' &&
+    ['CHECKING', 'SAVINGS', 'WALLET', 'OTHER'].includes(a.kind) && !a.bankLinkId && !links.some(l => l.accountId === a.id)) ?? [];
+  const bankChoices = remote.data?.accounts.filter(a => a.type === 'BANK' && a.currency === 'BRL' &&
+    !links.some(l => l.externalAccountId === a.id)) ?? [];
+  const externalAccountId = bankChoices.some(a => a.id === source) ? source : bankChoices.length === 1 ? bankChoices[0].id : '';
+  const accountId = destination || (localChoices.length === 0 ? 'new' : '');
+  const local = localChoices.find(a => a.id === accountId);
+  const minDate = local ? shift(local.openingDate, 1) : '1900-01-02';
+  const form = useForm({ defaultValues: { importFrom: today(), confirmedBaseline: false } });
+  const canSubmit = !!accounts.data && !!remote.data && !accounts.error && !remote.error &&
+    !!externalAccountId && (accountId === 'new' || !!local);
+  function clearConfirmation() { form.setValue('confirmedBaseline', false); }
+  const submit = form.handleSubmit(async value => {
+    if (!canSubmit) return;
+    setError('');
+    const request = { ...value, itemId: item, externalAccountId };
+    try {
+      await api(accountId === 'new' ? '/banking/links/new-account' : '/banking/links', {
+        method: 'POST', body: json(accountId === 'new' ? request : { ...request, accountId }),
+      });
+      await onUpdated();
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  });
+  return <FormDialog title="Vincular conta bancária" dirty={form.formState.isDirty || !!source || !!destination}
+    busy={form.formState.isSubmitting} onClose={onClose}
+    actions={<Button form="bank-link-form" type="submit" variant="contained"
+      disabled={form.formState.isSubmitting || !canSubmit}>Vincular para leitura</Button>}>
     <form id="bank-link-form" onSubmit={submit}><Stack spacing={2} pt={1}>
       {error && <Alert severity="error">{error}</Alert>}
-      <Alert severity="warning">A conta passará a usar o saldo informado pelo banco. Escolha a data inicial dos registros e confira os lançamentos existentes para evitar duplicidade nos relatórios.</Alert>
-      <TextField select label="Conexão autorizada" value={item} onChange={event => { setItem(event.target.value); form.setValue('externalAccountId', ''); }}>{config.items.map(id => <MenuItem key={id} value={id}>{id}</MenuItem>)}</TextField>
-      {remote.isPending || accounts.isPending ? <Loading/> : remote.error ? <Failure error={remote.error}/> : accounts.error ? <Failure error={accounts.error}/> : <>
-        <Controller name="externalAccountId" control={form.control} rules={{ required: true }} render={({ field }) => <TextField select required label="Conta disponível no Meu Pluggy" {...field}>{remote.data?.accounts.map(account => <MenuItem key={account.id} value={account.id}>{account.name} · {account.id.slice(-6)}</MenuItem>)}</TextField>}/>
-        <Controller name="accountId" control={form.control} rules={{ required: true }} render={({ field }) => <TextField select required label="Conta no Java Finance" {...field} onChange={event => { field.onChange(event); const account = accounts.data?.find(a => a.id === event.target.value); if (account) form.setValue('importFrom', shift(account.openingDate, 1) > today() ? shift(account.openingDate, 1) : today()); }}>
-          {accounts.data?.filter(a => !a.archived && ['CHECKING', 'SAVINGS', 'WALLET', 'OTHER'].includes(a.kind)).map(account => <MenuItem key={account.id} value={account.id}>{account.name}</MenuItem>)}</TextField>}/>
+      {config.items.length > 1 && <TextField select label="Conexão autorizada" value={item} onChange={event => {
+        setItem(event.target.value); setSource(''); clearConfirmation();
+      }}>{config.items.map((id, index) => <MenuItem key={id} value={id}>Conexão {index + 1} · {id.slice(-6)}</MenuItem>)}</TextField>}
+      {remote.isPending || accounts.isPending ? <Loading/> : remote.error ? <Failure error={remote.error} retry={() => void remote.refetch()}/> :
+        accounts.error ? <Failure error={accounts.error} retry={() => void accounts.refetch()}/> :
+        bankChoices.length === 0 ? <Alert severity="info">Nenhuma conta disponível para novo vínculo. Confira as contas já vinculadas ou a autorização no Meu Pluggy.</Alert> : <>
+        {bankChoices.length === 1 ? <Typography fontWeight={600}>{bankChoices[0].name}</Typography> :
+          <TextField select required label="Conta disponível no Meu Pluggy" value={externalAccountId} onChange={event => {
+            setSource(event.target.value); clearConfirmation();
+          }}>{bankChoices.map(account => <MenuItem key={account.id} value={account.id}>{account.name} · {account.id.slice(-6)}</MenuItem>)}</TextField>}
+        {localChoices.length === 0 ? <Typography variant="body2">Uma nova conta será criada com o nome e o saldo informados pelo banco.</Typography> :
+          <TextField select required label="Conta no Java Finance" value={accountId} onChange={event => {
+            const id = event.target.value;
+            setDestination(id);
+            const selected = localChoices.find(a => a.id === id);
+            const afterOpening = selected ? shift(selected.openingDate, 1) : today();
+            form.setValue('importFrom', afterOpening > today() ? afterOpening : today());
+            clearConfirmation();
+          }}>
+            <MenuItem value="new">Criar nova conta com os dados do banco</MenuItem>
+            {localChoices.map(account => <MenuItem key={account.id} value={account.id}>Usar {account.name}</MenuItem>)}
+          </TextField>}
+        <TextField type="date" label="Data inicial dos registros" required {...form.register('importFrom', {
+          required: true, onChange: clearConfirmation,
+        })} slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: minDate, max: shift(today(), 1) } }}/>
+        <Controller name="confirmedBaseline" control={form.control} rules={{ validate: value => value || 'Confirme a data inicial.' }}
+          render={({ field, fieldState }) => <Box>
+            <FormControlLabel control={<Checkbox checked={field.value} onChange={event => field.onChange(event.target.checked)}/>}
+              label={accountId === 'new' ? 'Conferi a conta e a data inicial da leitura.' : 'Conferi a data e os lançamentos existentes para evitar duplicidade.'}/>
+            {fieldState.error && <Typography color="error">{fieldState.error.message}</Typography>}
+          </Box>}/>
+        <Typography color="text.secondary" variant="body2">A conta exibirá o saldo do banco. A categorização automática pode processar descrições na nuvem, sem valores ou documentos. Gerencie sua preferência em Configurações.</Typography>
       </>}
-      <Button component={RouterLink} to="/accounts">Consultar ou cadastrar conta local</Button>
-      <Alert severity="info">Ao vincular, criamos categorias padrão e consultamos os registros automaticamente. Descrições são organizadas pela IA na nuvem, sem valores nem documentos. Gerencie em Configurações; uma desativação salva é respeitada. Naturezas financeiras exigem confirmação.</Alert>
-      <TextField type="date" label="Data inicial dos registros" required {...form.register('importFrom', { required: true })} slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: shift(today(), 1) } }}/>
-      <Controller name="confirmedBaseline" control={form.control} rules={{ validate: value => value || 'Confira a data e os registros existentes antes de continuar.' }} render={({ field, fieldState }) => <Box><FormControlLabel control={<Checkbox checked={field.value} onChange={event => field.onChange(event.target.checked)}/>} label="Conferi a data e os registros existentes para evitar duplicidade nos relatórios."/>{fieldState.error && <Typography color="error">{fieldState.error.message}</Typography>}</Box>}/>
     </Stack></form>
   </FormDialog>;
 }

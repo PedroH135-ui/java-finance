@@ -1,5 +1,6 @@
 package br.com.javafinance.banking;
 
+import br.com.javafinance.accounts.AccountService;
 import br.com.javafinance.common.*;
 import br.com.javafinance.movements.*;
 import jakarta.validation.constraints.*;
@@ -19,6 +20,7 @@ import org.slf4j.LoggerFactory;
 public class BankService {
     public record Config(boolean ready, UUID userId, List<UUID> items, String provider, boolean automaticRead) {}
     public record Bind(@NotNull UUID itemId, @NotNull UUID externalAccountId, @NotNull UUID accountId, @NotNull LocalDate importFrom, boolean confirmedBaseline) {}
+    public record BindNew(@NotNull UUID itemId, @NotNull UUID externalAccountId, @NotNull LocalDate importFrom, boolean confirmedBaseline) {}
     public record Sync(@NotNull LocalDate from, @NotNull LocalDate to) {}
     public record Review(long version, UUID categoryId, UUID movementId, boolean confirmedNature, boolean reviewedDuplicates) {}
     public record Visibility(@PositiveOrZero long version,@NotNull Boolean hidden,@Size(max=300) String reason) {}
@@ -30,6 +32,7 @@ public class BankService {
                         String direction, String providerStatus, String state, UUID movementId, long version, List<Candidate> candidates) {}
     private final BankProperties config; private final BankProvider provider; private final JdbcTemplate jdbc;
     private final MovementService movements; private final AuditService audit; private final Clock clock; private final TransactionTemplate tx;
+    private final AccountService accounts;
     private org.springframework.context.ApplicationEventPublisher events;
     private br.com.javafinance.categories.CategoryService categories;
     private CloudCategoryJobs categoryJobs;
@@ -44,8 +47,8 @@ public class BankService {
     public record ReadCompleted(UUID owner) {}
     @org.springframework.beans.factory.annotation.Autowired
     public void events(org.springframework.context.ApplicationEventPublisher events){this.events=events;}
-    public BankService(BankProperties config, BankProvider provider, JdbcTemplate jdbc, MovementService movements, AuditService audit, Clock clock, PlatformTransactionManager manager) {
-        this.config=config; this.provider=provider; this.jdbc=jdbc; this.movements=movements; this.audit=audit; this.clock=clock; tx=new TransactionTemplate(manager);
+    public BankService(BankProperties config, BankProvider provider, JdbcTemplate jdbc, MovementService movements, AuditService audit, Clock clock, PlatformTransactionManager manager, AccountService accounts) {
+        this.config=config; this.provider=provider; this.jdbc=jdbc; this.movements=movements; this.audit=audit; this.clock=clock; tx=new TransactionTemplate(manager); this.accounts=accounts;
     }
     public Config config(UUID owner) {
         boolean allowed=owner.equals(config.getOwnerId());
@@ -68,32 +71,49 @@ public class BankService {
             rs.getObject("auto_checked_through",LocalDate.class),instant(rs.getTimestamp("auto_error_at"))),owner);
     }
     public void bind(UUID owner, Bind input) {
-        if(!input.confirmedBaseline()) throw ApiException.bad("Confirme a data inicial e revise os registros existentes antes de vincular a conta.");
-        var snapshot=discover(owner,input.itemId());
-        var external=snapshot.accounts().stream().filter(a->a.id().equals(input.externalAccountId()) && a.type().equals("BANK") && a.currency().equals("BRL")).findFirst().orElseThrow(ApiException::missing);
+        bind(owner,input.itemId(),input.externalAccountId(),Objects.requireNonNull(input.accountId()),input.importFrom(),input.confirmedBaseline());
+    }
+    public void bindNew(UUID owner, BindNew input) {
+        bind(owner,input.itemId(),input.externalAccountId(),null,input.importFrom(),input.confirmedBaseline());
+    }
+    private void bind(UUID owner,UUID itemId,UUID externalId,UUID existingAccount,LocalDate from,boolean confirmed) {
+        if(!confirmed) throw ApiException.bad("Confirme a data inicial e revise os registros existentes antes de vincular a conta.");
+        LocalDate today=LocalDate.now(clock);
+        if(from.isBefore(LocalDate.of(1900,1,2)) || from.isAfter(today.plusDays(1)))
+            throw ApiException.bad("Escolha uma data inicial válida, no máximo amanhã.");
+        var snapshot=discover(owner,itemId);
+        var external=snapshot.accounts().stream().filter(a->a.id().equals(externalId) && a.type().equals("BANK") && a.currency().equals("BRL")).findFirst().orElseThrow(ApiException::missing);
         UUID linked=tx.execute(status->{
             // Lock order: personal owner -> link -> account. Reconnection never resets review history.
             jdbc.queryForObject("SELECT id FROM app_user WHERE id=? FOR UPDATE",UUID.class,owner);
+            if(Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM bank_link WHERE owner_id=? AND (external_account_id=? OR account_id=?))",Boolean.class,owner,externalId,existingAccount)))
+                throw ApiException.conflict("Essa conta já tem um vínculo. Confira suas conexões bancárias.");
             categories.addDefaults(owner);
             categoryJobs.prepareForLink(owner);
-            var account=jdbc.queryForList("SELECT * FROM account WHERE owner_id=? AND id=? FOR UPDATE",owner,input.accountId());
-            if(account.isEmpty()) throw ApiException.missing();
-            var local=account.getFirst();
-            if(Boolean.TRUE.equals(local.get("archived")) || !"BRL".equals(local.get("currency")) || !Set.of("CHECKING","SAVINGS","WALLET","OTHER").contains(local.get("kind")))
-                throw ApiException.bad("Escolha uma conta bancária ativa em BRL.");
-            LocalDate opening=((java.sql.Date)local.get("opening_date")).toLocalDate();
-            if(!input.importFrom().isAfter(opening) || input.importFrom().isAfter(LocalDate.now(clock).plusDays(1)))
-                throw ApiException.bad("A data inicial deve ser posterior ao saldo inicial e no máximo amanhã. Confira a data e o saldo de abertura da conta.");
+            UUID accountId=existingAccount==null
+                ? accounts.createForBankLink(owner,external.name(),from.minusDays(1))
+                : validateAccountForLink(owner,existingAccount,from);
             UUID id=UUID.randomUUID();
             jdbc.update("INSERT INTO bank_link(id,owner_id,item_id,external_account_id,account_id,name,import_from,provider_updated_at,reported_balance) VALUES (?,?,?,?,?,?,?,?,?)",
-                id,owner,input.itemId(),external.id(),input.accountId(),external.name(),input.importFrom(),timestamp(snapshot.updatedAt()),external.balance());
-            audit.record(owner,id,"BANK_LINKED","Conta vinculada para leitura; saldo principal informado pelo banco. Nenhum registro classificado automaticamente.");
+                id,owner,itemId,external.id(),accountId,external.name(),from,timestamp(snapshot.updatedAt()),external.balance());
+            audit.record(owner,id,"BANK_LINKED","Conta vinculada para leitura; saldo principal informado pelo banco.");
             return id;
         });
         // First read is automatic, after commit. A provider outage never loses an already created link.
-        LocalDate firstTo=input.importFrom().plusDays(92).isBefore(LocalDate.now(clock))?input.importFrom().plusDays(92):LocalDate.now(clock);
-        try{if(!input.importFrom().isAfter(firstTo))sync(owner,linked,new Sync(input.importFrom(),firstTo));}
+        LocalDate firstTo=from.plusDays(92).isBefore(today)?from.plusDays(92):today;
+        try{if(!from.isAfter(firstTo))sync(owner,linked,new Sync(from,firstTo));}
         catch(RuntimeException ex){LoggerFactory.getLogger(BankService.class).warn("initial_bank_read_deferred code=RETRY_DAILY");}
+    }
+    private UUID validateAccountForLink(UUID owner,UUID accountId,LocalDate from) {
+        var account=jdbc.queryForList("SELECT * FROM account WHERE owner_id=? AND id=? FOR UPDATE",owner,accountId);
+        if(account.isEmpty()) throw ApiException.missing();
+        var local=account.getFirst();
+        if(Boolean.TRUE.equals(local.get("archived")) || !"BRL".equals(local.get("currency")) || !Set.of("CHECKING","SAVINGS","WALLET","OTHER").contains(local.get("kind")))
+            throw ApiException.bad("Escolha uma conta bancária ativa em BRL.");
+        LocalDate opening=((java.sql.Date)local.get("opening_date")).toLocalDate();
+        if(!from.isAfter(opening))
+            throw ApiException.bad("A data inicial deve ser posterior à data de abertura da conta no Java Finance.");
+        return accountId;
     }
     public int sync(UUID owner, UUID id, Sync input) {
         long started = System.nanoTime();
