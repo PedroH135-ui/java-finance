@@ -87,7 +87,8 @@ export function Banking() {
       </>}
     </>}
     <BankProducts links={ready?links.data??[]:[]}/>
-    {bindingRequested && ready && config.data && links.data && <LinkForm config={config.data} links={links.data} onClose={closeBinding} onUpdated={refresh}/>}
+    {bindingRequested && ready && config.data && links.data && <LinkForm config={config.data} links={links.data} onClose={closeBinding}
+      onRefreshConfig={async () => { await config.refetch(); }} onUpdated={refresh}/>}
     {review && <ReviewForm entry={review.entry} action={review.action} onClose={() => setReview(null)} onUpdated={refresh}/>}
   </>;
 }
@@ -120,8 +121,9 @@ function LinkCard({ link, automaticRead, onUpdated }: { link: BankLink; automati
   </Panel>;
 }
 
-function LinkForm({ config, links, onClose, onUpdated }: {
-  config: Config; links: BankLink[]; onClose: () => void; onUpdated: () => Promise<void>;
+function LinkForm({ config, links, onClose, onRefreshConfig, onUpdated }: {
+  config: Config; links: BankLink[]; onClose: () => void;
+  onRefreshConfig: () => Promise<void>; onUpdated: () => Promise<void>;
 }) {
   const [item, setItem] = useState(config.items[0] ?? ''), [error, setError] = useState('');
   const [source, setSource] = useState(''), [destination, setDestination] = useState('');
@@ -169,7 +171,19 @@ function LinkForm({ config, links, onClose, onUpdated }: {
       }}>{config.items.map((id, index) => <MenuItem key={id} value={id}>Conexão {index + 1} · {id.slice(-6)}</MenuItem>)}</TextField>}
       {remote.isPending || accounts.isPending ? <Loading/> : remote.error ? <Failure error={remote.error} retry={() => void remote.refetch()}/> :
         accounts.error ? <Failure error={accounts.error} retry={() => void accounts.refetch()}/> :
-        bankChoices.length === 0 ? <Alert severity="info">Nenhuma conta disponível para novo vínculo. Confira as contas já vinculadas ou a autorização no Meu Pluggy.</Alert> : <>
+        bankChoices.length === 0 ? <Stack spacing={1.5}>
+          <Alert severity="info">Não há outra conta disponível nesta conexão. Contas já vinculadas aparecem em Conexões bancárias.</Alert>
+          <Typography variant="body2">Autorize a nova conta no Meu Pluggy e atualize a lista. Se ela ainda não aparecer, a conexão pode precisar ser liberada para seu perfil.</Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button component="a" href="https://meu.pluggy.ai/" target="_blank" rel="noopener noreferrer" variant="outlined">
+              Abrir Meu Pluggy
+            </Button>
+            <Button type="button" startIcon={<Refresh/>} disabled={remote.isFetching}
+              onClick={() => void Promise.all([remote.refetch(), onRefreshConfig()])}>
+              {remote.isFetching ? 'Atualizando…' : 'Atualizar lista'}
+            </Button>
+          </Stack>
+        </Stack> : <>
         {bankChoices.length === 1 ? <Typography fontWeight={600}>{bankChoices[0].name}</Typography> :
           <TextField select required label="Conta disponível no Meu Pluggy" value={externalAccountId} onChange={event => {
             setSource(event.target.value); clearConfirmation();
