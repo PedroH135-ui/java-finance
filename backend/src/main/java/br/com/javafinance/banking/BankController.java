@@ -15,6 +15,8 @@ public class BankController {
     @GetMapping("/links") List<BankService.Link> links(@AuthenticationPrincipal UserPrincipal p) { return service.links(p.id()); }
     @PostMapping("/links") @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
     void bind(@AuthenticationPrincipal UserPrincipal p,@Valid @RequestBody BankService.Bind input) { service.bind(p.id(),input); }
+    @PostMapping("/links/new-account") @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
+    void bindNew(@AuthenticationPrincipal UserPrincipal p,@Valid @RequestBody BankService.BindNew input) { service.bindNew(p.id(),input); }
     @PostMapping("/links/{id}/sync") Map<String,Integer> sync(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id,@Valid @RequestBody BankService.Sync input) { return Map.of("read",service.sync(p.id(),id,input)); }
     @GetMapping("/links/{id}/entries") List<BankService.Entry> entries(@AuthenticationPrincipal UserPrincipal p,@PathVariable UUID id,@RequestParam(defaultValue="0") int page,
         @RequestParam(defaultValue="false") boolean pending) { return service.entries(p.id(),id,page,pending); }

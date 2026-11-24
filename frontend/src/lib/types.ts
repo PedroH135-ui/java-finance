@@ -1,7 +1,7 @@
 export interface Profile { id: string; email: string; name: string }
 export interface BankConfig { ready: boolean; userId: string; items: string[]; provider: string; automaticRead?: boolean }
 export interface BankLink {
-  id: string; itemId: string; name: string; accountId: string; importFrom: string; active: boolean;
+  id: string; itemId: string; name: string; accountId: string; externalAccountId?: string; importFrom: string; active: boolean;
   lastCheckedAt: string | null; providerUpdatedAt: string | null; reportedBalance: string | null;
   autoCheckedThrough?: string | null; autoErrorAt?: string | null;
 }
