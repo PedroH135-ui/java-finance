@@ -22,7 +22,7 @@ public class SalaryService {
     public List<Rule> list(UUID owner){return jdbc.query("""
         SELECT r.id,r.link_id,a.name,r.description,r.active,NOT c.archived,r.version,
           EXISTS(SELECT 1 FROM category_correction x WHERE x.owner_id=r.owner_id AND x.direction='CREDIT' AND x.category_id<>r.category_id
-            AND x.description_key=lower(regexp_replace(btrim(r.description),'\\s+',' ','g'))) blocked FROM salary_rule r
+            AND x.description_key=r.description_key) blocked FROM salary_rule r
         JOIN bank_link l ON l.id=r.link_id AND l.owner_id=r.owner_id JOIN account a ON a.id=l.account_id AND a.owner_id=r.owner_id
         JOIN category c ON c.id=r.category_id AND c.owner_id=r.owner_id WHERE r.owner_id=? ORDER BY r.created_at,r.id
         """,(rs,n)->new Rule(rs.getObject(1,UUID.class),rs.getObject(2,UUID.class),rs.getString(3),rs.getString(4),rs.getBoolean(5),rs.getBoolean(6),rs.getLong(7),rs.getBoolean(8)),owner);}

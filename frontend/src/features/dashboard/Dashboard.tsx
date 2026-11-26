@@ -8,6 +8,7 @@ import type { Summary } from '../../lib/types';
 import { civilDate, money, monthLabel, today } from '../../lib/format';
 import { Empty, Failure, Loading, PageHeader, Panel } from '../../components/Shared';
 import { BankOverview } from '../banking/BankOverview';
+import { DailyOverview } from './DailyOverview';
 export function Dashboard() {
   const [params,setParams]=useSearchParams(),month=params.get('month')??today().slice(0,7);
   // Reads stored balances only; never triggers bank synchronization or classification.
@@ -25,6 +26,7 @@ export function Dashboard() {
   const chart=d.evolution.map(m=>({month:monthLabel(m.month),Entradas:m.records?Number(m.income):null,Saídas:m.records?Number(m.expenses):null}));
   return <>
     <PageHeader title="Seu mês, com clareza" subtitle="Uma visão do presente para decidir os próximos passos." action={<Button component={Link} to="/movements?new=1" variant="contained" startIcon={<Add/>}>Nova movimentação</Button>}/>
+    <DailyOverview day={d.today}/>
     <Stack direction={{xs:'column',sm:'row'}} justifyContent="space-between" alignItems={{sm:'center'}} gap={2} mb={3}>
       <Box><Typography variant="overline" color="primary">VISÃO GERAL</Typography><Typography variant="body2" color="text.secondary">BRL · Saldos das contas e registros recebidos</Typography></Box>
       <TextField label="Mês de competência" type="month" value={month} onChange={e=>{if(e.target.value)setParams({month:e.target.value});}} slotProps={{inputLabel:{shrink:true}}} sx={{width:{xs:'100%',sm:220}}}/>
@@ -75,7 +77,7 @@ export function Dashboard() {
         <Typography variant="body2" color="text.secondary" mt={1}>{d.competence.savingsRate===null?'É preciso ter receita positiva no período para calcular a taxa.':'Resultado dividido pelas receitas elegíveis do mês. Pode ser negativo.'}</Typography>
         <Divider sx={{my:2}}/><Typography variant="body2" fontWeight={600}>Fluxo de caixa do mês: {money(d.cashFlow)}</Typography>
         <Typography variant="body2" color="text.secondary" mt={1}>Entradas e saídas efetivadas, inclusive aplicações e faturas. Não representa consumo nem dinheiro livre para gastar.</Typography>
-        <Typography variant="caption" color="text.secondary" sx={{display:'block',mt:2}}>O saldo não representa seu patrimônio líquido. Cartões, investimentos e dívidas ainda não fazem parte desta etapa.</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{display:'block',mt:2}}>O saldo não representa seu patrimônio líquido. Consulte as posições de investimento separadamente.</Typography>
       </Panel>
     </Box>
   </>;

@@ -105,7 +105,7 @@ public class BankAssistanceService {
         var suggestion=forAutomatic?advisor.suggest(owner,kind,request,remembered):advisor.suggest(owner,kind,request);
         return new Assistance(version(e),current,true,"",suggestion,candidates,transfer,categoryState);
     }
-    private Map<UUID,Map<String,Object>> lockEntries(UUID owner,List<UUID> ids) {
+    Map<UUID,Map<String,Object>> lockEntries(UUID owner,List<UUID> ids) {
         var initial=ids.stream().distinct().map(id->entry(owner,id)).toList();
         initial.stream().map(e->(UUID)e.get("link_id")).distinct().sorted().forEach(link->
             jdbc.queryForObject("SELECT id FROM bank_link WHERE id=? AND owner_id=? FOR UPDATE",UUID.class,link,owner));

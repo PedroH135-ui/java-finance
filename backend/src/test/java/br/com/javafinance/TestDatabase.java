@@ -10,10 +10,8 @@ final class TestDatabase {
         // Multiple cached Spring test contexts share one disposable server; keep their pools bounded.
         registry.add("spring.datasource.hikari.maximum-pool-size",()->4);
         registry.add("spring.datasource.hikari.minimum-idle",()->0);
-        String local = System.getProperty("finance.test.url");
+        String local = localUrl();
         if (local != null) {
-            if (!local.equals("jdbc:postgresql://127.0.0.1:55433/java_finance_verify"))
-                throw new IllegalArgumentException("The fallback permits only the dedicated local verification database.");
             registry.add("spring.datasource.url", () -> local);
             registry.add("spring.datasource.username", () -> "postgres");
             registry.add("spring.datasource.password", () -> "");
@@ -23,6 +21,13 @@ final class TestDatabase {
             registry.add("spring.datasource.username", database::getUsername);
             registry.add("spring.datasource.password", database::getPassword);
         }
+    }
+    static String localUrl() {
+        String url=System.getProperty("finance.test.url");
+        if(url!=null && !java.util.Set.of("jdbc:postgresql://127.0.0.1:55433/java_finance_verify",
+                "jdbc:postgresql://127.0.0.1:55439/java_finance_verify").contains(url))
+            throw new IllegalArgumentException("Use the dedicated loopback verification database.");
+        return url;
     }
     private static class DockerDatabase {
         static final PostgreSQLContainer<?> INSTANCE = start();

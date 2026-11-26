@@ -15,6 +15,7 @@ import { MovementForm } from './MovementForm';
 import { MovementDetail } from './MovementDetail';
 import { BankRecordDetail } from './BankRecordDetail';
 import { CategoryAutomationSync } from './CategoryAutomationNotice';
+import { CategoryGroups } from './CategoryGroups';
 export function Movements() {
   const [params,setParams]=useSearchParams();
   const hidden=params.get('hidden')==='true';
@@ -64,6 +65,7 @@ function MovementRecords() {
       </Box>
       {active.length>0&&<Stack direction="row" alignItems="center" spacing={1} mt={2} flexWrap="wrap"><Typography variant="body2">{active.length} filtro(s) ativo(s)</Typography><Button startIcon={<FilterAltOff/>} onClick={()=>setParams({month})}>Limpar filtros</Button></Stack>}
     </Paper>
+    {params.get('category')==='uncategorized'&&query.data&&categories.data&&<CategoryGroups key={queryParams.toString()} records={query.data.items} categories={categories.data}/>}
     {query.isPending?<Loading/>:query.error?<Failure error={query.error} retry={()=>void query.refetch()}/>:<Paper variant="outlined">
       {query.data.items.length===0?<Empty title="Nenhuma movimentação neste período">Ajuste os filtros. Registros bancários recebidos aparecem aqui automaticamente. Na aba Ocultas você pode restaurar o que retirou.</Empty>:<>
         <TableContainer sx={{display:{xs:'none',md:'block'}}}><Table aria-label="Movimentações"><TableHead><TableRow><TableCell>Descrição / conta</TableCell><TableCell>Operação</TableCell><TableCell>Natureza</TableCell><TableCell>Situação</TableCell><TableCell align="right">Valor</TableCell><TableCell>Detalhes</TableCell></TableRow></TableHead>

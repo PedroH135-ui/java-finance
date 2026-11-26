@@ -5,6 +5,7 @@ import { api,json } from '../../lib/api';
 import { money } from '../../lib/format';
 import { Failure,Loading,PageHeader } from '../../components/Shared';
 import { PlanningFinances,type Assessment,type PlanningContext } from './PlanningFinances';
+import {GoalPosition} from './GoalPosition';
 interface State {target:string|null;saved:string|null;months:number|null;title:string}
 interface Reply {message:string;state:State;monthly:string|null;available:string|null;ready:boolean;method:string;finances:PlanningContext;assessment:Assessment|null}
 interface Goal {id:string;title:string;target:string;saved:string;months:number;monthly:string;version:number}
@@ -28,6 +29,6 @@ export function Goals(){
    <Typography variant="caption">A sobra registrada pode incluir dados incompletos e naturezas ainda não confirmadas. O plano não é uma promessa de rentabilidade nem reserva bancária. A conversa fica nesta tela; apenas metas confirmadas são salvas.</Typography>
   </Stack></Paper>
   <Typography variant="h6" mb={2}>Minhas metas</Typography>
-  {goals.isPending?<Loading/>:goals.error?<Failure error={goals.error}/>:<Stack spacing={2}>{goals.data.length===0?<Typography>Nenhuma meta salva.</Typography>:goals.data.map(g=><Paper key={g.id} variant="outlined" sx={{p:2}}><Stack spacing={1.5}><Typography variant="h6">{g.title}</Typography><Typography>Objetivo: {money(g.target)} · Progresso informado: {money(g.saved)}</Typography><Typography>Plano: {money(g.monthly)} por mês, em {g.months} meses de planejamento.</Typography><TextField label={'Valor já reservado para '+g.title} value={progress[g.id]??g.saved} onChange={e=>setProgress({...progress,[g.id]:e.target.value})}/><Button disabled={busy} onClick={()=>void update(g)}>Salvar progresso informado</Button></Stack></Paper>)}</Stack>}
+  {goals.isPending?<Loading/>:goals.error?<Failure error={goals.error}/>:<Stack spacing={2}>{goals.data.length===0?<Typography>Nenhuma meta salva.</Typography>:goals.data.map(g=><Paper key={g.id} variant="outlined" sx={{p:2}}><Stack spacing={1.5}><Typography variant="h6">{g.title}</Typography><GoalPosition id={g.id}/><Typography>Objetivo: {money(g.target)} · Progresso informado: {money(g.saved)}</Typography><Typography>Plano: {money(g.monthly)} por mês, em {g.months} meses de planejamento.</Typography><TextField label={'Valor já reservado para '+g.title} value={progress[g.id]??g.saved} onChange={e=>setProgress({...progress,[g.id]:e.target.value})}/><Button disabled={busy} onClick={()=>void update(g)}>Salvar progresso informado</Button></Stack></Paper>)}</Stack>}
  </>;
 }

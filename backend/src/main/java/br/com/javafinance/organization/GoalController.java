@@ -1,6 +1,7 @@
 package br.com.javafinance.organization;
 import br.com.javafinance.users.UserPrincipal;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
 import java.util.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +11,10 @@ public class GoalController {
     private final PlanningFinanceService finances;
     public GoalController(GoalService service,PlanningFinanceService finances){this.service=service;this.finances=finances;}
     @GetMapping List<GoalService.Goal> list(@AuthenticationPrincipal UserPrincipal p){return service.list(p.id());}
+    public record Purchase(@NotNull UUID categoryId,@NotBlank @Size(max=19) String amount) {}
+    @PostMapping("/simulate") PlanningFinanceService.Simulation simulate(@AuthenticationPrincipal UserPrincipal p,@Valid @RequestBody Purchase input) {
+        return finances.simulate(p.id(),input.categoryId(),input.amount());
+    }
     @GetMapping("/finances") PlanningFinanceService.Context finances(@AuthenticationPrincipal UserPrincipal p){return finances.context(p.id());}
     @PutMapping("/finances") void finances(@AuthenticationPrincipal UserPrincipal p,@Valid @RequestBody PlanningFinanceService.Input input){finances.save(p.id(),input);}
     @PostMapping void save(@AuthenticationPrincipal UserPrincipal p,@Valid @RequestBody GoalService.Save input){service.save(p.id(),input);}

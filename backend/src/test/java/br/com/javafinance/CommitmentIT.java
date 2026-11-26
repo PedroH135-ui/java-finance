@@ -121,6 +121,69 @@ class CommitmentIT {
         assertThat(budgets.month(owner, YearMonth.from(today)).totals()).isEqualTo(budget);
     }
 
+    @Test void overdueAndMonthlyOccurrencesUseTheirOwnDates() {
+        var owner=createUser();
+        var today=LocalDate.now(clock);
+        var account=bind(owner,UUID.randomUUID(),today);
+        var first=today.withDayOfMonth(1).minusMonths(1);
+        jdbc.update("""
+            INSERT INTO budget_commitment(id,owner_id,account_id,description,statement_description,due_date,amount,monthly)
+            VALUES(?,?,?,'Mensal','mensal',?,20,true)
+            """,UUID.randomUUID(),owner,account,first);
+        var items=commitments.upcoming(owner).items();
+        assertThat(items).extracting(CommitmentService.Row::dueDate).contains(first,first.plusMonths(1));
+        assertThat(items).allMatch(r->r.monthly() && r.status()==CommitmentService.Status.EXPECTED);
+        assertThat(commitments.suggestions(owner)).isEmpty();
+    }
+
+    @Test void purchaseAndGoalPositionAreOwnerScopedAndPreserveBalances() throws Exception {
+        var owner=createUser();
+        var other=createUser();
+        var principal=user(new UserPrincipal(owner,"",0));
+        var position=UUID.randomUUID();
+        var goal=UUID.randomUUID();
+        jdbc.update("INSERT INTO savings_goal(id,owner_id,title,target,saved,months) VALUES(?,?,'Viagem',3000,0,6)",goal,owner);
+        jdbc.update("""
+            INSERT INTO bank_investment(id,owner_id,item_id,external_id,name,type,subtype,balance,status,checked_at)
+            VALUES(?,?,?,?,'Reserva','FIXED_INCOME','RDB',600,'ACTIVE',now())
+            """,position,owner,UUID.randomUUID(),UUID.randomUUID());
+        var path="/api/goals/positions/"+position;
+        String body=mapper.writeValueAsString(java.util.Map.of("goalId",goal));
+        mvc.perform(put(path).with(principal).with(csrf()).contentType("application/json").content(body)).andExpect(status().isOk());
+        mvc.perform(get("/api/goals/positions").with(principal)).andExpect(jsonPath("$[0].missing").value("2400.00"));
+        mvc.perform(get("/api/goals/positions").with(user(new UserPrincipal(other,"",0)))).andExpect(jsonPath("$").isEmpty());
+        UUID category=jdbc.queryForObject("SELECT id FROM category WHERE owner_id=? AND kind='EXPENSE' LIMIT 1",UUID.class,owner);
+        jdbc.update("INSERT INTO planning_income_profile(owner_id,net_salary,monthly_expenses) VALUES(?,3000,1880)",owner);
+        mvc.perform(post("/api/goals/simulate").with(principal).with(csrf()).contentType("application/json")
+            .content(mapper.writeValueAsString(java.util.Map.of("categoryId",category,"amount","150"))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.afterGoals").value("470.00"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM posting WHERE owner_id=?",Long.class,owner)).isZero();
+    }
+
+    @Test void groupedReviewIsAtomicAndLeavesPostingsAlone() throws Exception {
+        var owner=createUser();
+        var today=LocalDate.now(clock);
+        var external=UUID.randomUUID();
+        bind(owner,external,today);
+        var amount=new BigDecimal("12.30");
+        sync(owner,external,today,new BankProvider.RemoteEntry("one","Mercado fictício",amount,today,"DEBIT","POSTED"),
+            new BankProvider.RemoteEntry("two","Mercado fictício",amount,today.minusDays(1),"DEBIT","POSTED"));
+        var ids=jdbc.queryForList("SELECT id FROM bank_entry WHERE owner_id=? ORDER BY id",UUID.class,owner);
+        var rows=jdbc.queryForList("SELECT id,version FROM bank_entry WHERE owner_id=? ORDER BY id",owner);
+        var category=jdbc.queryForObject("SELECT id FROM category WHERE owner_id=? AND kind='EXPENSE' LIMIT 1",UUID.class,owner);
+        var postings=jdbc.queryForObject("SELECT count(*) FROM posting WHERE owner_id=?",Long.class,owner);
+        var path="/api/banking/category-groups";
+        var principal=user(new UserPrincipal(owner,"",0));
+        var valid=mapper.writeValueAsString(java.util.Map.of("categoryId",category,"entries",rows));
+        String stale=mapper.writeValueAsString(java.util.Map.of("categoryId",category,"entries",List.of(rows.getFirst(),
+            java.util.Map.of("id",ids.getLast(),"version",9999))));
+        mvc.perform(post(path).with(principal).with(csrf()).contentType("application/json").content(stale)).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE owner_id=? AND category_source='MANUAL'",Long.class,owner)).isZero();
+        mvc.perform(post(path).with(principal).with(csrf()).contentType("application/json").content(valid)).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM bank_entry WHERE owner_id=? AND category_source='MANUAL' AND category_id=?",Long.class,owner,category)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM posting WHERE owner_id=?",Long.class,owner)).isEqualTo(postings);
+    }
+
     @Test void overlappingPredictionsAndRepeatedChargesStayInReviewAndHiddenEntriesNeverMatch() {
         var owner = createUser();
         var external = UUID.randomUUID();

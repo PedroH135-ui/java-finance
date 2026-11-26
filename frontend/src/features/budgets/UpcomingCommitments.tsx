@@ -9,6 +9,7 @@ import { civilDate, money } from '../../lib/format';
 interface Commitment {
   id: string;
   description: string;
+  monthly: boolean;
   accountName: string;
   dueDate: string;
   amount: string;
@@ -16,7 +17,7 @@ interface Commitment {
   entryId: string | null;
   bankDate: string | null;
 }
-interface Upcoming {
+export interface Upcoming {
   from: string;
   through: string;
   accounts: { id: string; name: string }[];
@@ -24,6 +25,7 @@ interface Upcoming {
   pendingTotal: string;
   reviewTotal: string;
 }
+interface Suggestion {accountId:string; description:string; amount:string; nextDate:string}
 const endpoint = '/budgets/commitments';
 const labels = { EXPECTED: 'Previsto', IDENTIFIED: 'Identificado no extrato', REVIEW: 'Conferir no extrato' };
 
@@ -34,6 +36,8 @@ export function UpcomingCommitments() {
     queryFn: ({ signal }) => api<Upcoming>(endpoint, { signal }),
     refetchInterval: 60_000,
   });
+  const suggestions=useQuery({queryKey:['upcomingCommitments','suggestions'],queryFn:()=>api<Suggestion[]>(endpoint+'/suggestions')});
+  const [seed,setSeed]=useState<Suggestion>();
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<Commitment | null>(null);
   const [busy, setBusy] = useState(false);
@@ -64,20 +68,25 @@ export function UpcomingCommitments() {
             {data ? `Próximos 30 dias · ${civilDate(data.from)} a ${civilDate(data.through)}` : 'Próximos 30 dias'}
           </Typography>
         </div>
-        <Button variant="outlined" disabled={!data?.accounts.length} onClick={() => setAdding(true)}>Adicionar compromisso</Button>
+        <Button variant="outlined" disabled={!data?.accounts.length} onClick={() => {setSeed(undefined);setAdding(true);}}>Adicionar compromisso</Button>
       </Stack>
+      {suggestions.error && <Failure error={suggestions.error} retry={()=>void suggestions.refetch()}/>}
+      {suggestions.data?.map(item=><div key={item.accountId+item.description+item.amount}>
+        <Typography>{item.description} · {money(item.amount)} · cobrança observada em três meses seguidos</Typography>
+        <Button onClick={()=>{setSeed(item);setAdding(true);}}>Acompanhar todo mês</Button>
+      </div>)}
       {query.isPending ? <Loading/> : query.error ? <Failure error={query.error} retry={() => void query.refetch()}/> : data && <>
-        <Typography fontWeight={600}>Ainda previsto {money(data.pendingTotal)}</Typography>
+        <Typography fontWeight={600}>A pagar, incluindo vencidos {money(data.pendingTotal)}</Typography>
         {data.items.some(item => item.status === 'REVIEW') &&
           <Alert severity="warning">{money(data.reviewTotal)} para conferir no extrato. Valores ambíguos ficam fora do total previsto.</Alert>}
         {!data.accounts.length &&
           <Typography variant="body2">Vincule uma conta em <Link to="/banking">Conexões bancárias</Link> para cadastrar compromissos.</Typography>}
         {data.items.length === 0 && <Typography variant="body2" color="text.secondary">Nenhum compromisso neste período.</Typography>}
-        {data.items.map(item => <Stack key={item.id} direction={{ xs: 'column', sm: 'row' }} gap={1} alignItems={{ sm: 'center' }}
+        {data.items.map(item => <Stack key={item.id+item.dueDate} direction={{ xs: 'column', sm: 'row' }} gap={1} alignItems={{ sm: 'center' }}
           justifyContent="space-between" sx={{ borderTop: 1, borderColor: 'divider', pt: 1.5 }}>
           <div>
             <Typography fontWeight={600} sx={{ overflowWrap: 'anywhere' }}>{item.description} · {money(item.amount)}</Typography>
-            <Typography variant="body2" color="text.secondary">{item.accountName} · vencimento em {civilDate(item.dueDate)}</Typography>
+            <Typography variant="body2" color="text.secondary">{item.monthly?'Mensal · ':''}{item.dueDate<data.from?'Vencido · ':''}{item.accountName} · vencimento em {civilDate(item.dueDate)}</Typography>
           </div>
           <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
             <Chip size="small" color={item.status === 'IDENTIFIED' ? 'success' : item.status === 'REVIEW' ? 'warning' : 'default'} label={labels[item.status]}/>
@@ -90,22 +99,23 @@ export function UpcomingCommitments() {
         </Stack>)}
       </>}
     </Stack>
-    {adding && data && <CommitmentForm data={data} onClose={() => setAdding(false)}/>}
+    {adding && data && <CommitmentForm seed={seed} data={data} onClose={() => setAdding(false)}/>}
     {removing && <FormDialog title="Remover compromisso?" dirty={false} busy={busy} onClose={() => setRemoving(null)}
       actions={<Button color="error" disabled={busy} onClick={() => void remove()}>Remover compromisso</Button>}>
       {error && <Alert severity="error">{error}</Alert>}
-      <Typography>Remover a previsão de {removing.description}. O lançamento bancário será preservado.</Typography>
+      <Typography>{removing.monthly?'Remover a série mensal de':'Remover a previsão de'} {removing.description}. O lançamento bancário será preservado.</Typography>
     </FormDialog>}
   </Paper>;
 }
 
-function CommitmentForm({ data, onClose }: { data: Upcoming; onClose: () => void }) {
+function CommitmentForm({ data, seed,onClose }: { seed?:Suggestion; data: Upcoming; onClose: () => void }) {
   const client = useQueryClient();
-  const [accountId, setAccountId] = useState(data.accounts.length === 1 ? data.accounts[0].id : '');
-  const [description, setDescription] = useState('');
+  const [accountId, setAccountId] = useState(seed?.accountId??(data.accounts.length === 1 ? data.accounts[0].id : ''));
+  const [monthly,setMonthly]=useState(!!seed);
+  const [description, setDescription] = useState(seed?.description??'');
   const [statementDescription, setStatementDescription] = useState('');
-  const [dueDate, setDueDate] = useState(data.from);
-  const [amount, setAmount] = useState('');
+  const [dueDate, setDueDate] = useState(seed?.nextDate??data.from);
+  const [amount, setAmount] = useState(seed?.amount??'');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -117,7 +127,7 @@ function CommitmentForm({ data, onClose }: { data: Upcoming; onClose: () => void
     try {
       await api(endpoint, { method: 'POST', body: json({
         accountId, description: description.trim(), statementDescription: statementDescription.trim() || description.trim(),
-        dueDate, amount,
+        dueDate, amount, monthly,
       }) });
       await client.invalidateQueries({ queryKey: ['upcomingCommitments'] });
       onClose();
@@ -142,6 +152,7 @@ function CommitmentForm({ data, onClose }: { data: Upcoming; onClose: () => void
       </TextField>
       <TextField type="date" label="Vencimento" value={dueDate} onChange={e => setDueDate(e.target.value)} required
         slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: data.from, max: data.through } }}/>
+      <label><input type="checkbox" checked={monthly} onChange={e=>setMonthly(e.target.checked)}/> Repetir todo mês neste dia</label>
       <MoneyInput label="Valor previsto" value={amount} onChange={setAmount}/>
       <Typography variant="body2" color="text.secondary">O vínculo usa conta, descrição, valor e até três dias de diferença entre vencimento e débito.</Typography>
     </Stack>

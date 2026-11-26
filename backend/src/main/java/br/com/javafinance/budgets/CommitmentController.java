@@ -20,6 +20,10 @@ public class CommitmentController {
         return commitments.upcoming(principal.id());
     }
 
+    @GetMapping("/suggestions") java.util.List<CommitmentService.Suggestion> suggestions(@AuthenticationPrincipal UserPrincipal principal) {
+        return commitments.suggestions(principal.id());
+    }
+
     @PostMapping @ResponseStatus(HttpStatus.NO_CONTENT)
     void create(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody CommitmentService.Create input) {
         commitments.create(principal.id(), input);

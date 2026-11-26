@@ -1,6 +1,7 @@
 package br.com.javafinance.organization;
 
 import br.com.javafinance.budgets.BudgetService;
+import br.com.javafinance.budgets.CommitmentService;
 import br.com.javafinance.common.*;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.math.*;
@@ -28,13 +29,31 @@ public class PlanningFinanceService {
     private final BudgetService budgets;
     private final AuditService audit;
     private final Clock clock;
-    public PlanningFinanceService(JdbcTemplate jdbc,BudgetService budgets,AuditService audit,Clock clock){
+    private final CommitmentService commitments;
+    public PlanningFinanceService(JdbcTemplate jdbc,BudgetService budgets,AuditService audit,Clock clock,CommitmentService commitments){
+        this.commitments=commitments;
         this.jdbc=jdbc;this.budgets=budgets;this.audit=audit;this.clock=clock;
     }
     private static BigDecimal optional(String raw){
         if(raw==null||raw.isBlank())return null;
         var value=Money.parse(raw);if(value.signum()<0)throw ApiException.bad("Informe valores não negativos.");return value;
     }
+    public record Simulation(BigDecimal remainingBudget,BigDecimal afterGoals) {}
+
+    @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
+    public Simulation simulate(UUID owner,UUID category,String amount) {
+        var cost=Money.parse(amount);
+        if(cost.signum()<=0) throw ApiException.bad("Informe um valor positivo.");
+        var context=context(owner);
+        var row=budgets.month(owner,YearMonth.parse(context.currentMonth())).categories().stream()
+            .filter(r->r.categoryId().equals(category) && !r.archived()).findFirst().orElseThrow(ApiException::missing);
+        return new Simulation(row.remaining()==null?null:row.remaining().subtract(cost),afterPurchase(context,cost));
+    }
+
+    static BigDecimal afterPurchase(Context context, BigDecimal cost) {
+        return context.monthlyResult()==null?null:context.monthlyResult().subtract(cost).setScale(2,RoundingMode.UNNECESSARY);
+    }
+
     public Profile profile(UUID owner){
         return jdbc.query("SELECT net_salary,monthly_expenses,version FROM planning_income_profile WHERE owner_id=?",
             (rs,n)->new Profile(rs.getBigDecimal(1),rs.getBigDecimal(2),rs.getLong(3),true),owner)
@@ -81,6 +100,11 @@ public class PlanningFinanceService {
         String expenseSource=p.monthlyExpenses()!=null?"USER":expenseObserved?"HISTORY":"UNKNOWN";
         var budget=budgets.month(owner,month).totals();
         var currentObligations=current.consumption().add(budget.planned()).add(budget.unbudgetedPlanned());
+        var upcoming=commitments.upcomingThrough(owner,LocalDate.now(clock),month.atEndOfMonth());
+        var due=upcoming.items().stream().filter(r->r.status()==CommitmentService.Status.EXPECTED
+            && !r.representedByMovement() && !r.dueDate().isAfter(month.atEndOfMonth()))
+            .map(CommitmentService.Row::amount).reduce(ZERO,BigDecimal::add);
+        currentObligations=currentObligations.add(due);
         var budgetEnvelope=budget.limit().add(budget.unbudgetedSpent()).add(budget.unbudgetedPlanned());
         BigDecimal monthlyExpenses=expenseReference==null?null:expenseReference.max(currentObligations).max(budgetEnvelope);
         BigDecimal existingGoals=jdbc.queryForObject("SELECT coalesce(sum(ceil(greatest(target-saved,0)*100/months)/100),0) FROM savings_goal WHERE owner_id=? AND target>saved",BigDecimal.class,owner);

@@ -14,7 +14,7 @@ export interface BudgetRow {
   categoryId: string; name: string; archived: boolean; essential: boolean; limit: string | null;
   version: number | null; spent: string; planned: string; remaining: string | null; percent: string | null;
 }
-interface BudgetMonth {
+export interface BudgetMonth {
   month: string; categories: BudgetRow[];
   totals: { limit: string; spent: string; planned: string; remaining: string; unbudgetedSpent: string; unbudgetedPlanned: string; configured: number };
 }

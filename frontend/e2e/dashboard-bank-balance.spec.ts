@@ -15,6 +15,10 @@ for (const state of ['linked', 'zero', 'missing', 'manual'] as const) {
         competence: { income: '0', expenses: '0', result: '0', savingsRate: null },
         unclassifiedBankRecords: state === 'linked' ? 2 : 0, cashFlow: '0', categories: state === 'linked' ? [{ id: null, name: 'Sem categoria', total: '50.25' }] : [], evolution: [], upcoming: [],
       };
+      else if(path==='/api/accounts')body=[];
+      else if(path==='/api/budgets/commitments')body={items:[]};
+      else if(path==='/api/budgets')body={categories:[]};
+      else if(path==='/api/goals/finances')body={existingGoalContributions:'0',monthlyResult:null};
       else { await route.abort(); return; }
       await route.fulfill({ json: body });
     });
@@ -34,6 +38,6 @@ for (const state of ['linked', 'zero', 'missing', 'manual'] as const) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       if (state === 'linked') await page.screenshot({ path: info.outputPath(`dashboard-principal-${width}.png`), fullPage: true });
     }
-    expect(requests.every(request => ['GET /api/auth/me', 'GET /api/reports/summary'].includes(request))).toBe(true);
+    expect(requests.every(request => ['GET /api/auth/me', 'GET /api/reports/summary','GET /api/accounts','GET /api/budgets/commitments','GET /api/budgets','GET /api/goals/finances'].includes(request))).toBe(true);
   });
 }

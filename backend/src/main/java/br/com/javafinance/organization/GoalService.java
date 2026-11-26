@@ -35,7 +35,12 @@ public class GoalService {
         if("SUMMARY".equals(intent.action()))return new Reply(summary(context),state,null,available,false,intent.method(),context,null);
         if(intent.target()==null)return new Reply("Quanto você quer guardar? Exemplo: quero R$ 3000 para uma viagem.",state,null,available,false,intent.method(),context,null);
         var target=value(intent.target());if(target.signum()==0)throw ApiException.bad("A meta deve ser maior que zero.");
-        if("PURCHASE".equals(intent.action()))return new Reply(available==null?"Ainda não conheço seu salário e seus gastos mensais. Complete o perfil abaixo antes de avaliar a compra.":target.compareTo(available)<=0?"A compra cabe na capacidade mensal estimada, após gastos e planos cadastrados. Confira vencimentos e reserva; isso não comprova dinheiro livre.":"A compra supera a capacidade mensal estimada, após gastos e planos cadastrados. Podemos montar uma meta antes de comprar.",state,null,available,false,intent.method(),context,null);
+        if("PURCHASE".equals(intent.action())) {
+            var remaining=PlanningFinanceService.afterPurchase(context,target);
+            String message=remaining==null?"Complete seu salário e gastos previstos para avaliar a compra."
+                :"Considerando a compra como gasto adicional, a margem após gastos e aportes planejados fica em R$ "+remaining.toPlainString()+".";
+            return new Reply(message,state,null,available,false,intent.method(),context,null);
+        }
         if(intent.months()==null)return new Reply("Em quantos meses quer atingir essa meta? Exemplo: em 6 meses. Você também pode informar quanto já tem reservado.",state,null,available,false,intent.method(),context,null);
         if(intent.months()<1||intent.months()>120)throw ApiException.bad("Escolha entre 1 e 120 meses.");
         var saved=value(intent.saved()==null?"0":intent.saved());var monthly=monthly(target,saved,intent.months());
